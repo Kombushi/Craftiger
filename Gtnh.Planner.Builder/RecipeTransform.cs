@@ -30,7 +30,8 @@ public static partial class RecipeTransform
             if (IsExcluded(machine, config)) continue;
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
-            var tier = gt is null ? 0 : VoltageTier(gt.Voltage);
+            var amps = config.MultiAmpMachines.Contains(machine) ? 4 : 1;
+            var tier = gt is null ? 0 : VoltageTier(gt.Voltage, amps);
 
             var inputs = new Dictionary<string, long>();
             foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
@@ -72,12 +73,12 @@ public static partial class RecipeTransform
         return result;
     }
 
-    /// <summary>Smallest tier whose voltage cap fits the recipe's EU/t; 0 EU/t is tierless.</summary>
-    public static int VoltageTier(long euT)
+    /// <summary>Smallest tier whose voltage cap (times available amps) fits the recipe's EU/t.</summary>
+    public static int VoltageTier(long euT, int amps = 1)
     {
         if (euT <= 0) return 0;
         var tier = 1;
-        long cap = 32;
+        long cap = 32L * amps;
         while (euT > cap)
         {
             tier++;

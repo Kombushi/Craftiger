@@ -50,8 +50,8 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.GtBronze}'"));
 
     [Fact]
-    public void AluminiumTiersFromEbfHeatNotFromBlockCycle() =>
-        Assert.Equal(2, _fixture.Scalar<int>(
+    public void AluminiumTiersFromMultiAmpEbfNotFromBlockCycle() =>
+        Assert.Equal(1, _fixture.Scalar<int>(
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.AluIngot}'"));
 
     [Fact]
@@ -115,9 +115,18 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     [Fact]
     public void VoltageTiersFollowTheLadder()
     {
-        Assert.Equal(2, _fixture.Scalar<int>("SELECT tier FROM recipes WHERE id = 'r_ebf'"));
+        Assert.Equal(1, _fixture.Scalar<int>("SELECT tier FROM recipes WHERE id = 'r_ebf'"));
         Assert.Equal(1, _fixture.Scalar<int>("SELECT tier FROM recipes WHERE id = 'r_macerate'"));
         Assert.Equal(0, _fixture.Scalar<int>("SELECT tier FROM recipes WHERE id = 'r_smelt'"));
+    }
+
+    [Fact]
+    public void MultiAmpMachinesTierAtFourAmps()
+    {
+        Assert.Equal(1, RecipeTransform.VoltageTier(120, amps: 4));
+        Assert.Equal(2, RecipeTransform.VoltageTier(120));
+        Assert.Equal(2, RecipeTransform.VoltageTier(480, amps: 4));
+        Assert.Equal(3, RecipeTransform.VoltageTier(480));
     }
 
     [Fact]

@@ -27,9 +27,11 @@ total raw-material bill as a flat grid of item-icon squares.
 
 - **Tier ladder**: `Steam = 0, LV = 1, MV = 2, HV = 3, EV = 4, IV = 5, LuV = 6,
   ZPM = 7, UV = 8, …` — extended upward to whatever the recipe dump contains.
-- **Voltage tier** of a recipe: smallest `n ≥ 1` with `EU/t ≤ 32 × 4^(n−1)`
-  (LV ≤ 32, MV ≤ 128, HV ≤ 512, …). Recipes run by steam machines, a plain
-  furnace, or a crafting table map to tier 0.
+- **Voltage tier** of a recipe: smallest `n ≥ 1` with `EU/t ≤ A × 32 × 4^(n−1)`
+  (LV ≤ 32, MV ≤ 128, HV ≤ 512, …), where `A = 4` for multiblocks fed by two
+  2-amp energy hatches (EBF and friends, builder config) and `A = 1`
+  otherwise — an LV-hatched EBF legally runs 120 EU/t recipes. Recipes run by
+  steam machines, a plain furnace, or a crafting table map to tier 0.
 - **Machine**: a recipe map (NEI recipe category), not a specific block.
   Multiblocks are machines like any other (Pyrolyse Oven, Distillation Tower,
   Large Chemical Reactor, Implosion Compressor, Vacuum Freezer, Assembly
@@ -101,7 +103,8 @@ Builder responsibilities, in order:
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
 4. **Tier tagging** — per recipe: voltage tier from EU/t (0 EU/t recipes are
-   tier 0). Machine names normalize by stripping the recipe map's constant
+   tier 0; multi-amp multiblocks tier at 4× amperage, §2). Machine names
+   normalize by stripping the recipe map's constant
    voltage suffix ("Macerator (ULV)" → "Macerator") and merging crafting
    variants (shaped/shapeless → "Crafting Table"). Any recipe with a coil
    heat requirement keeps it in `recipes.heat` (EBF and its multiblock
