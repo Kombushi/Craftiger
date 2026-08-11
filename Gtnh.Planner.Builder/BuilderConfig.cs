@@ -16,6 +16,10 @@ public sealed record BuilderConfig
     public required IReadOnlyList<string> GroupingOredictPrefixes { get; init; }
     public required IReadOnlyList<string> GroupingOredictInfixes { get; init; }
 
+    /// <summary>Era seeds for ores that spawn only in later-dimension worlds
+    /// (Moon = HV, Mars = EV, ...); ores not listed seed at era 0.</summary>
+    public required IReadOnlyDictionary<string, int> OreEras { get; init; }
+
     /// <summary>Oredict names of world-minable leaf blocks.</summary>
     public required IReadOnlyList<string> MinableBlockOredicts { get; init; }
 
@@ -64,6 +68,20 @@ public sealed record BuilderConfig
         FreeFluids = ["water"],
         ForceSingleAmp = [],
         ForceMultiAmp = [],
+        OreEras = new Dictionary<string, int>
+        {
+            ["Ilmenite"] = 3,
+            ["Rutile"] = 3,
+            ["Naquadah"] = 4,
+            ["Mytryl"] = 4,
+            ["Quantium"] = 4,
+            ["Ledox"] = 5,
+            ["CallistoIce"] = 5,
+            ["Oriharukon"] = 5,
+            ["MysteriousCrystal"] = 5,
+            ["BlackPlutonium"] = 5,
+            ["Trinium"] = 6
+        },
         Coils =
         [
             new("Cupronickel", 1800, 1),

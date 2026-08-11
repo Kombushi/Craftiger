@@ -20,6 +20,9 @@ public static class FixtureDump
     public const string IronIngot = "i~minecraft~iron_ingot~0";
     public const string CastIron = "i~gregtech~gt.metaitem.01~11304";
     public const string AluOre = "i~gregtech~gt.blockores~19";
+    public const string NaqOre = "i~gregtech~gt.blockores~324";
+    public const string NaqDust = "i~gregtech~gt.metaitem.01~2324";
+    public const string NaqIngot = "i~gregtech~gt.metaitem.01~11324";
     public const string CopperOre = "i~gregtech~gt.blockores~35";
     public const string CopperDust = "i~gregtech~gt.metaitem.01~2035";
     public const string CopperIngot = "i~gregtech~gt.metaitem.01~11035";
@@ -84,6 +87,9 @@ public static class FixtureDump
         Item(db, IronIngot, "Iron Ingot", "minecraft");
         Item(db, CastIron, "Cast Iron Ingot", "gregtech");
         Item(db, AluOre, "Aluminium Ore", "gregtech");
+        Item(db, NaqOre, "Naquadah Ore", "gregtech");
+        Item(db, NaqDust, "Naquadah Dust", "gregtech");
+        Item(db, NaqIngot, "Naquadah Ingot", "gregtech");
         Item(db, CopperOre, "Copper Ore", "gregtech");
         Item(db, CopperDust, "Copper Dust", "gregtech");
         Item(db, CopperIngot, "Copper Ingot", "gregtech");
@@ -122,6 +128,12 @@ public static class FixtureDump
         Oredict(db, "ingotAnyIron", "g_any_iron");
         Group(db, "g_alu_ore", (AluOre, 1));
         Oredict(db, "oreAluminium", "g_alu_ore");
+        Group(db, "g_naq_ore", (NaqOre, 1));
+        Group(db, "g_naq_dust", (NaqDust, 1));
+        Oredict(db, "oreNaquadah", "g_naq_ore");
+        Oredict(db, "dustNaquadah", "g_naq_dust");
+        Group(db, "g_naq_ingot", (NaqIngot, 1));
+        Oredict(db, "ingotNaquadah", "g_naq_ingot");
         Group(db, "g_copper_ore", (CopperOre, 1));
         Group(db, "g_copper_dust", (CopperDust, 1));
         Group(db, "g_copper_ingot", (CopperIngot, 1));
@@ -143,6 +155,7 @@ public static class FixtureDump
         RecipeType(db, "t_fuels", "gregtech", "Large Boiler Fuels (ULV)");
         RecipeType(db, "t_electrolyzer", "gregtech", "Electrolyzer (MV)");
         RecipeType(db, "t_arc", "gregtech", "Arc Furnace (LV)");
+        RecipeType(db, "t_alloy", "gregtech", "Alloy Smelter (ULV)");
 
         // Ingot <-> block cycle, both directions on the crafting table.
         Recipe(db, "r_block", "t_shaped", inputs: [("g_bronze_ingot9", 0)], outputs: [(BronzeBlock, 1, 1.0)]);
@@ -174,6 +187,8 @@ public static class FixtureDump
         Recipe(db, "r_cu_macerate", "t_macerator", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 2, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_cu_hammer", "t_shaped", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 1, 1.0)]);
         Recipe(db, "r_alu_macerate", "t_macerator", inputs: [("g_alu_ore", 0)], outputs: [(AluDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_naq_macerate", "t_macerator", inputs: [("g_naq_ore", 0)], outputs: [(NaqDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_naq_smelt", "t_alloy", inputs: [("g_naq_dust", 0)], outputs: [(NaqIngot, 1, 1.0)], voltage: 16, duration: 100);
         Recipe(db, "r_cu_smelt", "t_furnace", inputs: [("g_copper_dust", 0)], outputs: [(CopperIngot, 1, 1.0)]);
         Recipe(db, "r_oxygen", "t_electrolyzer", inputs: [], outputs: [], voltage: 30, duration: 100, fluidInputs: [("g_water", 0)]);
         Recipe(db, "r_anneal", "t_arc", inputs: [("g_copper_ingot", 0)], outputs: [(AnnealedIngot, 1, 1.0)], voltage: 30, duration: 100, fluidInputs: [("g_oxygen", 0)]);

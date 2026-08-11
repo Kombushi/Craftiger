@@ -122,7 +122,10 @@ Builder responsibilities, in order:
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
    era of every input)`. Era seeds at 0 are world-origin items only: minable
-   blocks, farmables, logs, gems, free fluids, and mined `ore*` items. Dusts
+   blocks, farmables, logs, gems, free fluids, and mined `ore*` items —
+   except ores that spawn only in later-dimension worlds, which seed at that
+   dimension's tier (Moon = HV, Mars = EV, …; material → era map in builder
+   config). Dusts
    are deliberately not seeded — a dust obtainable only by macerating its own
    metal (annealed copper) inherits the metal's era, while ore-processing
    dusts still reach era 0 through tier-0 crushing. An EBF

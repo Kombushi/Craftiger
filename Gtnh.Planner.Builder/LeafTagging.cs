@@ -61,7 +61,7 @@ public static class IngotTiers
         foreach (var (id, leafClass) in leafClasses)
             if (WorldOriginClasses.Contains(leafClass)) era[id] = 0;
         foreach (var (id, oredict) in unified.PrimaryOredictByCanonical)
-            if (oredict.StartsWith("ore", StringComparison.Ordinal)) era.TryAdd(id, 0);
+            if (oredict.StartsWith("ore", StringComparison.Ordinal)) era.TryAdd(id, OreSeedEra(oredict, config));
         var seeds = new HashSet<string>(era.Keys);
         var best = new Dictionary<string, PlannerRecipe>();
 
@@ -147,6 +147,14 @@ public static class IngotTiers
         }
         foreach (var input in recipe.Inputs.Keys)
             Explain(solve, names, input, depth + 1);
+    }
+
+    private static int OreSeedEra(string oredict, BuilderConfig config)
+    {
+        var material = oredict["ore".Length..];
+        foreach (var (suffix, era) in config.OreEras)
+            if (material.EndsWith(suffix, StringComparison.Ordinal)) return era;
+        return 0;
     }
 
     private static int Intrinsic(PlannerRecipe recipe, BuilderConfig config) =>

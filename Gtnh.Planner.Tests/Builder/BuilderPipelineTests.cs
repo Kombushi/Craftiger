@@ -83,6 +83,11 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
+    public void OffworldOresSeedAtTheirDimensionEra() =>
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.NaqIngot}'"));
+
+    [Fact]
     public void DerivedDustsInheritEraInsteadOfSeedingZero()
     {
         Assert.Equal(1, _fixture.Scalar<int>(
