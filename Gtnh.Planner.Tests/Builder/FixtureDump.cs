@@ -53,7 +53,7 @@ public static class FixtureDump
             CREATE TABLE RECIPE(ID TEXT, RECIPE_TYPE_ID TEXT);
             CREATE TABLE RECIPE_TYPE(ID TEXT, CATEGORY TEXT, TYPE TEXT);
             CREATE TABLE RECIPE_TYPE_ITEM(RECIPE_TYPE_ID TEXT, ICON_ID TEXT);
-            CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, RECIPE_ID TEXT);
+            CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, REQUIRES_CLEANROOM INTEGER, RECIPE_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE_METADATA(GREG_TECH_RECIPE_ID TEXT, METADATA_KEY TEXT, METADATA_VALUE INTEGER);
             CREATE TABLE ITEM_GROUP_ITEM_STACKS(ITEM_GROUP_ID TEXT, ITEM_STACKS_ITEM_ID TEXT, ITEM_STACKS_STACK_SIZE INTEGER);
             CREATE TABLE ORE_DICTIONARY(ID TEXT, NAME TEXT, ITEM_GROUP_ID TEXT);
@@ -259,7 +259,7 @@ public static class FixtureDump
         if (voltage is not null)
         {
             var label = voltage <= 32 ? "LV" : voltage <= 128 ? "MV" : "HV";
-            Execute(db, $"INSERT INTO GREG_TECH_RECIPE VALUES ('gtr~{id}', 1, {duration}, {voltage}, '{label}', '{id}')");
+            Execute(db, $"INSERT INTO GREG_TECH_RECIPE VALUES ('gtr~{id}', 1, {duration}, {voltage}, '{label}', 0, '{id}')");
             if (heat is not null)
                 Execute(db, $"INSERT INTO GREG_TECH_RECIPE_METADATA VALUES ('gtr~{id}', 'coil_heat', {heat})");
         }

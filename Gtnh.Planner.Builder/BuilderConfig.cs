@@ -12,6 +12,17 @@ public sealed record BuilderConfig
     /// <summary>Exact machine names dropped as pseudo-recipe sources.</summary>
     public required IReadOnlyList<string> ExcludedMachines { get; init; }
 
+    /// <summary>Recipes consuming these items are dropped; composition-based
+    /// recycling of composed machines conjures materials their crafting never used.</summary>
+    public required IReadOnlyList<string> ExcludedInputItems { get; init; }
+
+    /// <summary>Machine item name prefixes marking steam machines; they run their
+    /// map's LV-and-below recipes in the steam era.</summary>
+    public required IReadOnlyList<string> SteamMachinePrefixes { get; init; }
+
+    /// <summary>Cleanroom-flagged recipes inherit this machine item's era.</summary>
+    public string CleanroomItemName { get; init; } = "Cleanroom Controller";
+
     /// <summary>Wildcard oredict name patterns that group distinct materials and must not unify them.</summary>
     public required IReadOnlyList<string> GroupingOredictPrefixes { get; init; }
     public required IReadOnlyList<string> GroupingOredictInfixes { get; init; }
@@ -58,6 +69,8 @@ public sealed record BuilderConfig
         ],
         ExcludedMachineSuffixes = [" Fuels"],
         ExcludedMachines = ["Radio Hatch Material List"],
+        ExcludedInputItems = ["Electrical Engine"],
+        SteamMachinePrefixes = ["Steam ", "High Pressure "],
         GroupingOredictPrefixes = ["listAll", "crafting"],
         GroupingOredictInfixes = ["Any"],
         MinableBlockOredicts =

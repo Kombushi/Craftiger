@@ -44,11 +44,12 @@ public static class DumpReader
             heat[r.GetString(0)] = r.GetInt32(1);
 
         var gt = new Dictionary<string, DumpGtData>();
-        foreach (var r in Rows(db, """SELECT RECIPE_ID, VOLTAGE, AMPERAGE, DURATION, VOLTAGE_TIER FROM GREG_TECH_RECIPE"""))
+        foreach (var r in Rows(db, """SELECT RECIPE_ID, VOLTAGE, AMPERAGE, DURATION, VOLTAGE_TIER, REQUIRES_CLEANROOM FROM GREG_TECH_RECIPE"""))
         {
             var id = r.GetString(0);
             gt[id] = new DumpGtData(id, r.GetInt64(1), r.GetInt64(2), r.GetInt64(3),
-                heat.TryGetValue(id, out var h) ? h : null, r.IsDBNull(4) ? null : r.GetString(4));
+                heat.TryGetValue(id, out var h) ? h : null, r.IsDBNull(4) ? null : r.GetString(4),
+                !r.IsDBNull(5) && r.GetInt64(5) != 0);
         }
 
         var groupStacks = new Dictionary<string, List<DumpItemStack>>();

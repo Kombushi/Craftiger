@@ -12,7 +12,8 @@ public sealed record PlannerRecipe(
     Dictionary<string, long> Inputs,
     List<PlannerOutput> Outputs,
     IReadOnlyList<string> MachineItemIds,
-    IReadOnlyList<IReadOnlyList<string>> InputSlotAlternatives);
+    IReadOnlyList<IReadOnlyList<string>> InputSlotAlternatives,
+    bool RequiresCleanroom);
 
 public sealed record PlannerOutput(string ItemId, long Amount, double Chance);
 
@@ -92,6 +93,7 @@ public static partial class RecipeTransform
 
             Net(inputs, outputs);
             if (outputs.Count == 0 || inputs.Count == 0) continue;
+            if (inputs.Keys.Any(id => config.ExcludedInputItems.Contains(NameOf(dump, id)))) continue;
 
             result.Add(new PlannerRecipe(
                 recipe.Id, machine, tier, gt?.Heat,
@@ -100,7 +102,8 @@ public static partial class RecipeTransform
                 ungatedTypeIds.Contains(recipe.RecipeTypeId)
                     ? []
                     : machinesByTypeId.GetValueOrDefault(recipe.RecipeTypeId) ?? [],
-                slots));
+                slots,
+                gt?.RequiresCleanroom ?? false));
         }
 
         return result;
@@ -175,6 +178,10 @@ public static partial class RecipeTransform
             yield return (itemId, amount);
         }
     }
+
+    private static string NameOf(Dump dump, string itemId) =>
+        dump.Items.TryGetValue(itemId, out var item) ? item.Name
+        : dump.Fluids.TryGetValue(itemId, out var fluid) ? fluid.Name : itemId;
 
     private static bool IsCatalyst(string itemId, BuilderConfig config) =>
         config.CatalystItemIdPrefixes.Any(p => itemId.StartsWith(p, StringComparison.Ordinal));

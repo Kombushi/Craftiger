@@ -89,6 +89,20 @@ public static class IngotTiers
             }
         }
 
+        var cleanroomIds = dump.Items.Values
+            .Where(i => i.Name == config.CleanroomItemName)
+            .Select(i => unified.Canonical(i.Id))
+            .ToHashSet();
+        foreach (var recipe in recipes)
+        {
+            if (!recipe.RequiresCleanroom) continue;
+            foreach (var cleanroomId in cleanroomIds)
+            {
+                if (!consumers.TryGetValue(cleanroomId, out var list)) consumers[cleanroomId] = list = [];
+                list.Add(recipe);
+            }
+        }
+
         var queue = new Queue<PlannerRecipe>(recipes);
         var queued = new HashSet<string>(recipes.Select(r => r.Id));
         while (queue.TryDequeue(out var recipe))
@@ -96,9 +110,19 @@ public static class IngotTiers
             queued.Remove(recipe.Id);
 
             var candidate = Intrinsic(recipe, config);
+            if (candidate == 1 && recipe.Heat is null && HasSteamHandler(recipe, era, dump, config))
+                candidate = 0;
             var machineEra = MachineEra(recipe, era);
             if (machineEra == int.MaxValue) continue;
             candidate = Math.Max(candidate, machineEra);
+            if (recipe.RequiresCleanroom)
+            {
+                var cleanroomEra = int.MaxValue;
+                foreach (var cleanroomId in cleanroomIds)
+                    if (era.TryGetValue(cleanroomId, out var e) && e < cleanroomEra) cleanroomEra = e;
+                if (cleanroomEra == int.MaxValue) continue;
+                candidate = Math.Max(candidate, cleanroomEra);
+            }
             foreach (var slot in recipe.InputSlotAlternatives)
             {
                 var slotEra = int.MaxValue;
@@ -179,6 +203,20 @@ public static class IngotTiers
             var best = slot.Where(solve.Era.ContainsKey).OrderBy(id => solve.Era[id]).FirstOrDefault() ?? slot[0];
             Explain(solve, names, best, depth + 1);
         }
+    }
+
+    /// <summary>Steam machines run their map's LV-and-below recipes in the steam era.</summary>
+    private static bool HasSteamHandler(
+        PlannerRecipe recipe, Dictionary<string, int> era, Dump dump, BuilderConfig config)
+    {
+        foreach (var machineId in recipe.MachineItemIds)
+        {
+            if (!era.ContainsKey(machineId)) continue;
+            if (!dump.Items.TryGetValue(machineId, out var item)) continue;
+            if (config.SteamMachinePrefixes.Any(p => item.Name.StartsWith(p, StringComparison.Ordinal)))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>The cheapest producible handler machine gates the recipe's era.</summary>
