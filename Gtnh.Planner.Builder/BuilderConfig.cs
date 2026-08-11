@@ -25,7 +25,7 @@ public sealed record BuilderConfig
     /// <summary>Fluid internal names priced at zero.</summary>
     public required IReadOnlyList<string> FreeFluids { get; init; }
 
-    /// <summary>Multiblocks that draw two 2A energy hatches, tiering recipes at 4x amperage.</summary>
+    /// <summary>Multiblocks whose two 2A energy hatches run recipes one tier above the hatches.</summary>
     public required IReadOnlyList<string> MultiAmpMachines { get; init; }
 
     /// <summary>EBF coil ladder; tier is the coil's voltage-tier equivalent.</summary>
@@ -57,7 +57,7 @@ public sealed record BuilderConfig
             "treeLeaves", "reed"
         ],
         FreeFluids = ["water"],
-        MultiAmpMachines = ["Blast Furnace"],
+        MultiAmpMachines = ["Blast Furnace", "Volcanus"],
         Coils =
         [
             new("Cupronickel", 1800, 1),

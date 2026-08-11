@@ -30,8 +30,8 @@ public static partial class RecipeTransform
             if (IsExcluded(machine, config)) continue;
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
-            var amps = config.MultiAmpMachines.Contains(machine) ? 4 : 1;
-            var tier = gt is null ? 0 : VoltageTier(gt.Voltage, amps);
+            var tier = gt is null || gt.Voltage <= 0 ? 0 : LabelTier(gt.TierLabel) ?? VoltageTier(gt.Voltage);
+            if (tier > 0 && config.MultiAmpMachines.Contains(machine)) tier = Math.Max(1, tier - 1);
 
             var inputs = new Dictionary<string, long>();
             foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
@@ -73,12 +73,23 @@ public static partial class RecipeTransform
         return result;
     }
 
-    /// <summary>Smallest tier whose voltage cap (times available amps) fits the recipe's EU/t.</summary>
-    public static int VoltageTier(long euT, int amps = 1)
+    private static readonly Dictionary<string, int> LabelTiers = new()
+    {
+        ["ULV"] = 1, ["LV"] = 1, ["MV"] = 2, ["HV"] = 3, ["EV"] = 4, ["IV"] = 5,
+        ["LuV"] = 6, ["ZPM"] = 7, ["UV"] = 8, ["UHV"] = 9, ["UEV"] = 10,
+        ["UIV"] = 11, ["UMV"] = 12, ["UXV"] = 13, ["MAX"] = 14
+    };
+
+    /// <summary>GT's own per-recipe tier label; it already accounts for machine amperage.</summary>
+    public static int? LabelTier(string? label) =>
+        label is not null && LabelTiers.TryGetValue(label, out var tier) ? tier : null;
+
+    /// <summary>Fallback when the dump carries no tier label.</summary>
+    public static int VoltageTier(long euT)
     {
         if (euT <= 0) return 0;
         var tier = 1;
-        long cap = 32L * amps;
+        long cap = 32;
         while (euT > cap)
         {
             tier++;

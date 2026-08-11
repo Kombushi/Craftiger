@@ -6,7 +6,7 @@ public sealed record DumpFluid(string Id, string Name, string ModId, string Inte
 
 public sealed record DumpRecipe(string Id, string Machine, string Category);
 
-public sealed record DumpGtData(string RecipeId, long Voltage, long Amperage, long Duration, int? Heat);
+public sealed record DumpGtData(string RecipeId, long Voltage, long Amperage, long Duration, int? Heat, string? TierLabel);
 
 public sealed record DumpItemStack(string ItemId, long Size);
 

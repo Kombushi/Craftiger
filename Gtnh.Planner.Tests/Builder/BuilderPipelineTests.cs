@@ -121,12 +121,14 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
-    public void MultiAmpMachinesTierAtFourAmps()
+    public void GtTierLabelsAreAuthoritative()
     {
-        Assert.Equal(1, RecipeTransform.VoltageTier(120, amps: 4));
-        Assert.Equal(2, RecipeTransform.VoltageTier(120));
-        Assert.Equal(2, RecipeTransform.VoltageTier(480, amps: 4));
-        Assert.Equal(3, RecipeTransform.VoltageTier(480));
+        Assert.Equal(1, RecipeTransform.LabelTier("ULV"));
+        Assert.Equal(1, RecipeTransform.LabelTier("LV"));
+        Assert.Equal(2, RecipeTransform.LabelTier("MV"));
+        Assert.Equal(14, RecipeTransform.LabelTier("MAX"));
+        Assert.Null(RecipeTransform.LabelTier(null));
+        Assert.Null(RecipeTransform.LabelTier("bogus"));
     }
 
     [Fact]
