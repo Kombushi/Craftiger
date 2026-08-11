@@ -47,6 +47,7 @@ public static class FixtureDump
                 MOD_ID TEXT, NBT TEXT, TEMPERATURE INTEGER, UNLOCALIZED_NAME TEXT, VISCOSITY INTEGER);
             CREATE TABLE RECIPE(ID TEXT, RECIPE_TYPE_ID TEXT);
             CREATE TABLE RECIPE_TYPE(ID TEXT, CATEGORY TEXT, TYPE TEXT);
+            CREATE TABLE RECIPE_TYPE_ITEM(RECIPE_TYPE_ID TEXT, ICON_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, RECIPE_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE_METADATA(GREG_TECH_RECIPE_ID TEXT, METADATA_KEY TEXT, METADATA_VALUE INTEGER);
             CREATE TABLE ITEM_GROUP_ITEM_STACKS(ITEM_GROUP_ID TEXT, ITEM_STACKS_ITEM_ID TEXT, ITEM_STACKS_STACK_SIZE INTEGER);
@@ -135,7 +136,7 @@ public static class FixtureDump
 
         RecipeType(db, "t_shaped", "minecraft", "Crafting (Shaped)");
         RecipeType(db, "t_furnace", "minecraft", "Furnace");
-        RecipeType(db, "t_ebf", "gregtech", "Blast Furnace (MV)");
+        RecipeType(db, "t_ebf", "gregtech", "Blast Furnace (MV)", handlerIcons: 2);
         RecipeType(db, "t_extruder", "gregtech", "Extruder (MV)");
         RecipeType(db, "t_macerator", "gregtech", "Macerator (ULV)");
         RecipeType(db, "t_solidifier", "gregtech", "Fluid Solidifier (MV)");
@@ -204,8 +205,13 @@ public static class FixtureDump
     private static void Oredict(SqliteConnection db, string name, string groupId) =>
         Execute(db, $"INSERT INTO ORE_DICTIONARY VALUES ('od_{name}', '{name}', '{groupId}')");
 
-    private static void RecipeType(SqliteConnection db, string id, string category, string type) =>
+    /// <summary>Single-block maps list a tiered machine family; multiblocks list few controllers.</summary>
+    private static void RecipeType(SqliteConnection db, string id, string category, string type, int handlerIcons = 12)
+    {
         Execute(db, $"INSERT INTO RECIPE_TYPE VALUES ('{id}', '{category}', '{type}')");
+        for (var i = 0; i < handlerIcons; i++)
+            Execute(db, $"INSERT INTO RECIPE_TYPE_ITEM VALUES ('{id}', 'icon~{id}~{i}')");
+    }
 
     private static void Recipe(
         SqliteConnection db, string id, string typeId,

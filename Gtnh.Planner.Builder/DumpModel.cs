@@ -4,7 +4,7 @@ public sealed record DumpItem(string Id, string Name, string ModId, string Inter
 
 public sealed record DumpFluid(string Id, string Name, string ModId, string InternalName, string ImagePath);
 
-public sealed record DumpRecipe(string Id, string Machine, string Category);
+public sealed record DumpRecipe(string Id, string Machine, string Category, int HandlerIcons);
 
 public sealed record DumpGtData(string RecipeId, long Voltage, long Amperage, long Duration, int? Heat, string? TierLabel);
 

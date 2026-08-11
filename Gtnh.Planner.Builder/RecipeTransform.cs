@@ -31,7 +31,7 @@ public static partial class RecipeTransform
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
             var tier = gt is null || gt.Voltage <= 0 ? 0 : LabelTier(gt.TierLabel) ?? VoltageTier(gt.Voltage);
-            if (tier > 0 && config.MultiAmpMachines.Contains(machine)) tier = Math.Max(1, tier - 1);
+            if (tier > 0 && IsMultiAmp(recipe, machine, config)) tier = Math.Max(1, tier - 1);
 
             var inputs = new Dictionary<string, long>();
             foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
@@ -71,6 +71,14 @@ public static partial class RecipeTransform
         }
 
         return result;
+    }
+
+    /// <summary>Two 2A hatches run recipes one tier above themselves on any multiblock.</summary>
+    private static bool IsMultiAmp(DumpRecipe recipe, string machine, BuilderConfig config)
+    {
+        if (config.ForceSingleAmp.Contains(machine)) return false;
+        if (config.ForceMultiAmp.Contains(machine)) return true;
+        return recipe.Category == "gregtech" && recipe.HandlerIcons <= config.MultiblockMaxHandlers;
     }
 
     private static readonly Dictionary<string, int> LabelTiers = new()

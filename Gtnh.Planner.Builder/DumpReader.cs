@@ -18,12 +18,17 @@ public static class DumpReader
         foreach (var r in Rows(db, """SELECT ID, LOCALIZED_NAME, MOD_ID, INTERNAL_NAME, IMAGE_FILE_PATH FROM FLUID"""))
             fluids[r.GetString(0)] = new DumpFluid(r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetString(4));
 
+        var handlerIcons = new Dictionary<string, int>();
+        foreach (var r in Rows(db, """SELECT RECIPE_TYPE_ID, COUNT(*) FROM RECIPE_TYPE_ITEM GROUP BY 1"""))
+            handlerIcons[r.GetString(0)] = r.GetInt32(1);
+
         var recipes = new List<DumpRecipe>();
         foreach (var r in Rows(db, """
-            SELECT r.ID, rt.TYPE, rt.CATEGORY
+            SELECT r.ID, rt.TYPE, rt.CATEGORY, rt.ID
             FROM RECIPE r JOIN RECIPE_TYPE rt ON rt.ID = r.RECIPE_TYPE_ID
             """))
-            recipes.Add(new DumpRecipe(r.GetString(0), r.GetString(1), r.GetString(2)));
+            recipes.Add(new DumpRecipe(r.GetString(0), r.GetString(1), r.GetString(2),
+                handlerIcons.GetValueOrDefault(r.GetString(3))));
 
         // coil_heat metadata is authoritative; RECIPE_SPECIAL_VALUE holds the same number for EBF maps.
         var heat = new Dictionary<string, int>();

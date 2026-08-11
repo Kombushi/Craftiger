@@ -31,11 +31,14 @@ total raw-material bill as a flat grid of item-icon squares.
   (`ULV`/`LV` → 1, `MV` → 2, `HV` → 3, …), which already accounts for
   machine amperage quirks (3-amp arc furnaces, 2-amp thermal centrifuges).
   Fallback when the label is absent: smallest `n ≥ 1` with
-  `EU/t ≤ 32 × 4^(n−1)`. Multiblocks fed by two 2-amp energy hatches (EBF
-  family, builder config list) run recipes one tier above their hatches, so
-  their recipes tier one step lower — an LV-hatched EBF legally runs
-  120 EU/t recipes. Zero-EU/t recipes, and those run by steam machines, a
-  plain furnace, or a crafting table, map to tier 0.
+  `EU/t ≤ 32 × 4^(n−1)`. Multiblocks are fed by two 2-amp energy hatches and
+  run recipes one tier above the hatches, so their recipes tier one step
+  lower — an LV-hatched EBF legally runs 120 EU/t recipes. The builder
+  detects multiblock maps from the dump: a single-block map lists its tiered
+  machine family as NEI handlers (9+), a multiblock map lists its few
+  controllers; per-machine overrides are builder config. Zero-EU/t recipes,
+  and those run by steam machines, a plain furnace, or a crafting table, map
+  to tier 0.
 - **Machine**: a recipe map (NEI recipe category), not a specific block.
   Multiblocks are machines like any other (Pyrolyse Oven, Distillation Tower,
   Large Chemical Reactor, Implosion Compressor, Vacuum Freezer, Assembly
