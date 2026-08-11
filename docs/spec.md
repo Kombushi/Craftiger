@@ -133,8 +133,11 @@ Builder responsibilities, in order:
    heat)`. Machine availability gates the era too: each recipe's intrinsic
    tier includes the era of the cheapest producible machine handling its map
    (NEI handler items), so a chain through a Large Chemical Reactor cannot
-   land below the era of building one. A naive per-recipe minimum would be
-   poisoned by recycling
+   land below the era of building one. Cleanroom-flagged recipes additionally
+   inherit the Cleanroom Controller's era, which is pinned at HV — the pack's
+   circuit-line progression wall, a fact the recipe graph cannot derive.
+   Steam-handled maps run their LV-and-below recipes in the steam era. A
+   naive per-recipe minimum would be poisoned by recycling
    (plate → ingot smelting, arc-furnacing machines, block ↔ ingot cycles);
    in the fixpoint those routes need the ingot's own era first and starve.
    Era is independent of the garage: bronze and steel land at 0 via

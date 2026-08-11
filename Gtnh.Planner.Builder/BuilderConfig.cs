@@ -23,6 +23,9 @@ public sealed record BuilderConfig
     /// <summary>Cleanroom-flagged recipes inherit this machine item's era.</summary>
     public string CleanroomItemName { get; init; } = "Cleanroom Controller";
 
+    /// <summary>The cleanroom is the pack's HV progression wall; its era never resolves lower.</summary>
+    public int CleanroomMinEra { get; init; } = 3;
+
     /// <summary>Wildcard oredict name patterns that group distinct materials and must not unify them.</summary>
     public required IReadOnlyList<string> GroupingOredictPrefixes { get; init; }
     public required IReadOnlyList<string> GroupingOredictInfixes { get; init; }

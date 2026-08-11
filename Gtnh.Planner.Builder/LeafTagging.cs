@@ -136,8 +136,11 @@ public static class IngotTiers
             foreach (var output in recipe.Outputs)
             {
                 if (seeds.Contains(output.ItemId)) continue;
-                if (era.TryGetValue(output.ItemId, out var current) && current <= candidate) continue;
-                era[output.ItemId] = candidate;
+                var floored = cleanroomIds.Contains(output.ItemId)
+                    ? Math.Max(candidate, config.CleanroomMinEra)
+                    : candidate;
+                if (era.TryGetValue(output.ItemId, out var current) && current <= floored) continue;
+                era[output.ItemId] = floored;
                 best[output.ItemId] = recipe;
                 foreach (var consumer in consumers.GetValueOrDefault(output.ItemId) ?? [])
                     if (queued.Add(consumer.Id)) queue.Enqueue(consumer);
