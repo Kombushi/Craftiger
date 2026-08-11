@@ -41,8 +41,21 @@ var itemIds = PlannerWriter.CollectItemIds(recipes);
 var leafClasses = Stage("tag leaves", () => LeafTagging.Run(itemIds, dump, unified, config));
 Console.WriteLine($"  {leafClasses.Count:N0} leaves among {itemIds.Count:N0} items");
 
-var ingotTiers = Stage("tier ingots", () => IngotTiers.Run(recipes, leafClasses, config));
+var eraSolve = Stage("tier ingots", () => IngotTiers.Run(recipes, leafClasses, unified, config));
+var ingotTiers = eraSolve.Tiers;
 Console.WriteLine($"  {ingotTiers.Count:N0} ingots tiered");
+
+var explainIdx = Array.IndexOf(args, "--explain");
+if (explainIdx >= 0 && explainIdx + 1 < args.Length)
+{
+    var query = args[explainIdx + 1];
+    var names = itemIds.ToDictionary(id => id,
+        id => dump.Fluids.TryGetValue(id, out var f) ? f.Name : dump.Items.TryGetValue(id, out var it) ? it.Name : id);
+    var target = names.FirstOrDefault(kv => kv.Value.Equals(query, StringComparison.OrdinalIgnoreCase)).Key;
+    if (target is null) Console.WriteLine($"--explain: no item named '{query}'");
+    else IngotTiers.Explain(eraSolve, names, target);
+    return 0;
+}
 
 var extraMeta = new Dictionary<string, string>();
 if (File.Exists(imagesPath))

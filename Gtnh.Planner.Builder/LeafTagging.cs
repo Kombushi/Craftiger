@@ -40,15 +40,30 @@ public static class LeafTagging
     }
 }
 
+public sealed record EraSolve(
+    Dictionary<string, int> Tiers,
+    Dictionary<string, int> Era,
+    Dictionary<string, PlannerRecipe> BestRecipe,
+    HashSet<string> Seeds);
+
 /// <summary>Tiers ingots by production era: a min-of-max fixpoint over the recipe graph.</summary>
 public static class IngotTiers
 {
-    public static Dictionary<string, int> Run(
-        List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, BuilderConfig config)
+    private static readonly HashSet<string> WorldOriginClasses =
+        ["minable_block", "farmable", "log", "gem", "free_fluid"];
+
+    public static EraSolve Run(
+        List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, UnifiedItems unified, BuilderConfig config)
     {
+        // Dusts are not era seeds: a dust obtainable only by macerating its own
+        // metal must inherit the metal's era instead of granting era 0.
         var era = new Dictionary<string, int>();
         foreach (var (id, leafClass) in leafClasses)
-            if (leafClass != "ingot") era[id] = 0;
+            if (WorldOriginClasses.Contains(leafClass)) era[id] = 0;
+        foreach (var (id, oredict) in unified.PrimaryOredictByCanonical)
+            if (oredict.StartsWith("ore", StringComparison.Ordinal)) era.TryAdd(id, 0);
+        var seeds = new HashSet<string>(era.Keys);
+        var best = new Dictionary<string, PlannerRecipe>();
 
         var consumers = new Dictionary<string, List<PlannerRecipe>>();
         foreach (var recipe in recipes)
@@ -76,8 +91,10 @@ public static class IngotTiers
 
             foreach (var output in recipe.Outputs)
             {
+                if (seeds.Contains(output.ItemId)) continue;
                 if (era.TryGetValue(output.ItemId, out var current) && current <= candidate) continue;
                 era[output.ItemId] = candidate;
+                best[output.ItemId] = recipe;
                 foreach (var consumer in consumers.GetValueOrDefault(output.ItemId) ?? [])
                     if (queued.Add(consumer.Id)) queue.Enqueue(consumer);
             }
@@ -105,7 +122,31 @@ public static class IngotTiers
         }
         foreach (var (id, tier) in fallback) tiers[id] = tier;
 
-        return tiers;
+        return new EraSolve(tiers, era, best, seeds);
+    }
+
+    public static void Explain(EraSolve solve, Dictionary<string, string> names, string itemId, int depth = 0)
+    {
+        var name = names.GetValueOrDefault(itemId, itemId);
+        var indent = new string(' ', depth * 2);
+        if (!solve.Era.TryGetValue(itemId, out var era))
+        {
+            Console.WriteLine($"{indent}{name}: unreachable");
+            return;
+        }
+        if (solve.Seeds.Contains(itemId) || !solve.BestRecipe.TryGetValue(itemId, out var recipe))
+        {
+            Console.WriteLine($"{indent}{name}: era {era} (seed)");
+            return;
+        }
+        Console.WriteLine($"{indent}{name}: era {era} via {recipe.Machine} tier {recipe.Tier} ({recipe.Id})");
+        if (depth >= 12)
+        {
+            Console.WriteLine($"{indent}  ...");
+            return;
+        }
+        foreach (var input in recipe.Inputs.Keys)
+            Explain(solve, names, input, depth + 1);
     }
 
     private static int Intrinsic(PlannerRecipe recipe, BuilderConfig config) =>

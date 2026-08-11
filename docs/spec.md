@@ -111,7 +111,11 @@ Builder responsibilities, in order:
 6. **Ingot tiering** — an ingot's tier is its production era, computed as a
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
-   era of every input)`, with all non-ingot leaves seeded at era 0. An EBF
+   era of every input)`. Era seeds at 0 are world-origin items only: minable
+   blocks, farmables, logs, gems, free fluids, and mined `ore*` items. Dusts
+   are deliberately not seeded — a dust obtainable only by macerating its own
+   metal (annealed copper) inherits the metal's era, while ore-processing
+   dusts still reach era 0 through tier-0 crushing. An EBF
    recipe's intrinsic tier is `max(voltage tier, coil tier of its required
    heat)`. A naive per-recipe minimum would be poisoned by recycling
    (plate → ingot smelting, arc-furnacing machines, block ↔ ingot cycles);

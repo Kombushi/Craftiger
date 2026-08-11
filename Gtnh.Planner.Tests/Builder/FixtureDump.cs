@@ -19,6 +19,13 @@ public static class FixtureDump
     public const string Log = "i~minecraft~log~0";
     public const string IronIngot = "i~minecraft~iron_ingot~0";
     public const string CastIron = "i~gregtech~gt.metaitem.01~11304";
+    public const string AluOre = "i~gregtech~gt.blockores~19";
+    public const string CopperOre = "i~gregtech~gt.blockores~35";
+    public const string CopperDust = "i~gregtech~gt.metaitem.01~2035";
+    public const string CopperIngot = "i~gregtech~gt.metaitem.01~11035";
+    public const string AnnealedIngot = "i~gregtech~gt.metaitem.01~11345";
+    public const string AnnealedDust = "i~gregtech~gt.metaitem.01~2345";
+    public const string Oxygen = "f~oxygen";
     public const string Water = "f~water";
     public const string Lava = "f~lava";
     public const string Hydrogen = "f~hydrogen";
@@ -75,6 +82,13 @@ public static class FixtureDump
         Item(db, EmptyCell, "Empty Cell", "gregtech");
         Item(db, IronIngot, "Iron Ingot", "minecraft");
         Item(db, CastIron, "Cast Iron Ingot", "gregtech");
+        Item(db, AluOre, "Aluminium Ore", "gregtech");
+        Item(db, CopperOre, "Copper Ore", "gregtech");
+        Item(db, CopperDust, "Copper Dust", "gregtech");
+        Item(db, CopperIngot, "Copper Ingot", "gregtech");
+        Item(db, AnnealedIngot, "Annealed Copper Ingot", "gregtech");
+        Item(db, AnnealedDust, "Annealed Copper Dust", "gregtech");
+        Fluid(db, Oxygen, "oxygen", "Oxygen");
         Execute(db, $"INSERT INTO FLUID_CONTAINER VALUES ('fc_water', 1000, '{WaterCell}', '{EmptyCell}', '{Water}')");
 
         Group(db, "g_bronze_ingot", (GtBronze, 1), (Ic2Bronze, 1));
@@ -105,6 +119,19 @@ public static class FixtureDump
         Oredict(db, "ingotIron", "g_iron");
         Oredict(db, "ingotCastIron", "g_cast_iron");
         Oredict(db, "ingotAnyIron", "g_any_iron");
+        Group(db, "g_alu_ore", (AluOre, 1));
+        Oredict(db, "oreAluminium", "g_alu_ore");
+        Group(db, "g_copper_ore", (CopperOre, 1));
+        Group(db, "g_copper_dust", (CopperDust, 1));
+        Group(db, "g_copper_ingot", (CopperIngot, 1));
+        Group(db, "g_annealed_ingot", (AnnealedIngot, 1));
+        Group(db, "g_annealed_dust", (AnnealedDust, 1));
+        Execute(db, $"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_oxygen', 63, '{Oxygen}')");
+        Oredict(db, "oreCopper", "g_copper_ore");
+        Oredict(db, "dustCopper", "g_copper_dust");
+        Oredict(db, "ingotCopper", "g_copper_ingot");
+        Oredict(db, "ingotAnnealedCopper", "g_annealed_ingot");
+        Oredict(db, "dustAnnealedCopper", "g_annealed_dust");
 
         RecipeType(db, "t_shaped", "minecraft", "Crafting (Shaped)");
         RecipeType(db, "t_furnace", "minecraft", "Furnace");
@@ -114,6 +141,7 @@ public static class FixtureDump
         RecipeType(db, "t_solidifier", "gregtech", "Fluid Solidifier (MV)");
         RecipeType(db, "t_fuels", "gregtech", "Large Boiler Fuels (ULV)");
         RecipeType(db, "t_electrolyzer", "gregtech", "Electrolyzer (MV)");
+        RecipeType(db, "t_arc", "gregtech", "Arc Furnace (LV)");
 
         // Ingot <-> block cycle, both directions on the crafting table.
         Recipe(db, "r_block", "t_shaped", inputs: [("g_bronze_ingot9", 0)], outputs: [(BronzeBlock, 1, 1.0)]);
@@ -139,6 +167,18 @@ public static class FixtureDump
         // Distinct materials share the wildcard ingotAnyIron group but must stay separate.
         Recipe(db, "r_iron_use", "t_shaped", inputs: [("g_iron", 0)], outputs: [(Plank, 1, 1.0)]);
         Recipe(db, "r_cast_use", "t_shaped", inputs: [("g_cast_iron", 0)], outputs: [(Plank, 1, 1.0)]);
+
+        // Annealed copper: real era is the LV arc route; the dust-smelting loop
+        // must inherit it rather than grant era 0.
+        Recipe(db, "r_cu_macerate", "t_macerator", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_cu_hammer", "t_shaped", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 1, 1.0)]);
+        Recipe(db, "r_alu_macerate", "t_macerator", inputs: [("g_alu_ore", 0)], outputs: [(AluDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_cu_smelt", "t_furnace", inputs: [("g_copper_dust", 0)], outputs: [(CopperIngot, 1, 1.0)]);
+        Recipe(db, "r_oxygen", "t_electrolyzer", inputs: [], outputs: [], voltage: 30, duration: 100, fluidInputs: [("g_water", 0)]);
+        Recipe(db, "r_anneal", "t_arc", inputs: [("g_copper_ingot", 0)], outputs: [(AnnealedIngot, 1, 1.0)], voltage: 30, duration: 100, fluidInputs: [("g_oxygen", 0)]);
+        Recipe(db, "r_ann_macerate", "t_macerator", inputs: [("g_annealed_ingot", 0)], outputs: [(AnnealedDust, 1, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_ann_smelt", "t_furnace", inputs: [("g_annealed_dust", 0)], outputs: [(AnnealedIngot, 1, 1.0)]);
+        Execute(db, $"INSERT INTO RECIPE_FLUID_OUTPUTS VALUES ('r_oxygen', 500, '{Oxygen}', NULL, 0)");
 
         // Cell-based recipe: decomposition plus netting must leave only fluids.
         Group(db, "g_water_cell", (WaterCell, 1));
