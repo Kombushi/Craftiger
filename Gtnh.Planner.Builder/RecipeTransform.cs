@@ -10,7 +10,9 @@ public sealed record PlannerRecipe(
     long DurationTicks,
     long EuT,
     Dictionary<string, long> Inputs,
-    List<PlannerOutput> Outputs);
+    List<PlannerOutput> Outputs,
+    IReadOnlyList<string> MachineItemIds,
+    IReadOnlyList<IReadOnlyList<string>> InputSlotAlternatives);
 
 public sealed record PlannerOutput(string ItemId, long Amount, double Chance);
 
@@ -24,6 +26,18 @@ public static partial class RecipeTransform
     {
         var result = new List<PlannerRecipe>();
 
+        // Machine items gate an era only when they exist as real craftable items.
+        var machinesByTypeId = new Dictionary<string, IReadOnlyList<string>>();
+        foreach (var (typeId, icons) in dump.HandlerItemsByRecipeTypeId)
+            machinesByTypeId[typeId] = icons
+                .Where(dump.Items.ContainsKey)
+                .Select(unified.Canonical)
+                .Distinct()
+                .ToList();
+
+        var ungatedTypeIds = new HashSet<string>(
+            dump.Recipes.Where(r => r.Category == "minecraft").Select(r => r.RecipeTypeId));
+
         foreach (var recipe in dump.Recipes)
         {
             var machine = NormalizeMachine(recipe.Machine, config);
@@ -34,17 +48,32 @@ public static partial class RecipeTransform
             if (tier > 0 && IsMultiAmp(recipe, machine, config)) tier = Math.Max(1, tier - 1);
 
             var inputs = new Dictionary<string, long>();
+            var slots = new List<IReadOnlyList<string>>();
             foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
             {
                 var stack = ResolveSlot(dump, unified, config, groupId);
                 if (stack is null) continue;
                 foreach (var (partId, partAmount) in Decompose(dump, stack.Value.ItemId, stack.Value.Amount))
                     inputs[unified.Canonical(partId)] = inputs.GetValueOrDefault(unified.Canonical(partId)) + partAmount;
+
+                // Single-alternative slots decompose like the flat inputs; genuine
+                // alternative lists keep their members whole.
+                var stacks = dump.GroupStacks[groupId];
+                if (stacks.Count == 1)
+                {
+                    foreach (var (partId, _) in Decompose(dump, stacks[0].ItemId, 1))
+                        slots.Add([unified.Canonical(partId)]);
+                }
+                else
+                {
+                    slots.Add(stacks.Select(s => unified.Canonical(s.ItemId)).Distinct().ToList());
+                }
             }
             foreach (var fluid in dump.FluidInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
             {
                 if (fluid.Amount <= 0) continue;
                 inputs[fluid.FluidId] = inputs.GetValueOrDefault(fluid.FluidId) + fluid.Amount;
+                slots.Add([fluid.FluidId]);
             }
 
             var outputs = new List<PlannerOutput>();
@@ -67,7 +96,11 @@ public static partial class RecipeTransform
             result.Add(new PlannerRecipe(
                 recipe.Id, machine, tier, gt?.Heat,
                 gt?.Duration ?? 0, gt?.Voltage ?? 0,
-                inputs, outputs));
+                inputs, outputs,
+                ungatedTypeIds.Contains(recipe.RecipeTypeId)
+                    ? []
+                    : machinesByTypeId.GetValueOrDefault(recipe.RecipeTypeId) ?? [],
+                slots));
         }
 
         return result;

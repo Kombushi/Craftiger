@@ -20,7 +20,7 @@ public sealed class BuilderPipelineFixture : IDisposable
         var recipes = RecipeTransform.Run(dump, unified, config);
         var itemIds = PlannerWriter.CollectItemIds(recipes);
         var leafClasses = LeafTagging.Run(itemIds, dump, unified, config);
-        var ingotTiers = IngotTiers.Run(recipes, leafClasses, unified, config).Tiers;
+        var ingotTiers = IngotTiers.Run(recipes, leafClasses, unified, dump, config).Tiers;
 
         PlannerPath = Path.Combine(_directory, "planner.sqlite");
         PlannerWriter.Write(PlannerPath, dump, unified, recipes, leafClasses, ingotTiers, config, "fixture-pack");
@@ -81,6 +81,11 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
         Assert.Equal(1, _fixture.Scalar<int>(
             $"SELECT COUNT(*) FROM item_aliases WHERE item_id = '{FixtureDump.GtBronze}' AND alias = 'ingotBronze'"));
     }
+
+    [Fact]
+    public void MachineAvailabilityGatesRecipeEra() =>
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.ColdIngot}'"));
 
     [Fact]
     public void OffworldOresSeedAtTheirDimensionEra() =>

@@ -23,6 +23,12 @@ public sealed record BuilderConfig
     /// <summary>Oredict names of world-minable leaf blocks.</summary>
     public required IReadOnlyList<string> MinableBlockOredicts { get; init; }
 
+    /// <summary>Items dropped by mining blocks (no recipe edge exists), seeded at era 0.</summary>
+    public required IReadOnlyList<string> WorldDropItemIds { get; init; }
+
+    /// <summary>World-pumped fluids by internal name, seeded at the era of reaching them.</summary>
+    public required IReadOnlyDictionary<string, int> WorldFluidEras { get; init; }
+
     /// <summary>Oredict prefixes of farmable leaves.</summary>
     public required IReadOnlyList<string> FarmableOredictPrefixes { get; init; }
 
@@ -66,6 +72,17 @@ public sealed record BuilderConfig
             "treeLeaves", "reed"
         ],
         FreeFluids = ["water"],
+        WorldDropItemIds = ["i~minecraft~clay_ball~0"],
+        WorldFluidEras = new Dictionary<string, int>
+        {
+            ["lava"] = 0,
+            ["oil"] = 1,
+            ["gas_natural_gas"] = 1,
+            ["liquid_light_oil"] = 1,
+            ["liquid_medium_oil"] = 1,
+            ["liquid_heavy_oil"] = 1,
+            ["liquid_extra_heavy_oil"] = 1
+        },
         ForceSingleAmp = [],
         ForceMultiAmp = [],
         OreEras = new Dictionary<string, int>

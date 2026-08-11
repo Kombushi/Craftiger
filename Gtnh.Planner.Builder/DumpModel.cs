@@ -4,7 +4,7 @@ public sealed record DumpItem(string Id, string Name, string ModId, string Inter
 
 public sealed record DumpFluid(string Id, string Name, string ModId, string InternalName, string ImagePath);
 
-public sealed record DumpRecipe(string Id, string Machine, string Category, int HandlerIcons);
+public sealed record DumpRecipe(string Id, string Machine, string Category, int HandlerIcons, string RecipeTypeId);
 
 public sealed record DumpGtData(string RecipeId, long Voltage, long Amperage, long Duration, int? Heat, string? TierLabel);
 
@@ -32,6 +32,7 @@ public sealed class Dump
     public required Dictionary<string, List<DumpFluidInput>> FluidInputsByRecipe { get; init; }
     public required Dictionary<string, List<DumpFluidOutput>> FluidOutputsByRecipe { get; init; }
     public required Dictionary<string, DumpContainer> ContainersByItemId { get; init; }
+    public required Dictionary<string, List<string>> HandlerItemsByRecipeTypeId { get; init; }
     public required string ExporterVersion { get; init; }
     public required DateTimeOffset ExportedAt { get; init; }
 }

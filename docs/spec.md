@@ -130,7 +130,11 @@ Builder responsibilities, in order:
    metal (annealed copper) inherits the metal's era, while ore-processing
    dusts still reach era 0 through tier-0 crushing. An EBF
    recipe's intrinsic tier is `max(voltage tier, coil tier of its required
-   heat)`. A naive per-recipe minimum would be poisoned by recycling
+   heat)`. Machine availability gates the era too: each recipe's intrinsic
+   tier includes the era of the cheapest producible machine handling its map
+   (NEI handler items), so a chain through a Large Chemical Reactor cannot
+   land below the era of building one. A naive per-recipe minimum would be
+   poisoned by recycling
    (plate → ingot smelting, arc-furnacing machines, block ↔ ingot cycles);
    in the fixpoint those routes need the ingot's own era first and starve.
    Era is independent of the garage: bronze and steel land at 0 via

@@ -41,7 +41,7 @@ var itemIds = PlannerWriter.CollectItemIds(recipes);
 var leafClasses = Stage("tag leaves", () => LeafTagging.Run(itemIds, dump, unified, config));
 Console.WriteLine($"  {leafClasses.Count:N0} leaves among {itemIds.Count:N0} items");
 
-var eraSolve = Stage("tier ingots", () => IngotTiers.Run(recipes, leafClasses, unified, config));
+var eraSolve = Stage("tier ingots", () => IngotTiers.Run(recipes, leafClasses, unified, dump, config));
 var ingotTiers = eraSolve.Tiers;
 Console.WriteLine($"  {ingotTiers.Count:N0} ingots tiered");
 

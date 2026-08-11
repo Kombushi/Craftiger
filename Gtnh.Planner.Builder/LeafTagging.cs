@@ -53,7 +53,8 @@ public static class IngotTiers
         ["minable_block", "farmable", "log", "gem", "free_fluid"];
 
     public static EraSolve Run(
-        List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, UnifiedItems unified, BuilderConfig config)
+        List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses,
+        UnifiedItems unified, Dump dump, BuilderConfig config)
     {
         // Dusts are not era seeds: a dust obtainable only by macerating its own
         // metal must inherit the metal's era instead of granting era 0.
@@ -62,15 +63,28 @@ public static class IngotTiers
             if (WorldOriginClasses.Contains(leafClass)) era[id] = 0;
         foreach (var (id, oredict) in unified.PrimaryOredictByCanonical)
             if (oredict.StartsWith("ore", StringComparison.Ordinal)) era.TryAdd(id, OreSeedEra(oredict, config));
+        foreach (var id in config.WorldDropItemIds)
+            era.TryAdd(unified.Canonical(id), 0);
+        foreach (var fluid in dump.Fluids.Values)
+            if (config.WorldFluidEras.TryGetValue(fluid.InternalName, out var fluidEra))
+                era.TryAdd(fluid.Id, fluidEra);
         var seeds = new HashSet<string>(era.Keys);
         var best = new Dictionary<string, PlannerRecipe>();
 
         var consumers = new Dictionary<string, List<PlannerRecipe>>();
         foreach (var recipe in recipes)
         {
-            foreach (var input in recipe.Inputs.Keys)
+            foreach (var slot in recipe.InputSlotAlternatives)
             {
-                if (!consumers.TryGetValue(input, out var list)) consumers[input] = list = [];
+                foreach (var alternative in slot)
+                {
+                    if (!consumers.TryGetValue(alternative, out var list)) consumers[alternative] = list = [];
+                    list.Add(recipe);
+                }
+            }
+            foreach (var machineId in recipe.MachineItemIds)
+            {
+                if (!consumers.TryGetValue(machineId, out var list)) consumers[machineId] = list = [];
                 list.Add(recipe);
             }
         }
@@ -82,10 +96,16 @@ public static class IngotTiers
             queued.Remove(recipe.Id);
 
             var candidate = Intrinsic(recipe, config);
-            foreach (var input in recipe.Inputs.Keys)
+            var machineEra = MachineEra(recipe, era);
+            if (machineEra == int.MaxValue) continue;
+            candidate = Math.Max(candidate, machineEra);
+            foreach (var slot in recipe.InputSlotAlternatives)
             {
-                if (!era.TryGetValue(input, out var inputEra)) { candidate = int.MaxValue; break; }
-                candidate = Math.Max(candidate, inputEra);
+                var slotEra = int.MaxValue;
+                foreach (var alternative in slot)
+                    if (era.TryGetValue(alternative, out var altEra) && altEra < slotEra) slotEra = altEra;
+                if (slotEra == int.MaxValue) { candidate = int.MaxValue; break; }
+                candidate = Math.Max(candidate, slotEra);
             }
             if (candidate == int.MaxValue) continue;
 
@@ -145,8 +165,30 @@ public static class IngotTiers
             Console.WriteLine($"{indent}  ...");
             return;
         }
-        foreach (var input in recipe.Inputs.Keys)
-            Explain(solve, names, input, depth + 1);
+        var machine = recipe.MachineItemIds
+            .Where(id => solve.Era.ContainsKey(id))
+            .OrderBy(id => solve.Era[id])
+            .FirstOrDefault();
+        if (machine is not null && solve.Era[machine] > 0)
+        {
+            Console.WriteLine($"{indent}  [machine] {names.GetValueOrDefault(machine, machine)}: era {solve.Era[machine]}");
+            if (depth < 3) Explain(solve, names, machine, depth + 2);
+        }
+        foreach (var slot in recipe.InputSlotAlternatives)
+        {
+            var best = slot.Where(solve.Era.ContainsKey).OrderBy(id => solve.Era[id]).FirstOrDefault() ?? slot[0];
+            Explain(solve, names, best, depth + 1);
+        }
+    }
+
+    /// <summary>The cheapest producible handler machine gates the recipe's era.</summary>
+    private static int MachineEra(PlannerRecipe recipe, Dictionary<string, int> era)
+    {
+        if (recipe.MachineItemIds.Count == 0) return 0;
+        var best = int.MaxValue;
+        foreach (var machineId in recipe.MachineItemIds)
+            if (era.TryGetValue(machineId, out var machineEra) && machineEra < best) best = machineEra;
+        return best;
     }
 
     private static int OreSeedEra(string oredict, BuilderConfig config)
