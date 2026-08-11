@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Gtnh.Planner.Api/Gtnh.Planner.Api.csproj" />
+  <Project Path="Gtnh.Planner.Builder/Gtnh.Planner.Builder.csproj" />
+  <Project Path="Gtnh.Planner.Solver/Gtnh.Planner.Solver.csproj" />
+  <Project Path="Gtnh.Planner.Tests/Gtnh.Planner.Tests.csproj" />
+</Solution>

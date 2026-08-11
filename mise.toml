@@ -1,0 +1,24 @@
+[tools]
+dotnet = "10"
+node = "lts"
+
+[tasks.build]
+description = "Build the .NET solution"
+run = "dotnet build Craftiger.slnx"
+
+[tasks.test]
+description = "Run all tests"
+run = "dotnet test Craftiger.slnx"
+
+[tasks.builder]
+description = "Run the artifact builder (NESQL dump in, planner artifacts out)"
+run = "dotnet run --project Gtnh.Planner.Builder --"
+
+[tasks.api]
+description = "Run the API"
+run = "dotnet run --project Gtnh.Planner.Api"
+
+[tasks.web]
+description = "Run the web dev server"
+dir = "web"
+run = "npm run dev"

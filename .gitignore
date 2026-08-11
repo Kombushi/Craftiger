@@ -1,0 +1,18 @@
+# .NET
+bin/
+obj/
+*.user
+
+# Web
+node_modules/
+web/dist/
+
+# Local data and build artifacts — never committed
+dump.sqlite
+planner.sqlite
+atlas.webp
+atlas-offsets.json
+
+# IDE / OS
+.idea/
+.DS_Store
