@@ -12,6 +12,7 @@ dump.sqlite
 planner.sqlite
 atlas.webp
 atlas-offsets.json
+artifacts/
 
 # IDE / OS
 .idea/

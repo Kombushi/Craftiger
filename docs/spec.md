@@ -91,27 +91,39 @@ Builder responsibilities, in order:
    empty container + fluid, then net out items appearing on both sides of one
    recipe. Balanced containers vanish, so cell-only recipes become their
    fluid form automatically; unmatched containers survive as real inputs or
-   outputs and stay priced. Then strip non-consumed inputs: programmed
-   circuits and mold/shape/lens catalysts and GT crafting tools (wire cutter,
-   hammer, file, saw, screwdriver, wrench, …) — a static prefix list;
-   heuristic, editable.
+   outputs and stay priced. Then strip non-consumed inputs: the dump marks
+   most catalysts (programmed circuits, molds, shapes, lenses) with stack
+   size 0, which is the primary signal; a static editable prefix list
+   additionally strips GT crafting tools (wire cutter, hammer, file, saw,
+   screwdriver, wrench, …), which crafting-grid recipes list at size 1.
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
-4. **Tier tagging** — per recipe: voltage tier from EU/t. EBF recipes also keep
-   their raw heat requirement (`recipes.heat`); the coil list (name → max heat,
-   ~9 rows, builder config) is exported into `meta` for the garage UI.
+4. **Tier tagging** — per recipe: voltage tier from EU/t (0 EU/t recipes are
+   tier 0). Machine names normalize by stripping the recipe map's constant
+   voltage suffix ("Macerator (ULV)" → "Macerator") and merging crafting
+   variants (shaped/shapeless → "Crafting Table"). Any recipe with a coil
+   heat requirement keeps it in `recipes.heat` (EBF and its multiblock
+   upgrades); the coil list (name → max heat + tier equivalent, builder
+   config) is exported into `meta` for the garage UI.
 5. **Leaf tagging** — mark leaves by oredict prefix and lists (§4).
-6. **Ingot tiering** — `tier(ingot) = min` intrinsic recipe tier over all
-   recipes producing it, where an EBF recipe's intrinsic tier is
-   `max(voltage tier, coil tier of its required heat)`. Intrinsic tier prices
-   the material's era and is independent of the garage (bronze and steel land
-   at 0 via furnace / bricked blast furnace; aluminium at its EBF tier).
+6. **Ingot tiering** — an ingot's tier is its production era, computed as a
+   min-of-max fixpoint over the whole recipe graph:
+   `era(item) = min over producing recipes of max(intrinsic recipe tier,
+   era of every input)`, with all non-ingot leaves seeded at era 0. An EBF
+   recipe's intrinsic tier is `max(voltage tier, coil tier of its required
+   heat)`. A naive per-recipe minimum would be poisoned by recycling
+   (plate → ingot smelting, arc-furnacing machines, block ↔ ingot cycles);
+   in the fixpoint those routes need the ingot's own era first and starve.
+   Era is independent of the garage: bronze and steel land at 0 via
+   furnace / bricked blast furnace, aluminium at its EBF tier. Ingots with
+   no bootstrappable route fall back to the cheapest direct recipe tier.
 
 ### Slim schema (`planner.sqlite`)
 
 - `items(id, name_en, oredict, is_fluid, leaf_class NULL, atlas_idx)`
+- `item_aliases(item_id, alias)` — merged names and oredict names for search
 - `recipes(id, machine, tier, heat NULL, duration_ticks, eu_t)` — `heat` for
-  EBF recipes only
+  coil-gated recipes only
 - `recipe_inputs(recipe_id, item_id, amount)` — amount in units, or mB for fluids
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
 - `item_tiers(item_id, tier)` — ingots only
@@ -291,9 +303,10 @@ All "does not / never" rules live here; other sections only reference this one.
 - **Energy and machine time in prices** — cost is material-only.
 - **Byproduct credit** — sibling outputs never reduce a recipe's cost;
   crediting them collapses all prices toward zero through recycling loops.
-- **Pseudo-recipe sources** — bee breeding, mob drops, dungeon/chest loot; the
-  builder drops them (§3 step 3) because they conjure matter from nothing and
-  poison prices.
+- **Pseudo-recipe sources** — bee breeding, mob drops, dungeon/chest loot,
+  and GT informational tabs (fuel values, material lists); the builder drops
+  them (§3 step 3) because they conjure matter from nothing and poison
+  prices.
 - **Overclocking, parallelism, and multiblock efficiency bonuses** — they
   affect time, energy, or machine-specific discounts; recipes price at their
   listed amounts.
