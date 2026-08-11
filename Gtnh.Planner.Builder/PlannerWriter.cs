@@ -20,7 +20,8 @@ public static class PlannerWriter
         Dictionary<string, string> leafClasses,
         Dictionary<string, int> ingotTiers,
         BuilderConfig config,
-        string packVersion)
+        string packVersion,
+        IReadOnlyDictionary<string, string>? extraMeta = null)
     {
         File.Delete(path);
         using var db = new SqliteConnection($"Data Source={path}");
@@ -133,6 +134,7 @@ public static class PlannerWriter
             ["tier_names"] = JsonSerializer.Serialize(TierNames[..Math.Min(maxTier + 1, TierNames.Length)]),
             ["coils"] = JsonSerializer.Serialize(config.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier }))
         };
+        foreach (var (key, value) in extraMeta ?? new Dictionary<string, string>()) meta[key] = value;
         using (var insert = Prepare(db, tx, "INSERT INTO meta VALUES ($key, $value)"))
         {
             foreach (var (key, value) in meta)
@@ -165,6 +167,10 @@ public static class PlannerWriter
         }
         return ids;
     }
+
+    /// <summary>The atlas index order; the writer and the atlas builder must agree on it.</summary>
+    public static List<string> OrderForAtlas(HashSet<string> itemIds) =>
+        itemIds.Order(StringComparer.Ordinal).ToList();
 
     private static void Execute(SqliteConnection db, SqliteTransaction? tx, string sql)
     {

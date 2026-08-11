@@ -10,10 +10,12 @@ if (args.Length == 0)
 var dumpPath = args[0];
 var outputDir = ".";
 var packVersion = "2.9.0-beta2";
+var imagesPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!, "image.zip");
 for (var i = 1; i < args.Length - 1; i++)
 {
     if (args[i] == "--output") outputDir = args[i + 1];
     if (args[i] == "--pack-version") packVersion = args[i + 1];
+    if (args[i] == "--images") imagesPath = args[i + 1];
 }
 
 if (!File.Exists(dumpPath))
@@ -42,10 +44,32 @@ Console.WriteLine($"  {leafClasses.Count:N0} leaves among {itemIds.Count:N0} ite
 var ingotTiers = Stage("tier ingots", () => IngotTiers.Run(recipes, leafClasses, config));
 Console.WriteLine($"  {ingotTiers.Count:N0} ingots tiered");
 
+var extraMeta = new Dictionary<string, string>();
+if (File.Exists(imagesPath))
+{
+    var ordered = PlannerWriter.OrderForAtlas(itemIds);
+    var icons = ordered
+        .Select(id => (id, dump.Fluids.TryGetValue(id, out var f) ? f.ImagePath
+            : dump.Items.TryGetValue(id, out var it) ? it.ImagePath : ""))
+        .ToList();
+    var atlas = Stage("build atlas", () => AtlasBuilder.Build(
+        imagesPath, icons,
+        Path.Combine(outputDir, "atlas.webp"),
+        Path.Combine(outputDir, "atlas-offsets.json")));
+    Console.WriteLine($"  {atlas.Width}x{atlas.Height} px, cell {atlas.Cell}");
+    extraMeta["atlas_width"] = atlas.Width.ToString();
+    extraMeta["atlas_height"] = atlas.Height.ToString();
+    extraMeta["atlas_cell"] = atlas.Cell.ToString();
+}
+else
+{
+    Console.WriteLine($"image.zip not found at {imagesPath}; skipping atlas");
+}
+
 var plannerPath = Path.Combine(outputDir, "planner.sqlite");
 Stage("write planner.sqlite", () =>
 {
-    PlannerWriter.Write(plannerPath, dump, unified, recipes, leafClasses, ingotTiers, config, packVersion);
+    PlannerWriter.Write(plannerPath, dump, unified, recipes, leafClasses, ingotTiers, config, packVersion, extraMeta);
     return 0;
 });
 
