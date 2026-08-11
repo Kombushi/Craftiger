@@ -17,6 +17,8 @@ public static class FixtureDump
     public const string Mold = "i~gregtech~gt.metaitem.01~32306";
     public const string Plank = "i~minecraft~planks~0";
     public const string Log = "i~minecraft~log~0";
+    public const string IronIngot = "i~minecraft~iron_ingot~0";
+    public const string CastIron = "i~gregtech~gt.metaitem.01~11304";
     public const string Water = "f~water";
     public const string Lava = "f~lava";
     public const string Hydrogen = "f~hydrogen";
@@ -71,6 +73,8 @@ public static class FixtureDump
         Fluid(db, Hydrogen, "hydrogen", "Hydrogen");
         Item(db, WaterCell, "Water Cell", "gregtech");
         Item(db, EmptyCell, "Empty Cell", "gregtech");
+        Item(db, IronIngot, "Iron Ingot", "minecraft");
+        Item(db, CastIron, "Cast Iron Ingot", "gregtech");
         Execute(db, $"INSERT INTO FLUID_CONTAINER VALUES ('fc_water', 1000, '{WaterCell}', '{EmptyCell}', '{Water}')");
 
         Group(db, "g_bronze_ingot", (GtBronze, 1), (Ic2Bronze, 1));
@@ -95,6 +99,12 @@ public static class FixtureDump
         Oredict(db, "stickAluminium", "g_alu_rod_oredict_unused");
         Oredict(db, "logWood", "g_log");
         Oredict(db, "plankWood", "g_plank_oredict_unused");
+        Group(db, "g_iron", (IronIngot, 1));
+        Group(db, "g_cast_iron", (CastIron, 1));
+        Group(db, "g_any_iron", (IronIngot, 1), (CastIron, 1));
+        Oredict(db, "ingotIron", "g_iron");
+        Oredict(db, "ingotCastIron", "g_cast_iron");
+        Oredict(db, "ingotAnyIron", "g_any_iron");
 
         RecipeType(db, "t_shaped", "minecraft", "Crafting (Shaped)");
         RecipeType(db, "t_furnace", "minecraft", "Furnace");
@@ -125,6 +135,10 @@ public static class FixtureDump
 
         // Fuel tabs are pseudo-recipes and must be dropped.
         Recipe(db, "r_fuel", "t_fuels", inputs: [("g_bronze_dust", 0)], outputs: [(BronzeDust, 1, 1.0)], voltage: 32, duration: 1);
+
+        // Distinct materials share the wildcard ingotAnyIron group but must stay separate.
+        Recipe(db, "r_iron_use", "t_shaped", inputs: [("g_iron", 0)], outputs: [(Plank, 1, 1.0)]);
+        Recipe(db, "r_cast_use", "t_shaped", inputs: [("g_cast_iron", 0)], outputs: [(Plank, 1, 1.0)]);
 
         // Cell-based recipe: decomposition plus netting must leave only fluids.
         Group(db, "g_water_cell", (WaterCell, 1));

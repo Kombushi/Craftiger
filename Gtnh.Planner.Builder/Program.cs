@@ -31,7 +31,7 @@ var total = Stopwatch.StartNew();
 var dump = Stage("read dump", () => DumpReader.Read(dumpPath));
 Console.WriteLine($"  items {dump.Items.Count:N0}, fluids {dump.Fluids.Count:N0}, recipes {dump.Recipes.Count:N0}");
 
-var unified = Stage("unify", () => Unification.Run(dump));
+var unified = Stage("unify", () => Unification.Run(dump, config));
 Console.WriteLine($"  {unified.CanonicalByRawId.Count:N0} oredicted items in {unified.AliasesByCanonical.Count:N0} classes");
 
 var recipes = Stage("transform recipes", () => RecipeTransform.Run(dump, unified, config));

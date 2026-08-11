@@ -12,6 +12,10 @@ public sealed record BuilderConfig
     /// <summary>Exact machine names dropped as pseudo-recipe sources.</summary>
     public required IReadOnlyList<string> ExcludedMachines { get; init; }
 
+    /// <summary>Wildcard oredict name patterns that group distinct materials and must not unify them.</summary>
+    public required IReadOnlyList<string> GroupingOredictPrefixes { get; init; }
+    public required IReadOnlyList<string> GroupingOredictInfixes { get; init; }
+
     /// <summary>Oredict names of world-minable leaf blocks.</summary>
     public required IReadOnlyList<string> MinableBlockOredicts { get; init; }
 
@@ -36,6 +40,8 @@ public sealed record BuilderConfig
         ],
         ExcludedMachineSuffixes = [" Fuels"],
         ExcludedMachines = ["Radio Hatch Material List"],
+        GroupingOredictPrefixes = ["listAll", "crafting"],
+        GroupingOredictInfixes = ["Any"],
         MinableBlockOredicts =
         [
             "stone", "cobblestone", "sand", "gravel", "dirt", "netherrack",

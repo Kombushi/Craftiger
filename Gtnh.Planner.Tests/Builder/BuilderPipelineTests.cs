@@ -16,7 +16,7 @@ public sealed class BuilderPipelineFixture : IDisposable
 
         var config = BuilderConfig.Default;
         var dump = DumpReader.Read(dumpPath);
-        var unified = Unification.Run(dump);
+        var unified = Unification.Run(dump, config);
         var recipes = RecipeTransform.Run(dump, unified, config);
         var itemIds = PlannerWriter.CollectItemIds(recipes);
         var leafClasses = LeafTagging.Run(itemIds, dump, unified, config);
@@ -80,6 +80,15 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_macerate'"));
         Assert.Equal(1, _fixture.Scalar<int>(
             $"SELECT COUNT(*) FROM item_aliases WHERE item_id = '{FixtureDump.GtBronze}' AND alias = 'ingotBronze'"));
+    }
+
+    [Fact]
+    public void WildcardGroupingOredictsDoNotUnify()
+    {
+        Assert.Equal(FixtureDump.IronIngot, _fixture.Scalar<string>(
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_iron_use'"));
+        Assert.Equal(FixtureDump.CastIron, _fixture.Scalar<string>(
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_cast_use'"));
     }
 
     [Fact]

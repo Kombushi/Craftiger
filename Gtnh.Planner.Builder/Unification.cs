@@ -14,7 +14,7 @@ public sealed class UnifiedItems
 /// <summary>Collapses oredict-equivalent items into one canonical item per class.</summary>
 public static class Unification
 {
-    public static UnifiedItems Run(Dump dump)
+    public static UnifiedItems Run(Dump dump, BuilderConfig config)
     {
         var parent = new Dictionary<string, string>();
         var oredictsByItem = new Dictionary<string, List<string>>();
@@ -22,6 +22,7 @@ public static class Unification
 
         foreach (var (name, groupId) in dump.Oredict)
         {
+            if (IsGrouping(name, config)) continue;
             if (!dump.GroupStacks.TryGetValue(groupId, out var stacks)) continue;
             string? first = null;
             foreach (var stack in stacks)
@@ -73,6 +74,10 @@ public static class Unification
             MembersByOredict = membersByOredict
         };
     }
+
+    private static bool IsGrouping(string name, BuilderConfig config) =>
+        config.GroupingOredictPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)) ||
+        config.GroupingOredictInfixes.Any(i => name.Contains(i, StringComparison.Ordinal));
 
     private static readonly string[] LeafPrefixes = ["ingot", "dustSmall", "dustTiny", "dust", "gem", "logWood", "block"];
 

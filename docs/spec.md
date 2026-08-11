@@ -86,7 +86,9 @@ locally for builder runs and ad-hoc queries; it is never shipped.
 Builder responsibilities, in order:
 
 1. **Unification** — collapse oredict-equivalent items into one canonical item;
-   keep an alias table for search.
+   keep an alias table for search. Wildcard grouping oredicts (`ingotAnyIron`,
+   `listAll*`, `crafting*` — editable pattern list) are accept-lists over
+   distinct materials, not equivalence classes, and never drive unification.
 2. **Normalization** — decompose every filled container (cell, bucket) into
    empty container + fluid, then net out items appearing on both sides of one
    recipe. Balanced containers vanish, so cell-only recipes become their
