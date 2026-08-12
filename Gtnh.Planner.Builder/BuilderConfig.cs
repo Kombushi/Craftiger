@@ -8,6 +8,7 @@ public sealed record BuilderConfig
 
     /// <summary>Machine-name suffixes of informational pseudo-recipe tabs.</summary>
     public required IReadOnlyList<string> ExcludedMachineSuffixes { get; init; }
+    public required IReadOnlyList<string> ExcludedMachinePrefixes { get; init; }
 
     /// <summary>Exact machine names dropped as pseudo-recipe sources.</summary>
     public required IReadOnlyList<string> ExcludedMachines { get; init; }
@@ -29,6 +30,7 @@ public sealed record BuilderConfig
     /// <summary>Wildcard oredict name patterns that group distinct materials and must not unify them.</summary>
     public required IReadOnlyList<string> GroupingOredictPrefixes { get; init; }
     public required IReadOnlyList<string> GroupingOredictInfixes { get; init; }
+    public required IReadOnlyList<string> GroupingOredictNames { get; init; }
 
     /// <summary>Era seeds for ores that spawn only in later-dimension worlds
     /// (Moon = HV, Mars = EV, ...); ores not listed seed at era 0.</summary>
@@ -71,11 +73,18 @@ public sealed record BuilderConfig
             "i~gregtech~gt.integrated_circuit"
         ],
         ExcludedMachineSuffixes = [" Fuels"],
-        ExcludedMachines = ["Radio Hatch Material List"],
+        ExcludedMachinePrefixes = ["Naquadah Reactor Mk"],
+        ExcludedMachines =
+        [
+            "Radio Hatch Material List", "Space Mining",
+            "High Temperature Gas Reactor", "Liquid Fluoride Thorium Reactor",
+            "Large Naquadah Reactor"
+        ],
         ExcludedInputItems = ["Electrical Engine"],
         SteamMachinePrefixes = ["Steam ", "High Pressure "],
         GroupingOredictPrefixes = ["listAll", "crafting"],
         GroupingOredictInfixes = ["Any"],
+        GroupingOredictNames = ["glowstone", "stoneGlowstone"],
         MinableBlockOredicts =
         [
             "stone", "cobblestone", "sand", "gravel", "dirt", "netherrack",

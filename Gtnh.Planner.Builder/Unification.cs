@@ -76,6 +76,7 @@ public static class Unification
     }
 
     private static bool IsGrouping(string name, BuilderConfig config) =>
+        config.GroupingOredictNames.Contains(name) ||
         config.GroupingOredictPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)) ||
         config.GroupingOredictInfixes.Any(i => name.Contains(i, StringComparison.Ordinal));
 

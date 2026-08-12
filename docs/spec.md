@@ -330,9 +330,11 @@ All "does not / never" rules live here; other sections only reference this one.
 - **Byproduct credit** — sibling outputs never reduce a recipe's cost;
   crediting them collapses all prices toward zero through recycling loops.
 - **Pseudo-recipe sources** — bee breeding, mob drops, dungeon/chest loot,
-  and GT informational tabs (fuel values, material lists); the builder drops
-  them (§3 step 3) because they conjure matter from nothing and poison
-  prices.
+  GT informational tabs (fuel values, material lists), and mining maps that
+  output ore blocks from equipment (Space Mining); the builder drops them
+  (§3 step 3) because they conjure matter from nothing and poison prices —
+  an ore-from-drill recipe forms an amplifying cycle that spirals every
+  cost to zero.
 - **Overclocking, parallelism, and multiblock efficiency bonuses** — they
   affect time, energy, or machine-specific discounts; recipes price at their
   listed amounts.

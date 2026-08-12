@@ -147,7 +147,8 @@ public static partial class RecipeTransform
 
     private static bool IsExcluded(string machine, BuilderConfig config) =>
         config.ExcludedMachines.Contains(machine) ||
-        config.ExcludedMachineSuffixes.Any(s => machine.EndsWith(s, StringComparison.Ordinal));
+        config.ExcludedMachineSuffixes.Any(s => machine.EndsWith(s, StringComparison.Ordinal)) ||
+        config.ExcludedMachinePrefixes.Any(p => machine.StartsWith(p, StringComparison.Ordinal));
 
     private static (string ItemId, long Amount)? ResolveSlot(
         Dump dump, UnifiedItems unified, BuilderConfig config, string groupId)
