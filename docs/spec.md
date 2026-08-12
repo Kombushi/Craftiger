@@ -152,7 +152,8 @@ Builder responsibilities, in order:
   coil-gated recipes only
 - `recipe_inputs(recipe_id, item_id, amount)` — amount in units, or mB for fluids
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
-- `item_tiers(item_id, tier)` — ingots only
+- `item_tiers(item_id, tier)` — tiered materials: ingots and their matching
+  dusts (§4)
 - `meta(key, value)` — pack version, dump date, atlas dimensions, coil list
 
 ## 4. Cost model
@@ -165,7 +166,7 @@ Builder responsibilities, in order:
 |---|---|---|
 | Minable block | explicit list: stone, cobblestone, sand, gravel, dirt, netherrack, … | 1 |
 | Ingot | oredict `ingot*` | `B × 4^tier` (see below) |
-| Dust | oredict `dust*` | 1 |
+| Dust | oredict `dust*` | the material's ingot price when a matching `ingot*` exists (same `B × 4^tier`), else 1 |
 | Small / tiny dust | `dustSmall*` / `dustTiny*` | parent dust ÷ 4 / ÷ 9 |
 | Gem | oredict `gem*` | 1 |
 | Log | oredict `logWood` | 1 |

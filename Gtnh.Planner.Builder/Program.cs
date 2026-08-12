@@ -43,7 +43,7 @@ Console.WriteLine($"  {leafClasses.Count:N0} leaves among {itemIds.Count:N0} ite
 
 var eraSolve = Stage("tier ingots", () => IngotTiers.Run(recipes, leafClasses, unified, dump, config));
 var ingotTiers = eraSolve.Tiers;
-Console.WriteLine($"  {ingotTiers.Count:N0} ingots tiered");
+Console.WriteLine($"  {ingotTiers.Count:N0} materials tiered");
 
 var explainIdx = Array.IndexOf(args, "--explain");
 if (explainIdx >= 0 && explainIdx + 1 < args.Length)

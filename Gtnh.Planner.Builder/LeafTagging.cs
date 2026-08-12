@@ -169,6 +169,21 @@ public static class IngotTiers
         }
         foreach (var (id, tier) in fallback) tiers[id] = tier;
 
+        // A dust is the same material as its ingot; it inherits the ingot's tier.
+        var canonicalByOredict = new Dictionary<string, string>();
+        foreach (var (name, members) in unified.MembersByOredict)
+            if (members.Count > 0) canonicalByOredict[name] = unified.Canonical(members[0]);
+        foreach (var (id, leafClass) in leafClasses)
+        {
+            if (leafClass != "dust") continue;
+            var oredict = unified.PrimaryOredictByCanonical.GetValueOrDefault(id);
+            if (oredict is null || !oredict.StartsWith("dust", StringComparison.Ordinal)) continue;
+            var ingotOredict = "ingot" + oredict["dust".Length..];
+            if (canonicalByOredict.TryGetValue(ingotOredict, out var ingotId) &&
+                tiers.TryGetValue(ingotId, out var ingotTier))
+                tiers[id] = ingotTier;
+        }
+
         return new EraSolve(tiers, era, best, seeds);
     }
 

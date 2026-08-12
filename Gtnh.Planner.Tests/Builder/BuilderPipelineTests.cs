@@ -93,6 +93,17 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.NaqIngot}'"));
 
     [Fact]
+    public void DustsInheritTheirIngotTier()
+    {
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.NaqDust}'"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.AluDust}'"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM item_tiers WHERE item_id = '{FixtureDump.BronzeDust}' AND tier != 0"));
+    }
+
+    [Fact]
     public void DerivedDustsInheritEraInsteadOfSeedingZero()
     {
         Assert.Equal(1, _fixture.Scalar<int>(
