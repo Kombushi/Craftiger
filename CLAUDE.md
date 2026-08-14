@@ -47,7 +47,8 @@ types and identifiers.
 
 ## Stack
 
-- .NET 10, `Microsoft.Data.Sqlite`, xUnit.
+- .NET 10, `Microsoft.Data.Sqlite` with Dapper for all database access,
+  `Microsoft.Extensions.DependencyInjection`, xUnit.
 - Task runner: `mise`. Every build/test/run command is a named `mise` task;
   docs reference targets by name only. Targets to create with the scaffold:
   `build`, `test`, `builder`, `api`, `web`.
@@ -66,6 +67,12 @@ types and identifiers.
 
 ## Conventions
 
+- C# style: Allman braces with 4-space indent; every `if`/`for`/`foreach`
+  body is a braced block, even single statements. Every file ends with a
+  newline. Encoded in `.editorconfig`.
+- Executables compose via a DI container (plain `ServiceCollection`) and are
+  laid out as `Models/`, `Interfaces/`, `Services/`, `Repositories/` — one
+  type per file, every service and repository behind an interface.
 - Comments explain why, not what. No decorative comments, no narration of
   changes, no session references; docs and comments are timeless.
 - Commit messages: header in past tense, sentence case, ≤ 50 chars after the

@@ -1,4 +1,4 @@
-namespace Gtnh.Planner.Builder;
+namespace Gtnh.Planner.Builder.Models;
 
 /// <summary>Editable heuristics and pack-specific lists used by the pipeline.</summary>
 public sealed record BuilderConfig
@@ -12,6 +12,12 @@ public sealed record BuilderConfig
 
     /// <summary>Exact machine names dropped as pseudo-recipe sources.</summary>
     public required IReadOnlyList<string> ExcludedMachines { get; init; }
+
+    /// <summary>Machines whose recipes gate eras but never price: real mechanics that would amplify matter.</summary>
+    public required IReadOnlyList<string> EraOnlyMachines { get; init; }
+
+    /// <summary>Machines whose output slots 2+ open by tier; the value lists the tier per byproduct slot.</summary>
+    public required IReadOnlyDictionary<string, IReadOnlyList<int>> ByproductSlotTiers { get; init; }
 
     /// <summary>Recipes consuming these items are dropped; composition-based
     /// recycling of composed machines conjures materials their crafting never used.</summary>
@@ -32,9 +38,14 @@ public sealed record BuilderConfig
     public required IReadOnlyList<string> GroupingOredictInfixes { get; init; }
     public required IReadOnlyList<string> GroupingOredictNames { get; init; }
 
-    /// <summary>Era seeds for ores that spawn only in later-dimension worlds
-    /// (Moon = HV, Mars = EV, ...); ores not listed seed at era 0.</summary>
-    public required IReadOnlyDictionary<string, int> OreEras { get; init; }
+    /// <summary>Era needed to reach each GT dimension tier (1-8 rockets, 9 mothership, 10 Deep Dark).</summary>
+    public required IReadOnlyDictionary<int, int> DimensionTierEras { get; init; }
+
+    /// <summary>Era by dimension abbreviation for tier-0 worlds reached without a rocket.</summary>
+    public required IReadOnlyDictionary<string, int> DimensionEraOverrides { get; init; }
+
+    /// <summary>Ore materials whose blocks exist as items but never world-generate; they get no era seed.</summary>
+    public required IReadOnlyList<string> NonSpawningOres { get; init; }
 
     /// <summary>Oredict names of world-minable leaf blocks.</summary>
     public required IReadOnlyList<string> MinableBlockOredicts { get; init; }
@@ -76,10 +87,16 @@ public sealed record BuilderConfig
         ExcludedMachinePrefixes = ["Naquadah Reactor Mk"],
         ExcludedMachines =
         [
-            "Radio Hatch Material List", "Space Mining",
+            "Radio Hatch Material List",
             "High Temperature Gas Reactor", "Liquid Fluoride Thorium Reactor",
             "Large Naquadah Reactor"
         ],
+        EraOnlyMachines = ["Space Mining"],
+        ByproductSlotTiers = new Dictionary<string, IReadOnlyList<int>>
+        {
+            // Second slot opens at HV (Universal Macerator), third at EV, fourth at IV.
+            ["Macerator"] = [3, 4, 5]
+        },
         ExcludedInputItems = ["Electrical Engine"],
         SteamMachinePrefixes = ["Steam ", "High Pressure "],
         GroupingOredictPrefixes = ["listAll", "crafting"],
@@ -110,20 +127,34 @@ public sealed record BuilderConfig
         },
         ForceSingleAmp = [],
         ForceMultiAmp = [],
-        OreEras = new Dictionary<string, int>
+        DimensionTierEras = new Dictionary<int, int>
         {
-            ["Ilmenite"] = 3,
-            ["Rutile"] = 3,
-            ["Naquadah"] = 4,
-            ["Mytryl"] = 4,
-            ["Quantium"] = 4,
-            ["Ledox"] = 5,
-            ["CallistoIce"] = 5,
-            ["Oriharukon"] = 5,
-            ["MysteriousCrystal"] = 5,
-            ["BlackPlutonium"] = 5,
-            ["Trinium"] = 6
+            [1] = 3,  // T1 rocket (Moon): HV
+            [2] = 4,  // T2 rocket (Mars system): EV
+            [3] = 5,
+            [4] = 5,  // T3-T4 rockets: IV
+            [5] = 6,  // T5 rocket: LuV
+            [6] = 7,
+            [7] = 7,  // T6-T7 rockets: ZPM
+            [8] = 9,
+            [9] = 9,  // T8 rocket and mothership: UHV
+            [10] = 9  // Deep Dark, reached by mothership
         },
+        DimensionEraOverrides = new Dictionary<string, int>
+        {
+            ["Ow"] = 0,
+            ["Ne"] = 0,  // Nether: Steam Age
+            ["TF"] = 1,  // Twilight Forest: LV
+            ["ED"] = 3,  // The End: HV
+            ["EA"] = 3,  // End asteroids, entered from the End
+            ["Eg"] = 7   // Everglades portal: ZPM
+        },
+        NonSpawningOres =
+        [
+            "AncientGranite", "Comancheite", "Greenockite", "LanthaniteNd",
+            "RadioactiveMineralMix", "Yttriaite", "Zircophyllite",
+            "Koboldite", "RareEarthI", "RareEarthII", "RareEarthIII"
+        ],
         Coils =
         [
             new("Cupronickel", 1800, 1),
@@ -152,5 +183,3 @@ public sealed record BuilderConfig
         }
     };
 }
-
-public sealed record CoilSpec(string Name, int MaxHeat, int Tier);

@@ -1,5 +1,9 @@
-using Gtnh.Planner.Builder;
+using Dapper;
+using Gtnh.Planner.Builder.Interfaces;
+using Gtnh.Planner.Builder.Models;
+using Gtnh.Planner.Builder.Services;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Gtnh.Planner.Tests.Builder;
@@ -14,16 +18,11 @@ public sealed class BuilderPipelineFixture : IDisposable
         _directory = Directory.CreateTempSubdirectory("craftiger-tests").FullName;
         var dumpPath = FixtureDump.Create(_directory);
 
-        var config = BuilderConfig.Default;
-        var dump = DumpReader.Read(dumpPath);
-        var unified = Unification.Run(dump, config);
-        var recipes = RecipeTransform.Run(dump, unified, config);
-        var itemIds = PlannerWriter.CollectItemIds(recipes);
-        var leafClasses = LeafTagging.Run(itemIds, dump, unified, config);
-        var ingotTiers = IngotTiers.Run(recipes, leafClasses, unified, dump, config).Tiers;
+        using var services = new ServiceCollection().AddBuilderServices().BuildServiceProvider();
+        services.GetRequiredService<IBuilderPipeline>().Run(new BuilderOptions(
+            dumpPath, _directory, "fixture-pack", Path.Combine(_directory, "image.zip"), ExplainItem: null));
 
         PlannerPath = Path.Combine(_directory, "planner.sqlite");
-        PlannerWriter.Write(PlannerPath, dump, unified, recipes, leafClasses, ingotTiers, config, "fixture-pack");
     }
 
     public void Dispose() => Directory.Delete(_directory, recursive: true);
@@ -31,10 +30,7 @@ public sealed class BuilderPipelineFixture : IDisposable
     public T Scalar<T>(string sql)
     {
         using var db = new SqliteConnection($"Data Source={PlannerPath};Mode=ReadOnly");
-        db.Open();
-        using var cmd = db.CreateCommand();
-        cmd.CommandText = sql;
-        return (T)Convert.ChangeType(cmd.ExecuteScalar()!, typeof(T));
+        return db.ExecuteScalar<T>(sql)!;
     }
 }
 
@@ -93,6 +89,41 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.NaqIngot}'"));
 
     [Fact]
+    public void SpaceMiningGatesEraButNeverPrices()
+    {
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.KobIngot}'"));
+        Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_space'"));
+    }
+
+    [Fact]
+    public void RawChunksSeedAtTheirVeinEra() =>
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.RuniteIngot}'"));
+
+    [Fact]
+    public void NonSpawningOresContributeNoEra() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.ComIngot}'"));
+
+    [Fact]
+    public void MachineInputVoltageFloorsRecipeEra() =>
+        Assert.Equal(2, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.DryIngot}'"));
+
+    [Fact]
+    public void MaceratorByproductSlotsOpenByTier()
+    {
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM recipe_outputs WHERE recipe_id = 'r_cu_macerate' AND item_id = '{FixtureDump.ByDust}'"));
+        Assert.Equal(3, _fixture.Scalar<int>("SELECT tier FROM recipes WHERE id = 'r_cu_macerate~b3'"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM recipe_outputs WHERE recipe_id = 'r_cu_macerate~b3' AND item_id = '{FixtureDump.ByDust}'"));
+        Assert.Equal(3, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.ByIngot}'"));
+    }
+
+    [Fact]
     public void DustsInheritTheirIngotTier()
     {
         Assert.Equal(4, _fixture.Scalar<int>(
@@ -144,12 +175,12 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     [Fact]
     public void GtTierLabelsAreAuthoritative()
     {
-        Assert.Equal(1, RecipeTransform.LabelTier("ULV"));
-        Assert.Equal(1, RecipeTransform.LabelTier("LV"));
-        Assert.Equal(2, RecipeTransform.LabelTier("MV"));
-        Assert.Equal(14, RecipeTransform.LabelTier("MAX"));
-        Assert.Null(RecipeTransform.LabelTier(null));
-        Assert.Null(RecipeTransform.LabelTier("bogus"));
+        Assert.Equal(1, TierLadder.LabelTier("ULV"));
+        Assert.Equal(1, TierLadder.LabelTier("LV"));
+        Assert.Equal(2, TierLadder.LabelTier("MV"));
+        Assert.Equal(14, TierLadder.LabelTier("MAX"));
+        Assert.Null(TierLadder.LabelTier(null));
+        Assert.Null(TierLadder.LabelTier("bogus"));
     }
 
     [Fact]
@@ -179,6 +210,8 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.Log}'"));
         Assert.Equal("free_fluid", _fixture.Scalar<string>(
             $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.Water}'"));
+        Assert.Equal("minable_block", _fixture.Scalar<string>(
+            $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.ObsidianBlock}'"));
     }
 }
 
@@ -194,5 +227,5 @@ public sealed class VoltageTierTests
     [InlineData(2048, 4)]
     [InlineData(2049, 5)]
     public void MatchesVoltageLadder(long euT, int expected) =>
-        Assert.Equal(expected, RecipeTransform.VoltageTier(euT));
+        Assert.Equal(expected, TierLadder.VoltageTier(euT));
 }

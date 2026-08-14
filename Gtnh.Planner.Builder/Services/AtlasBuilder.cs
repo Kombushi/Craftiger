@@ -1,18 +1,17 @@
 using System.IO.Compression;
 using System.Text.Json;
+using Gtnh.Planner.Builder.Interfaces;
+using Gtnh.Planner.Builder.Models;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
-namespace Gtnh.Planner.Builder;
+namespace Gtnh.Planner.Builder.Services;
 
-public sealed record AtlasResult(int Width, int Height, int Cell);
-
-/// <summary>Packs all referenced icons from image.zip into one webp atlas plus an offsets json.</summary>
-public static class AtlasBuilder
+public sealed class AtlasBuilder : IAtlasBuilder
 {
-    public static AtlasResult Build(
+    public AtlasResult Build(
         string imageZipPath,
         IReadOnlyList<(string ItemId, string ImagePath)> icons,
         string atlasPath,
@@ -26,7 +25,10 @@ public static class AtlasBuilder
             var entries = zip.Entries.Where(e => e.Length > 0).ToDictionary(e => e.FullName);
             for (var i = 0; i < icons.Count; i++)
             {
-                if (!entries.TryGetValue(icons[i].ImagePath, out var entry)) continue;
+                if (!entries.TryGetValue(icons[i].ImagePath, out var entry))
+                {
+                    continue;
+                }
                 using var stream = entry.Open();
                 using var buffer = new MemoryStream((int)entry.Length);
                 stream.CopyTo(buffer);
@@ -37,12 +39,17 @@ public static class AtlasBuilder
         var tiles = new Image<Rgba32>?[icons.Count];
         Parallel.For(0, icons.Count, i =>
         {
-            if (raw[i] is null) return;
+            if (raw[i] is null)
+            {
+                return;
+            }
             try
             {
                 var image = Image.Load<Rgba32>(raw[i]);
                 if (image.Width != cell || image.Height != cell)
+                {
                     image.Mutate(x => x.Resize(cell, cell, KnownResamplers.Bicubic));
+                }
                 tiles[i] = image;
             }
             catch (ImageFormatException)
@@ -60,7 +67,10 @@ public static class AtlasBuilder
             var u = i % columns * cell;
             var v = i / columns * cell;
             offsets[icons[i].ItemId] = [u, v];
-            if (tiles[i] is not { } tile) continue;
+            if (tiles[i] is not { } tile)
+            {
+                continue;
+            }
             atlas.Mutate(x => x.DrawImage(tile, new Point(u, v), 1f));
             tile.Dispose();
         }

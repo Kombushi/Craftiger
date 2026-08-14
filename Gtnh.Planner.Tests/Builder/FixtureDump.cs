@@ -1,3 +1,4 @@
+using Dapper;
 using Microsoft.Data.Sqlite;
 
 namespace Gtnh.Planner.Tests.Builder;
@@ -21,6 +22,7 @@ public static class FixtureDump
     public const string CastIron = "i~gregtech~gt.metaitem.01~11304";
     public const string AluOre = "i~gregtech~gt.blockores~19";
     public const string NaqOre = "i~gregtech~gt.blockores~324";
+    public const string NaqOreMars = "i~gregtech~gt.blockores3~324";
     public const string NaqDust = "i~gregtech~gt.metaitem.01~2324";
     public const string NaqIngot = "i~gregtech~gt.metaitem.01~11324";
     public const string FreezerItem = "i~gregtech~gt.blockmachines~1002";
@@ -30,6 +32,22 @@ public static class FixtureDump
     public const string CopperIngot = "i~gregtech~gt.metaitem.01~11035";
     public const string AnnealedIngot = "i~gregtech~gt.metaitem.01~11345";
     public const string AnnealedDust = "i~gregtech~gt.metaitem.01~2345";
+    public const string SpaceMiner = "i~gregtech~gt.blockmachines~2001";
+    public const string KobOre = "i~miscutils~oreKoboldite~0";
+    public const string KobDust = "i~miscutils~dustKoboldite~0";
+    public const string KobIngot = "i~miscutils~ingotKoboldite~0";
+    public const string RuniteBlock = "i~miscutils~oreRunite~0";
+    public const string RawRunite = "i~miscutils~oreRawRunite~0";
+    public const string RuniteDust = "i~miscutils~dustRunite~0";
+    public const string RuniteIngot = "i~miscutils~ingotRunite~0";
+    public const string ComOre = "i~miscutils~oreComancheite~0";
+    public const string ComDust = "i~miscutils~dustComancheite~0";
+    public const string ComIngot = "i~miscutils~ingotComancheite~0";
+    public const string ObsidianBlock = "i~minecraft~obsidian~0";
+    public const string Dryer = "i~gregtech~gt.blockmachines~2002";
+    public const string DryIngot = "i~gregtech~gt.metaitem.01~11777";
+    public const string ByDust = "i~gregtech~gt.metaitem.01~2778";
+    public const string ByIngot = "i~gregtech~gt.metaitem.01~11778";
     public const string Oxygen = "f~oxygen";
     public const string Water = "f~water";
     public const string Lava = "f~lava";
@@ -43,7 +61,7 @@ public static class FixtureDump
         using var db = new SqliteConnection($"Data Source={path}");
         db.Open();
 
-        Execute(db, """
+        db.Execute("""
             CREATE TABLE ITEM(ID TEXT, IMAGE_FILE_PATH TEXT, INTERNAL_NAME TEXT, ITEM_DAMAGE INTEGER,
                 ITEM_ID INTEGER, LOCALIZED_NAME TEXT, MAX_DAMAGE INTEGER, MAX_STACK_SIZE INTEGER,
                 MOD_ID TEXT, NBT TEXT, UNLOCALIZED_NAME TEXT);
@@ -66,6 +84,20 @@ public static class FixtureDump
                 FLUID_OUTPUTS_VALUE_FLUID_ID TEXT, FLUID_OUTPUTS_VALUE_PROBABILITY REAL, FLUID_OUTPUTS_KEY INTEGER);
             CREATE TABLE FLUID_CONTAINER(ID TEXT, FLUID_STACK_AMOUNT INTEGER, CONTAINER_ID TEXT,
                 EMPTY_CONTAINER_ID TEXT, FLUID_STACK_FLUID_ID TEXT);
+            CREATE TABLE GREG_TECH_DIMENSION(ID TEXT, ABBREVIATION TEXT, FULL_NAME TEXT, INTERNAL_NAME TEXT, ROCKET_TIER INTEGER);
+            CREATE TABLE GREG_TECH_ORE_VEIN(ID TEXT, DENSITY INTEGER, ENABLED_BY_DEFAULT INTEGER, LOCALIZED_NAME TEXT,
+                MAXY INTEGER, MINY INTEGER, SIZE INTEGER, VEIN_NAME TEXT, WEIGHT INTEGER);
+            CREATE TABLE GREG_TECH_ORE_VEIN_DIMENSIONS(GREG_TECH_ORE_VEIN_ID TEXT,
+                DIMENSIONS_DIMENSION_ABBREVIATION TEXT, DIMENSIONS_MAXY INTEGER, DIMENSIONS_MINY INTEGER, DIMENSIONS_PROBABILITY REAL);
+            CREATE TABLE GREG_TECH_ORE_VEIN_ORES(GREG_TECH_ORE_VEIN_ID TEXT, ORES_ITEM_ID TEXT,
+                ORES_MATERIAL_NAME TEXT, ORES_STONE_TYPE TEXT, ORES_VEIN_LAYER TEXT);
+            CREATE TABLE GREG_TECH_SMALL_ORE(ID TEXT, AMOUNT_PER_CHUNK INTEGER, ENABLED_BY_DEFAULT INTEGER,
+                MATERIAL_NAME TEXT, MAXY INTEGER, MINY INTEGER, SMALL_ORE_NAME TEXT);
+            CREATE TABLE GREG_TECH_SMALL_ORE_DIMENSIONS(GREG_TECH_SMALL_ORE_ID TEXT,
+                DIMENSIONS_DIMENSION_ABBREVIATION TEXT, DIMENSIONS_PROBABILITY REAL);
+            CREATE TABLE GREG_TECH_SMALL_ORE_BLOCKS(GREG_TECH_SMALL_ORE_ID TEXT, BLOCKS_ITEM_ID TEXT, BLOCKS_STONE_TYPE TEXT);
+            CREATE TABLE GREG_TECH_SMALL_ORE_DROPS(GREG_TECH_SMALL_ORE_ID TEXT, DROPS_ITEM_ID TEXT);
+            CREATE TABLE ITEM_TOOLTIP(ITEM_ID TEXT, TOOLTIP TEXT, TOOLTIP_ORDER INTEGER);
             CREATE TABLE METADATA(ID INTEGER, CREATION_TIME_MILLIS INTEGER, VERSION TEXT);
             """);
 
@@ -90,6 +122,7 @@ public static class FixtureDump
         Item(db, CastIron, "Cast Iron Ingot", "gregtech");
         Item(db, AluOre, "Aluminium Ore", "gregtech");
         Item(db, NaqOre, "Naquadah Ore", "gregtech");
+        Item(db, NaqOreMars, "Naquadah Ore", "gregtech");
         Item(db, NaqDust, "Naquadah Dust", "gregtech");
         Item(db, NaqIngot, "Naquadah Ingot", "gregtech");
         Item(db, FreezerItem, "Vacuum Freezer", "gregtech");
@@ -100,7 +133,24 @@ public static class FixtureDump
         Item(db, AnnealedIngot, "Annealed Copper Ingot", "gregtech");
         Item(db, AnnealedDust, "Annealed Copper Dust", "gregtech");
         Fluid(db, Oxygen, "oxygen", "Oxygen");
-        Execute(db, $"INSERT INTO FLUID_CONTAINER VALUES ('fc_water', 1000, '{WaterCell}', '{EmptyCell}', '{Water}')");
+        Item(db, SpaceMiner, "Space Mining Module", "gregtech");
+        Item(db, KobOre, "Koboldite Ore", "miscutils");
+        Item(db, KobDust, "Koboldite Dust", "miscutils");
+        Item(db, KobIngot, "Koboldite Ingot", "miscutils");
+        Item(db, RuniteBlock, "Runite Ore", "miscutils");
+        Item(db, RawRunite, "Raw Runite Ore", "miscutils");
+        Item(db, RuniteDust, "Runite Dust", "miscutils");
+        Item(db, RuniteIngot, "Runite Ingot", "miscutils");
+        Item(db, ComOre, "Comancheite Ore", "miscutils");
+        Item(db, ComDust, "Comancheite Dust", "miscutils");
+        Item(db, ComIngot, "Comancheite Ingot", "miscutils");
+        Item(db, ObsidianBlock, "Obsidian", "minecraft");
+        Item(db, Dryer, "Basic Dryer", "gregtech");
+        Item(db, DryIngot, "Dryium Ingot", "gregtech");
+        Item(db, ByDust, "Byprodium Dust", "gregtech");
+        Item(db, ByIngot, "Byprodium Ingot", "gregtech");
+        db.Execute($"INSERT INTO ITEM_TOOLTIP VALUES ('{Dryer}', 'Voltage IN: §e128§7 (§eMV§7)', 2)");
+        db.Execute($"INSERT INTO FLUID_CONTAINER VALUES ('fc_water', 1000, '{WaterCell}', '{EmptyCell}', '{Water}')");
 
         Group(db, "g_bronze_ingot", (GtBronze, 1), (Ic2Bronze, 1));
         Group(db, "g_bronze_ingot9", (GtBronze, 9), (Ic2Bronze, 9));
@@ -113,7 +163,7 @@ public static class FixtureDump
         Group(db, "g_saw", (Saw, 1));
         Group(db, "g_mold", (Mold, 0));
         Group(db, "g_log", (Log, 1));
-        Execute(db, $"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_water', 1000, '{Water}')");
+        db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_water', 1000, '{Water}')");
 
         Oredict(db, "ingotBronze", "g_bronze_ingot");
         Oredict(db, "dustBronze", "g_bronze_dust");
@@ -145,7 +195,35 @@ public static class FixtureDump
         Group(db, "g_copper_ingot", (CopperIngot, 1));
         Group(db, "g_annealed_ingot", (AnnealedIngot, 1));
         Group(db, "g_annealed_dust", (AnnealedDust, 1));
-        Execute(db, $"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_oxygen', 63, '{Oxygen}')");
+        db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_oxygen', 63, '{Oxygen}')");
+        Group(db, "g_kob_ore", (KobOre, 1));
+        Group(db, "g_kob_dust", (KobDust, 1));
+        Group(db, "g_kob_ingot", (KobIngot, 1));
+        Oredict(db, "oreKoboldite", "g_kob_ore");
+        Oredict(db, "dustKoboldite", "g_kob_dust");
+        Oredict(db, "ingotKoboldite", "g_kob_ingot");
+        Group(db, "g_raw_runite", (RawRunite, 1));
+        Group(db, "g_runite_dust", (RuniteDust, 1));
+        Group(db, "g_runite_ingot", (RuniteIngot, 1));
+        Oredict(db, "rawOreRunite", "g_raw_runite");
+        Oredict(db, "dustRunite", "g_runite_dust");
+        Oredict(db, "ingotRunite", "g_runite_ingot");
+        Group(db, "g_com_ore", (ComOre, 1));
+        Group(db, "g_com_dust", (ComDust, 1));
+        Group(db, "g_com_ingot", (ComIngot, 1));
+        Oredict(db, "oreComancheite", "g_com_ore");
+        Oredict(db, "dustComancheite", "g_com_dust");
+        Oredict(db, "ingotComancheite", "g_com_ingot");
+        Group(db, "g_dry_ingot", (DryIngot, 1));
+        Oredict(db, "ingotDryium", "g_dry_ingot");
+        // The block* name wins the primary pick and must not hide the minable name.
+        Group(db, "g_obsidian", (ObsidianBlock, 1));
+        Oredict(db, "blockObsidian", "g_obsidian");
+        Oredict(db, "obsidian", "g_obsidian");
+        Group(db, "g_by_dust", (ByDust, 1));
+        Group(db, "g_by_ingot", (ByIngot, 1));
+        Oredict(db, "dustByprodium", "g_by_dust");
+        Oredict(db, "ingotByprodium", "g_by_ingot");
         Oredict(db, "oreCopper", "g_copper_ore");
         Oredict(db, "dustCopper", "g_copper_dust");
         Oredict(db, "ingotCopper", "g_copper_ingot");
@@ -163,6 +241,8 @@ public static class FixtureDump
         RecipeType(db, "t_arc", "gregtech", "Arc Furnace (LV)");
         RecipeType(db, "t_alloy", "gregtech", "Alloy Smelter (ULV)");
         RecipeType(db, "t_freezer", "gregtech", "Vacuum Freezer (MV)", handlerIcons: 0, handlerItem: FreezerItem);
+        RecipeType(db, "t_space", "gregtech", "Space Mining (HV)", handlerIcons: 0, handlerItem: SpaceMiner);
+        RecipeType(db, "t_dryer", "gregtech", "Dryer (LV)", handlerIcons: 0, handlerItem: Dryer);
 
         // Ingot <-> block cycle, both directions on the crafting table.
         Recipe(db, "r_block", "t_shaped", inputs: [("g_bronze_ingot9", 0)], outputs: [(BronzeBlock, 1, 1.0)]);
@@ -190,8 +270,15 @@ public static class FixtureDump
         Recipe(db, "r_cast_use", "t_shaped", inputs: [("g_cast_iron", 0)], outputs: [(Plank, 1, 1.0)]);
 
         // Annealed copper: real era is the LV arc route; the dust-smelting loop
-        // must inherit it rather than grant era 0.
-        Recipe(db, "r_cu_macerate", "t_macerator", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 2, 1.0)], voltage: 4, duration: 100);
+        // must inherit it rather than grant era 0. The slot-1 byproduct only
+        // exists on HV+ macerators, splitting the recipe into tiered variants.
+        Recipe(db, "r_cu_macerate", "t_macerator", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 2, 1.0)], voltage: 4, duration: 100,
+            byproducts: [(ByDust, 1, 0.5, 1)]);
+        Recipe(db, "r_by_smelt", "t_furnace", inputs: [("g_by_dust", 0)], outputs: [(ByIngot, 1, 1.0)]);
+
+        // The dryer is buildable at era 0 but runs on MV voltage.
+        Recipe(db, "r_dryer_craft", "t_shaped", inputs: [("g_log", 0)], outputs: [(Dryer, 1, 1.0)]);
+        Recipe(db, "r_dry", "t_dryer", inputs: [("g_copper_dust", 0)], outputs: [(DryIngot, 1, 1.0)], voltage: 24, duration: 100);
         Recipe(db, "r_cu_hammer", "t_shaped", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 1, 1.0)]);
         Recipe(db, "r_alu_macerate", "t_macerator", inputs: [("g_alu_ore", 0)], outputs: [(AluDust, 2, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_naq_macerate", "t_macerator", inputs: [("g_naq_ore", 0)], outputs: [(NaqDust, 2, 1.0)], voltage: 4, duration: 100);
@@ -205,41 +292,83 @@ public static class FixtureDump
         Recipe(db, "r_anneal", "t_arc", inputs: [("g_copper_ingot", 0)], outputs: [(AnnealedIngot, 1, 1.0)], voltage: 30, duration: 100, fluidInputs: [("g_oxygen", 0)]);
         Recipe(db, "r_ann_macerate", "t_macerator", inputs: [("g_annealed_ingot", 0)], outputs: [(AnnealedDust, 1, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_ann_smelt", "t_furnace", inputs: [("g_annealed_dust", 0)], outputs: [(AnnealedIngot, 1, 1.0)]);
-        Execute(db, $"INSERT INTO RECIPE_FLUID_OUTPUTS VALUES ('r_oxygen', 500, '{Oxygen}', NULL, 0)");
+        db.Execute($"INSERT INTO RECIPE_FLUID_OUTPUTS VALUES ('r_oxygen', 500, '{Oxygen}', NULL, 0)");
 
         // Cell-based recipe: decomposition plus netting must leave only fluids.
         Group(db, "g_water_cell", (WaterCell, 1));
         Recipe(db, "r_electrolyze", "t_electrolyzer", inputs: [("g_water_cell", 0)], outputs: [(EmptyCell, 1, 1.0)], voltage: 30, duration: 300);
-        Execute(db, $"INSERT INTO RECIPE_FLUID_OUTPUTS VALUES ('r_electrolyze', 1000, '{Hydrogen}', NULL, 0)");
+        db.Execute($"INSERT INTO RECIPE_FLUID_OUTPUTS VALUES ('r_electrolyze', 1000, '{Hydrogen}', NULL, 0)");
 
-        Execute(db, "INSERT INTO METADATA VALUES (0, 1754900000000, 'fixture')");
+        // Naquadah seeds at the Mars-tier era via a vein placing an un-oredicted
+        // variant; the disabled Overworld vein must not drag it to era 0.
+        db.Execute("INSERT INTO GREG_TECH_DIMENSION VALUES ('gtdim~Ow', 'Ow', 'Overworld', 'overworld', 0)");
+        db.Execute("INSERT INTO GREG_TECH_DIMENSION VALUES ('gtdim~Ma', 'Ma', 'GalacticraftMars_Mars', 'mars', 2)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.naq', 5, 1, 'Naquadah', 60, 10, 24, 'ore.mix.naq', 40)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.naq', 'Ma', 60, 10, 1.0)");
+        db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.naq', '{NaqOreMars}', 'Naquadah', 'Mars', 'PRIMARY')");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.off', 5, 0, 'Naquadah', 60, 10, 24, 'ore.mix.off', 40)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.off', 'Ow', 60, 10, 1.0)");
+        db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.off', '{NaqOre}', 'Naquadah', 'Stone', 'PRIMARY')");
+
+        // Copper dust drops from a Mars small ore, but the Overworld ore route must win.
+        db.Execute("INSERT INTO GREG_TECH_SMALL_ORE VALUES ('gtso~ore.small.cu', 8, 1, 'Copper', 40, 20, 'ore.small.cu')");
+        db.Execute("INSERT INTO GREG_TECH_SMALL_ORE_DIMENSIONS VALUES ('gtso~ore.small.cu', 'Ma', 1.0)");
+        db.Execute($"INSERT INTO GREG_TECH_SMALL_ORE_DROPS VALUES ('gtso~ore.small.cu', '{CopperDust}')");
+
+        // Runite's placed block is un-oredicted; its mined rawOre* chunk carries the vein era.
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.runite', 3, 1, 'Runite', 50, 10, 16, 'ore.mix.runite', 20)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.runite', 'Ma', 50, 10, 1.0)");
+        db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.runite', '{RuniteBlock}', 'Runite', 'Mars', 'PRIMARY')");
+
+        // Koboldite never world-generates; its era comes from the era-only Space Mining map.
+        Recipe(db, "r_miner_craft", "t_shaped", inputs: [("g_naq_ingot", 0)], outputs: [(SpaceMiner, 1, 1.0)]);
+        Recipe(db, "r_space", "t_space", inputs: [("g_naq_dust", 0)], outputs: [(KobOre, 1, 1.0)], voltage: 512, duration: 100);
+        Recipe(db, "r_kob_macerate", "t_macerator", inputs: [("g_kob_ore", 0)], outputs: [(KobDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_kob_smelt", "t_furnace", inputs: [("g_kob_dust", 0)], outputs: [(KobIngot, 1, 1.0)]);
+        Recipe(db, "r_runite_macerate", "t_macerator", inputs: [("g_raw_runite", 0)], outputs: [(RuniteDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_runite_smelt", "t_furnace", inputs: [("g_runite_dust", 0)], outputs: [(RuniteIngot, 1, 1.0)]);
+        Recipe(db, "r_com_macerate", "t_macerator", inputs: [("g_com_ore", 0)], outputs: [(ComDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_com_smelt", "t_furnace", inputs: [("g_com_dust", 0)], outputs: [(ComIngot, 1, 1.0)]);
+        Recipe(db, "r_obs_use", "t_shaped", inputs: [("g_obsidian", 0)], outputs: [(Plank, 1, 1.0)]);
+
+        db.Execute("INSERT INTO METADATA VALUES (0, 1754900000000, 'fixture')");
         return path;
     }
 
     private static void Item(SqliteConnection db, string id, string name, string mod) =>
-        Execute(db, $"INSERT INTO ITEM VALUES ('{id}', 'item/x.png', '{name}', 0, 1, '{name}', 0, 64, '{mod}', '', '{name}')");
+        db.Execute(
+            "INSERT INTO ITEM VALUES (@id, 'item/x.png', @name, 0, 1, @name, 0, 64, @mod, '', @name)",
+            new { id, name, mod });
 
     private static void Fluid(SqliteConnection db, string id, string internalName, string name) =>
-        Execute(db, $"INSERT INTO FLUID VALUES ('{id}', 1000, 1, 0, 'fluid/x.png', '{internalName}', '{name}', 0, 'minecraft', '', 300, '{name}', 1000)");
+        db.Execute(
+            "INSERT INTO FLUID VALUES (@id, 1000, 1, 0, 'fluid/x.png', @internalName, @name, 0, 'minecraft', '', 300, @name, 1000)",
+            new { id, internalName, name });
 
     private static void Group(SqliteConnection db, string id, params (string ItemId, long Size)[] stacks)
     {
         foreach (var (itemId, size) in stacks)
-            Execute(db, $"INSERT INTO ITEM_GROUP_ITEM_STACKS VALUES ('{id}', '{itemId}', {size})");
+        {
+            db.Execute("INSERT INTO ITEM_GROUP_ITEM_STACKS VALUES (@id, @itemId, @size)", new { id, itemId, size });
+        }
     }
 
     private static void Oredict(SqliteConnection db, string name, string groupId) =>
-        Execute(db, $"INSERT INTO ORE_DICTIONARY VALUES ('od_{name}', '{name}', '{groupId}')");
+        db.Execute("INSERT INTO ORE_DICTIONARY VALUES (@id, @name, @groupId)", new { id = $"od_{name}", name, groupId });
 
     /// <summary>Single-block maps list a tiered machine family; multiblocks list few controllers.</summary>
     private static void RecipeType(
         SqliteConnection db, string id, string category, string type, int handlerIcons = 12, string? handlerItem = null)
     {
-        Execute(db, $"INSERT INTO RECIPE_TYPE VALUES ('{id}', '{category}', '{type}')");
+        db.Execute("INSERT INTO RECIPE_TYPE VALUES (@id, @category, @type)", new { id, category, type });
         for (var i = 0; i < handlerIcons; i++)
-            Execute(db, $"INSERT INTO RECIPE_TYPE_ITEM VALUES ('{id}', 'icon~{id}~{i}')");
+        {
+            db.Execute("INSERT INTO RECIPE_TYPE_ITEM VALUES (@id, @iconId)", new { id, iconId = $"icon~{id}~{i}" });
+        }
         if (handlerItem is not null)
-            Execute(db, $"INSERT INTO RECIPE_TYPE_ITEM VALUES ('{id}', '{handlerItem}')");
+        {
+            db.Execute("INSERT INTO RECIPE_TYPE_ITEM VALUES (@id, @handlerItem)", new { id, handlerItem });
+        }
     }
 
     private static void Recipe(
@@ -247,28 +376,42 @@ public static class FixtureDump
         (string GroupId, int Slot)[] inputs,
         (string ItemId, long Amount, double Chance)[] outputs,
         long? voltage = null, long duration = 0, int? heat = null,
-        (string GroupId, int Slot)[]? fluidInputs = null)
+        (string GroupId, int Slot)[]? fluidInputs = null,
+        (string ItemId, long Amount, double Chance, int Slot)[]? byproducts = null)
     {
-        Execute(db, $"INSERT INTO RECIPE VALUES ('{id}', '{typeId}')");
+        db.Execute("INSERT INTO RECIPE VALUES (@id, @typeId)", new { id, typeId });
         foreach (var (groupId, slot) in inputs)
-            Execute(db, $"INSERT INTO RECIPE_ITEM_GROUP VALUES ('{id}', '{groupId}', {slot})");
+        {
+            db.Execute("INSERT INTO RECIPE_ITEM_GROUP VALUES (@id, @groupId, @slot)", new { id, groupId, slot });
+        }
         foreach (var (itemId, amount, chance) in outputs)
-            Execute(db, $"INSERT INTO RECIPE_ITEM_OUTPUTS VALUES ('{id}', '{itemId}', {chance}, {amount}, 0)");
+        {
+            db.Execute(
+                "INSERT INTO RECIPE_ITEM_OUTPUTS VALUES (@id, @itemId, @chance, @amount, 0)",
+                new { id, itemId, chance, amount });
+        }
+        foreach (var (itemId, amount, chance, slot) in byproducts ?? [])
+        {
+            db.Execute(
+                "INSERT INTO RECIPE_ITEM_OUTPUTS VALUES (@id, @itemId, @chance, @amount, @slot)",
+                new { id, itemId, chance, amount, slot });
+        }
         foreach (var (groupId, slot) in fluidInputs ?? [])
-            Execute(db, $"INSERT INTO RECIPE_FLUID_GROUP VALUES ('{id}', '{groupId}', {slot})");
+        {
+            db.Execute("INSERT INTO RECIPE_FLUID_GROUP VALUES (@id, @groupId, @slot)", new { id, groupId, slot });
+        }
         if (voltage is not null)
         {
             var label = voltage <= 32 ? "LV" : voltage <= 128 ? "MV" : "HV";
-            Execute(db, $"INSERT INTO GREG_TECH_RECIPE VALUES ('gtr~{id}', 1, {duration}, {voltage}, '{label}', 0, '{id}')");
+            db.Execute(
+                "INSERT INTO GREG_TECH_RECIPE VALUES (@gtId, 1, @duration, @voltage, @label, 0, @id)",
+                new { gtId = $"gtr~{id}", duration, voltage, label, id });
             if (heat is not null)
-                Execute(db, $"INSERT INTO GREG_TECH_RECIPE_METADATA VALUES ('gtr~{id}', 'coil_heat', {heat})");
+            {
+                db.Execute(
+                    "INSERT INTO GREG_TECH_RECIPE_METADATA VALUES (@gtId, 'coil_heat', @heat)",
+                    new { gtId = $"gtr~{id}", heat });
+            }
         }
-    }
-
-    private static void Execute(SqliteConnection db, string sql)
-    {
-        using var cmd = db.CreateCommand();
-        cmd.CommandText = sql;
-        cmd.ExecuteNonQuery();
     }
 }

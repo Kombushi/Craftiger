@@ -116,23 +116,48 @@ Builder responsibilities, in order:
    variants (shaped/shapeless → "Crafting Table"). Any recipe with a coil
    heat requirement keeps it in `recipes.heat` (EBF and its multiblock
    upgrades); the coil list (name → max heat + tier equivalent, builder
-   config) is exported into `meta` for the garage UI.
-5. **Leaf tagging** — mark leaves by oredict prefix and lists (§4).
+   config) is exported into `meta` for the garage UI. Macerator byproduct
+   slots only exist on tiered machines (2nd slot HV, 3rd EV, 4th IV; builder
+   config): each maceration recipe splits into a primary-only variant at the
+   map's tier plus cumulative variants (`id~b3`, `id~b4`, …) floored at the
+   slot's tier, so byproducts stay behind the right garage tier and era, and
+   steam macerators grind primaries only.
+5. **Leaf tagging** — mark leaves by oredict prefix and lists (§4); the
+   minable-block list matches every oredict of the unified item, not only its
+   primary, since unification prefers `block*` names (`blockObsidian` would
+   otherwise hide `obsidian`).
 6. **Ingot tiering** — an ingot's tier is its production era, computed as a
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
    era of every input)`. Era seeds at 0 are world-origin items only: minable
    blocks, farmables, logs, gems, free fluids, and mined `ore*` items —
-   except ores that spawn only in later-dimension worlds, which seed at that
-   dimension's tier (Moon = HV, Mars = EV, …; material → era map in builder
-   config). Dusts
+   except ores generated only in later worlds, which seed at the era of
+   reaching their cheapest generating dimension. That era is derived from the
+   dump's GT worldgen tables (veins, small ores, dimension tiers) through two
+   builder-config maps: a dimension-tier → era ladder (T1 rocket = HV,
+   T2 = EV, …) and per-dimension eras for tier-0 worlds reached without a
+   rocket (Nether = Steam, End = HV, Everglades = ZPM, …). Veins disabled in the
+   default worldgen config are ignored, and a dimension in neither map
+   contributes nothing. GT also oredicts every stone variant of an ore
+   (`oreSethIceCallistoIce`), including variants no vein places; those resolve
+   to their material by longest name suffix, so `MeteoricIron` wins over
+   `Iron`. Ore blocks that exist as items but never world-generate (a
+   builder-config list: the GT++ leftovers plus the Space Mining ores) get no
+   seed at all — their era comes from recipes, or for Space Mining ores from
+   the era-only mining maps (§9). Mined small-ore drops and `rawOre*` chunks
+   (dropped by mining GT++ ore blocks) also start at their dimension era, but
+   as soft seeds that recipes may still lower — mining is one more route, not
+   a floor. Dusts
    are deliberately not seeded — a dust obtainable only by macerating its own
    metal (annealed copper) inherits the metal's era, while ore-processing
    dusts still reach era 0 through tier-0 crushing. An EBF
    recipe's intrinsic tier is `max(voltage tier, coil tier of its required
    heat)`. Machine availability gates the era too: each recipe's intrinsic
    tier includes the era of the cheapest producible machine handling its map
-   (NEI handler items), so a chain through a Large Chemical Reactor cannot
+   (NEI handler items), each floored at that machine's input-voltage tier
+   (parsed from its "Voltage IN" tooltip) — a machine buildable early still
+   waits for its power tier, so an MV-only dehydrator cannot run in the LV
+   era. So a chain through a Large Chemical Reactor cannot
    land below the era of building one. Cleanroom-flagged recipes additionally
    inherit the Cleanroom Controller's era, which is pinned at HV — the pack's
    circuit-line progression wall, a fact the recipe graph cannot derive.
@@ -331,11 +356,12 @@ All "does not / never" rules live here; other sections only reference this one.
 - **Byproduct credit** — sibling outputs never reduce a recipe's cost;
   crediting them collapses all prices toward zero through recycling loops.
 - **Pseudo-recipe sources** — bee breeding, mob drops, dungeon/chest loot,
-  GT informational tabs (fuel values, material lists), and mining maps that
-  output ore blocks from equipment (Space Mining); the builder drops them
-  (§3 step 3) because they conjure matter from nothing and poison prices —
-  an ore-from-drill recipe forms an amplifying cycle that spirals every
-  cost to zero.
+  and GT informational tabs (fuel values, material lists); the builder drops
+  them (§3 step 3) because they conjure matter from nothing and poison
+  prices — an ore-from-drill recipe forms an amplifying cycle that spirals
+  every cost to zero. Mining maps that output ore blocks from real equipment
+  (Space Mining) are *era-only*: they gate progression in the era fixpoint
+  (§3 step 6) but never reach `planner.sqlite`, so they can never price.
 - **Overclocking, parallelism, and multiblock efficiency bonuses** — they
   affect time, energy, or machine-specific discounts; recipes price at their
   listed amounts.

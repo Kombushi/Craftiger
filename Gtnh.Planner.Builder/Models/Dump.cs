@@ -1,23 +1,4 @@
-namespace Gtnh.Planner.Builder;
-
-public sealed record DumpItem(string Id, string Name, string ModId, string InternalName, string ImagePath);
-
-public sealed record DumpFluid(string Id, string Name, string ModId, string InternalName, string ImagePath);
-
-public sealed record DumpRecipe(string Id, string Machine, string Category, int HandlerIcons, string RecipeTypeId);
-
-public sealed record DumpGtData(
-    string RecipeId, long Voltage, long Amperage, long Duration, int? Heat, string? TierLabel, bool RequiresCleanroom);
-
-public sealed record DumpItemStack(string ItemId, long Size);
-
-public sealed record DumpItemOutput(string RecipeId, string ItemId, long Size, double Chance);
-
-public sealed record DumpFluidInput(string RecipeId, string FluidId, long Amount);
-
-public sealed record DumpFluidOutput(string RecipeId, string FluidId, long Amount, double Chance);
-
-public sealed record DumpContainer(string FluidId, long Amount, string EmptyItemId);
+namespace Gtnh.Planner.Builder.Models;
 
 /// <summary>Raw dump content loaded up front; all later stages are pure transforms.</summary>
 public sealed class Dump
@@ -34,6 +15,22 @@ public sealed class Dump
     public required Dictionary<string, List<DumpFluidOutput>> FluidOutputsByRecipe { get; init; }
     public required Dictionary<string, DumpContainer> ContainersByItemId { get; init; }
     public required Dictionary<string, List<string>> HandlerItemsByRecipeTypeId { get; init; }
+    public required List<DumpWorldgenOre> WorldgenOres { get; init; }
+
+    /// <summary>Input-voltage tier per machine item, parsed from its "Voltage IN" tooltip.</summary>
+    public required Dictionary<string, int> MachineVoltageTiers { get; init; }
     public required string ExporterVersion { get; init; }
     public required DateTimeOffset ExportedAt { get; init; }
+
+    public string NameOf(string id)
+    {
+        return Fluids.TryGetValue(id, out var fluid) ? fluid.Name
+            : Items.TryGetValue(id, out var item) ? item.Name : id;
+    }
+
+    public string ImagePathOf(string id)
+    {
+        return Fluids.TryGetValue(id, out var fluid) ? fluid.ImagePath
+            : Items.TryGetValue(id, out var item) ? item.ImagePath : "";
+    }
 }

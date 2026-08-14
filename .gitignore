@@ -9,6 +9,7 @@ web/dist/
 
 # Local data and build artifacts — never committed
 dump.sqlite
+dump-*.sqlite
 planner.sqlite
 atlas.webp
 atlas-offsets.json

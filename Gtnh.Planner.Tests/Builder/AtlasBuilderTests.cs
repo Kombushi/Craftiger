@@ -1,6 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
-using Gtnh.Planner.Builder;
+using Gtnh.Planner.Builder.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
@@ -31,7 +31,7 @@ public sealed class AtlasBuilderTests
                 ("b", "item/missing.png"),
                 ("c", "item/red.png")
             };
-            var result = AtlasBuilder.Build(zipPath, icons, atlasPath, offsetsPath);
+            var result = new AtlasBuilder().Build(zipPath, icons, atlasPath, offsetsPath);
 
             Assert.Equal(64, result.Width);
             Assert.Equal(64, result.Height);
