@@ -1,6 +1,10 @@
 <Solution>
-  <Project Path="Gtnh.Planner.Api/Gtnh.Planner.Api.csproj" />
-  <Project Path="Gtnh.Planner.Builder/Gtnh.Planner.Builder.csproj" />
-  <Project Path="Gtnh.Planner.Solver/Gtnh.Planner.Solver.csproj" />
-  <Project Path="Gtnh.Planner.Tests/Gtnh.Planner.Tests.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/Craftiger.Api/Craftiger.Api.csproj" />
+    <Project Path="src/Craftiger.Builder/Craftiger.Builder.csproj" />
+    <Project Path="src/Craftiger.Solver/Craftiger.Solver.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Craftiger.Builder.UnitTests/Craftiger.Builder.UnitTests.csproj" />
+  </Folder>
 </Solution>

@@ -79,7 +79,7 @@ Caveats:
 - The dump must be re-generated for every pack update; the builder records the
   pack version into `meta`.
 
-Stage 2 — build. The builder (`Gtnh.Planner.Builder`, a standalone console
+Stage 2 — build. The builder (`Craftiger.Builder`, a standalone console
 project — repo layout in §8) first converts the HSQLDB dump into a local
 `dump.sqlite` copy over JDBC (the only step requiring a JRE — .NET has no
 HSQLDB driver), then produces:
@@ -302,15 +302,15 @@ Single-page app, English item names (dump locale). Screens:
 
 ### Repository layout
 
-- `Gtnh.Planner.Builder/` — standalone .NET console project; NESQL dump in,
+- `src/Craftiger.Builder/` — standalone .NET console project; NESQL dump in,
   artifacts out. Runs offline on demand, is never deployed, and holds no
   project reference to or from the API — the artifacts (§3) are the contract.
-- `Gtnh.Planner.Solver/` — pure class library: the cost engine (§5) and BOM
+- `src/Craftiger.Solver/` — pure class library: the cost engine (§5) and BOM
   computation (§6). No I/O and no dump dependency; referenced by the API and
   exercised directly by fixture tests.
-- `Gtnh.Planner.Api/` — .NET minimal API.
-- `Gtnh.Planner.Tests/` — single xUnit project covering Builder, Solver, and
-  API.
+- `src/Craftiger.Api/` — .NET minimal API.
+- `tests/Craftiger.Builder.UnitTests/` — xUnit tests for the Builder;
+  Solver and API tests get sibling projects under `tests/`.
 - `web/` — React SPA.
 
 ### Runtime

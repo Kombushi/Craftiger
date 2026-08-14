@@ -10,17 +10,19 @@ behavior must change, update `spec.md` in the same commit as the code.
 
 ## Layout
 
-- `Gtnh.Planner.Builder/` — standalone .NET console. NESQL dump in →
+- `src/Craftiger.Builder/` — standalone .NET console. NESQL dump in →
   `planner.sqlite` + `atlas.webp` + `atlas-offsets.json` out. Runs offline,
   is never deployed, and has no project references to or from the API. The
   three artifacts are the only contract (spec §3).
-- `Gtnh.Planner.Solver/` — pure class library: cost engine and BOM walk. No
+- `src/Craftiger.Solver/` — pure class library: cost engine and BOM walk. No
   I/O, no dump dependency; referenced by the API, tested against fixtures
   (spec §8).
-- `Gtnh.Planner.Api/` — .NET minimal API. Stateless; loads the artifacts
+- `src/Craftiger.Api/` — .NET minimal API. Stateless; loads the artifacts
   read-only; hosts the solver and its solve cache in memory (spec §8).
 - `web/` — React SPA. All user state lives in browser `localStorage` and
   travels with each request; the API stores nothing per user.
+- `tests/Craftiger.Builder.UnitTests/` — xUnit tests for the Builder; Solver
+  and API tests get sibling projects under `tests/`.
 
 ## Invariants — do not "improve" these
 
