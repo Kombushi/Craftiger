@@ -52,6 +52,9 @@ public static class FixtureDump
     public const string DearStack = "i~gregtech~gt.blockmachines~799";
     public const string MixIngot = "i~gregtech~gt.metaitem.01~11040";
     public const string DearIngot = "i~gregtech~gt.metaitem.01~11041";
+    public const string GemOre = "i~gregtech~gt.blockores~500";
+    public const string Gem = "i~gregtech~gt.metaitem.01~8500";
+    public const string GemDust = "i~gregtech~gt.metaitem.01~2500";
     public const string ClayBlock = "i~minecraft~clay~0";
     public const string ClayBall = "i~minecraft~clay_ball~0";
     public const string DryIngot = "i~gregtech~gt.metaitem.01~11777";
@@ -179,6 +182,9 @@ public static class FixtureDump
         Item(db, DearStack, "Dear Mixer Array", "gregtech");
         Item(db, MixIngot, "Mixium Ingot", "gregtech");
         Item(db, DearIngot, "Dearium Ingot", "gregtech");
+        Item(db, GemOre, "Gemium Ore", "gregtech");
+        Item(db, Gem, "Gemium", "gregtech");
+        Item(db, GemDust, "Gemium Dust", "gregtech");
         Item(db, ClayBlock, "Clay", "minecraft");
         Item(db, ClayBall, "Clay Ball", "minecraft");
         Item(db, DryIngot, "Dryium Ingot", "gregtech");
@@ -202,6 +208,12 @@ public static class FixtureDump
         Group(db, "g_dear_ingot", (DearIngot, 1));
         Oredict(db, "ingotMixium", "g_mix_ingot");
         Oredict(db, "ingotDearium", "g_dear_ingot");
+        Group(db, "g_gem_ore", (GemOre, 1));
+        Group(db, "g_gem", (Gem, 1));
+        Group(db, "g_gem_dust", (GemDust, 1));
+        Oredict(db, "oreGemium", "g_gem_ore");
+        Oredict(db, "gemGemium", "g_gem");
+        Oredict(db, "dustGemium", "g_gem_dust");
         Group(db, "g_clay_ball", (ClayBall, 1));
         db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_water', 1000, '{Water}')");
 
@@ -328,6 +340,11 @@ public static class FixtureDump
 
         // The dryer is buildable at era 0 but runs on MV voltage.
         Recipe(db, "r_dryer_craft", "t_shaped", inputs: [("g_log", 0)], outputs: [(Dryer, 1, 1.0)]);
+        // A gem has no ingot twin: its era comes from cutting it, and its dust inherits that.
+        Recipe(db, "r_gem_cut", "rt~gregtech~gt.recipe.extruder~MV", inputs: [("g_gem_ore", 0)],
+            outputs: [(Gem, 1, 1.0)], voltage: 120, duration: 100);
+        Recipe(db, "r_gem_grind", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_gem", 0)],
+            outputs: [(GemDust, 1, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_brick", "t_furnace", inputs: [("g_clay_ball", 0)], outputs: [(IronIngot, 1, 1.0)]);
         Recipe(db, "r_ebf_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(EbfController, 1, 1.0)]);
         Recipe(db, "r_macerator_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MaceratorLv, 1, 1.0)]);

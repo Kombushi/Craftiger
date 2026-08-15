@@ -133,7 +133,7 @@ Builder responsibilities, in order:
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
    era of every input)`. Era seeds at 0 are world-origin items only: minable
-   blocks, farmables, logs, gems, free fluids, and mined `ore*` items —
+   blocks, farmables, logs, free fluids, and mined `ore*` items —
    except ores generated only in later worlds, which seed at the era of
    reaching their cheapest generating dimension. That era is derived from the
    dump's GT worldgen tables (veins, small ores, dimension tiers) through two
@@ -153,7 +153,10 @@ Builder responsibilities, in order:
    a floor. Dusts
    are deliberately not seeded — a dust obtainable only by macerating its own
    metal (annealed copper) inherits the metal's era, while ore-processing
-   dusts still reach era 0 through tier-0 crushing. An EBF
+   dusts still reach era 0 through tier-0 crushing. Gems are not seeded
+   either: like ingots they earn an era from the recipes that cut or grow
+   them, so a diamond from a tier-0 ore stays cheap while an endgame crystal
+   does not. An EBF
    recipe's intrinsic tier is `max(voltage tier, coil tier of its required
    heat)`. Machine availability gates the era too: a recipe costs what the
    cheapest machine that can run it costs, taking for each machine serving its
@@ -184,8 +187,8 @@ Builder responsibilities, in order:
   coil-gated recipes only
 - `recipe_inputs(recipe_id, item_id, amount)` — amount in units, or mB for fluids
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
-- `item_tiers(item_id, tier)` — tiered materials: ingots and their matching
-  dusts (§4)
+- `item_tiers(item_id, tier)` — tiered materials: ingots, gems, and their
+  matching dusts (§4)
 - `meta(key, value)` — pack version, dump date, atlas dimensions, coil list
 
 ## 4. Cost model
@@ -198,16 +201,15 @@ Builder responsibilities, in order:
 |---|---|---|
 | Minable block | explicit list: stone, cobblestone, sand, gravel, dirt, netherrack, … | 1 |
 | Ingot | oredict `ingot*` | `B × 4^tier` (see below) |
-| Dust | oredict `dust*` | the material's ingot price when a matching `ingot*` exists (same `B × 4^tier`), else 1 |
+| Dust | oredict `dust*` | the material's ingot or gem price when a matching `ingot*` or `gem*` exists (same `B × 4^tier`), else 1 |
 | Small / tiny dust | `dustSmall*` / `dustTiny*` | parent dust ÷ 4 / ÷ 9 |
-| Gem | oredict `gem*` | 1 |
+| Gem | oredict `gem*` | `B × 4^tier`, tiered like an ingot |
 | Log | oredict `logWood` | 1 |
 | Farmable | explicit list: sugar cane, seeds, saplings, crops, … | 1 |
 | Free fluid | explicit list, default: water | 0 |
 
 All rules and weights live in **one editable weights table** (config UI, §7). The
-defaults are deliberately crude (a diamond prices equal to a redstone dust); the
-table is the tuning surface.
+defaults are deliberately crude; the table is the tuning surface.
 
 ### Ingot pricing
 

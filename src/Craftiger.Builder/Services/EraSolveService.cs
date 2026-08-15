@@ -6,12 +6,14 @@ namespace Craftiger.Builder.Services;
 
 // TODO: remove FreeFluids and unify everything under WorldFluidEras
 // TODO: what about minable blocks from higher eras? For example, end stone (HV era)
-// TODO: bind gems to their corresponding eras
 // TODO: research if MinableBlockOredicts, FarmableOredictPrefixes can be replaced with the info from the dump
 
 public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveService> logger) : IEraSolveService
 {
-    private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log", "gem", "free_fluid"];
+    private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log", "free_fluid"];
+
+    /// <summary>Leaf classes priced by production era rather than a flat weight.</summary>
+    private static readonly HashSet<string> TieredClasses = ["ingot", "gem"];
 
     public EraSolve Run(
         List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, UnifiedItems unified,
@@ -229,7 +231,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         var tiers = new Dictionary<string, int>();
         foreach (var (id, leafClass) in leafClasses)
         {
-            if (leafClass != "ingot")
+            if (!TieredClasses.Contains(leafClass))
             {
                 continue;
             }
@@ -246,7 +248,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         return tiers;
     }
 
-    /// <summary>Ingots that never bootstrap (recycling-only) fall back to the cheapest direct recipe.</summary>
+    /// <summary>Materials that never bootstrap (recycling-only) fall back to the cheapest direct recipe.</summary>
     private int ApplyRecyclingFallback(
         Dictionary<string, int> tiers, List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses)
     {
@@ -256,7 +258,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
             var intrinsic = Intrinsic(recipe, recipe.BestCaseTier);
             foreach (var output in recipe.Outputs)
             {
-                if (leafClasses.GetValueOrDefault(output.ItemId) != "ingot")
+                if (!TieredClasses.Contains(leafClasses.GetValueOrDefault(output.ItemId) ?? ""))
                 {
                     continue;
                 }
@@ -277,7 +279,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         return fallback.Count;
     }
 
-    /// <summary>A dust is the same material as its ingot; it inherits the ingot's tier.</summary>
+    /// <summary>A dust is the same material as its ingot or gem; it inherits that tier.</summary>
     private static void InheritTwinTiers(
         Dictionary<string, int> tiers, Dictionary<string, string> leafClasses, UnifiedItems unified)
     {
@@ -292,11 +294,15 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
             {
                 continue;
             }
-            var ingotOredict = "ingot" + oredict["dust".Length..];
-            if (unified.CanonicalByOredict.TryGetValue(ingotOredict, out var ingotId) &&
-                tiers.TryGetValue(ingotId, out var ingotTier))
+            var material = oredict["dust".Length..];
+            foreach (var twinOredict in new[] { "ingot" + material, "gem" + material })
             {
-                tiers[id] = ingotTier;
+                if (unified.CanonicalByOredict.TryGetValue(twinOredict, out var twinId) &&
+                    tiers.TryGetValue(twinId, out var twinTier))
+                {
+                    tiers[id] = twinTier;
+                    break;
+                }
             }
         }
     }
