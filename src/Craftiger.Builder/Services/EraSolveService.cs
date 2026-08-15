@@ -1,24 +1,36 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Craftiger.Builder.Services;
 
-// TODO: refactor the service, rename it
 // TODO: remove FreeFluids and unify everything under WorldFluidEras
 // TODO: what about minable blocks from higher eras? For example, end stone (HV era)
 // TODO: refactor WorldDropItemIds workaround
 // TODO: bind gems to their corresponding eras
 // TODO: research if MinableBlockOredicts, FarmableOredictPrefixes can be replaced with the info from the dump
 
-public sealed class IngotTiersService(BuilderConfig config, IOreWorldgenService oreWorldgen) : IIngotTiersService
+public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveService> logger) : IEraSolveService
 {
     private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log", "gem", "free_fluid"];
 
-    public EraSolve Run(List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, UnifiedItems unified, Dump dump)
+    public EraSolve Run(
+        List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, UnifiedItems unified,
+        Dump dump, WorldgenEras worldgen)
+    {
+        var (era, seeds) = Seed(leafClasses, unified, dump, worldgen);
+        var best = Propagate(recipes, era, seeds, unified, dump);
+        var tiers = ExtractTiers(recipes, leafClasses, unified, era);
+        return new EraSolve(tiers, era, best, seeds);
+    }
+
+    /// <summary>Seeds world-origin items. Order matters: the first seed of an item wins,
+    /// and only seeds taken before the snapshot are immune to recipes.</summary>
+    private (Dictionary<string, int> Era, HashSet<string> Seeds) Seed(
+        Dictionary<string, string> leafClasses, UnifiedItems unified, Dump dump, WorldgenEras worldgen)
     {
         // Dusts are not era seeds: a dust obtainable only by macerating its own
         // metal must inherit the metal's era instead of granting era 0.
-        var worldgen = oreWorldgen.Run(dump, unified);
         var era = new Dictionary<string, int>();
         foreach (var (id, leafClass) in leafClasses)
         {
@@ -66,113 +78,31 @@ public sealed class IngotTiersService(BuilderConfig config, IOreWorldgenService 
                 era[id] = dropEra;
             }
         }
-        var best = new Dictionary<string, PlannerRecipe>();
 
-        var consumers = new Dictionary<string, List<PlannerRecipe>>();
-        foreach (var recipe in recipes)
-        {
-            foreach (var slot in recipe.InputSlotAlternatives)
-            {
-                foreach (var alternative in slot)
-                {
-                    if (!consumers.TryGetValue(alternative, out var list))
-                    {
-                        consumers[alternative] = list = [];
-                    }
-                    list.Add(recipe);
-                }
-            }
-            foreach (var machineId in recipe.MachineItemIds)
-            {
-                if (!consumers.TryGetValue(machineId, out var list))
-                {
-                    consumers[machineId] = list = [];
-                }
-                list.Add(recipe);
-            }
-        }
+        logger.LogInformation("  {Seeds:N0} world-origin seeds, {Soft:N0} lowerable drops", seeds.Count, era.Count - seeds.Count);
+        return (era, seeds);
+    }
 
+    /// <summary>Runs the min-of-max fixpoint to exhaustion, improving eras strictly.</summary>
+    private Dictionary<string, PlannerRecipe> Propagate(
+        List<PlannerRecipe> recipes, Dictionary<string, int> era, HashSet<string> seeds,
+        UnifiedItems unified, Dump dump)
+    {
         var cleanroomIds = dump.Items.Values
             .Where(i => i.Name == config.CleanroomItemName)
             .Select(i => unified.Canonical(i.Id))
             .ToHashSet();
-        foreach (var recipe in recipes)
-        {
-            if (!recipe.RequiresCleanroom)
-            {
-                continue;
-            }
-            foreach (var cleanroomId in cleanroomIds)
-            {
-                if (!consumers.TryGetValue(cleanroomId, out var list))
-                {
-                    consumers[cleanroomId] = list = [];
-                }
-                list.Add(recipe);
-            }
-        }
+        var consumers = BuildConsumers(recipes, cleanroomIds);
+        var machineVoltage = MachineVoltages(unified, dump);
 
-        // A machine buildable early still waits for its input-voltage tier to be powerable.
-        var machineVoltage = new Dictionary<string, int>();
-        foreach (var (rawId, voltageTier) in dump.MachineVoltageTiers)
-        {
-            var machineId = unified.Canonical(rawId);
-            if (!machineVoltage.TryGetValue(machineId, out var current) || voltageTier < current)
-            {
-                machineVoltage[machineId] = voltageTier;
-            }
-        }
-
+        var best = new Dictionary<string, PlannerRecipe>();
         var queue = new Queue<PlannerRecipe>(recipes);
         var queued = new HashSet<string>(recipes.Select(r => r.Id));
         while (queue.TryDequeue(out var recipe))
         {
             queued.Remove(recipe.Id);
 
-            var candidate = Intrinsic(recipe);
-            if (candidate == 1 && recipe.Heat is null && HasSteamHandler(recipe, era, dump))
-            {
-                candidate = 0;
-            }
-            var machineEra = MachineEra(recipe, era, machineVoltage);
-            if (machineEra == int.MaxValue)
-            {
-                continue;
-            }
-            candidate = Math.Max(candidate, machineEra);
-            if (recipe.RequiresCleanroom)
-            {
-                var cleanroomEra = int.MaxValue;
-                foreach (var cleanroomId in cleanroomIds)
-                {
-                    if (era.TryGetValue(cleanroomId, out var e) && e < cleanroomEra)
-                    {
-                        cleanroomEra = e;
-                    }
-                }
-                if (cleanroomEra == int.MaxValue)
-                {
-                    continue;
-                }
-                candidate = Math.Max(candidate, cleanroomEra);
-            }
-            foreach (var slot in recipe.InputSlotAlternatives)
-            {
-                var slotEra = int.MaxValue;
-                foreach (var alternative in slot)
-                {
-                    if (era.TryGetValue(alternative, out var altEra) && altEra < slotEra)
-                    {
-                        slotEra = altEra;
-                    }
-                }
-                if (slotEra == int.MaxValue)
-                {
-                    candidate = int.MaxValue;
-                    break;
-                }
-                candidate = Math.Max(candidate, slotEra);
-            }
+            var candidate = RecipeEra(recipe, era, cleanroomIds, machineVoltage, dump);
             if (candidate == int.MaxValue)
             {
                 continue;
@@ -203,6 +133,109 @@ public sealed class IngotTiersService(BuilderConfig config, IOreWorldgenService 
             }
         }
 
+        return best;
+    }
+
+    /// <summary>The era a recipe can first run at, or int.MaxValue while any of its
+    /// inputs, machines or the cleanroom is still unreachable.</summary>
+    private int RecipeEra(
+        PlannerRecipe recipe, Dictionary<string, int> era, HashSet<string> cleanroomIds,
+        Dictionary<string, int> machineVoltage, Dump dump)
+    {
+        var candidate = Intrinsic(recipe);
+        if (candidate == 1 && recipe.Heat is null && HasSteamHandler(recipe, era, dump))
+        {
+            candidate = 0;
+        }
+
+        var machineEra = MachineEra(recipe, era, machineVoltage);
+        if (machineEra == int.MaxValue)
+        {
+            return int.MaxValue;
+        }
+        candidate = Math.Max(candidate, machineEra);
+
+        if (recipe.RequiresCleanroom)
+        {
+            var cleanroomEra = CheapestEra(cleanroomIds, era);
+            if (cleanroomEra == int.MaxValue)
+            {
+                return int.MaxValue;
+            }
+            candidate = Math.Max(candidate, cleanroomEra);
+        }
+
+        foreach (var slot in recipe.InputSlotAlternatives)
+        {
+            var slotEra = CheapestEra(slot, era);
+            if (slotEra == int.MaxValue)
+            {
+                return int.MaxValue;
+            }
+            candidate = Math.Max(candidate, slotEra);
+        }
+
+        return candidate;
+    }
+
+    /// <summary>Indexes recipes by every item that can hold them back: input alternatives,
+    /// handler machines, and the cleanroom for recipes that need one.</summary>
+    private static Dictionary<string, List<PlannerRecipe>> BuildConsumers(
+        List<PlannerRecipe> recipes, HashSet<string> cleanroomIds)
+    {
+        var consumers = new Dictionary<string, List<PlannerRecipe>>();
+        foreach (var recipe in recipes)
+        {
+            foreach (var slot in recipe.InputSlotAlternatives)
+            {
+                foreach (var alternative in slot)
+                {
+                    Add(consumers, alternative, recipe);
+                }
+            }
+            foreach (var machineId in recipe.MachineItemIds)
+            {
+                Add(consumers, machineId, recipe);
+            }
+            if (recipe.RequiresCleanroom)
+            {
+                foreach (var cleanroomId in cleanroomIds)
+                {
+                    Add(consumers, cleanroomId, recipe);
+                }
+            }
+        }
+        return consumers;
+
+        static void Add(Dictionary<string, List<PlannerRecipe>> consumers, string id, PlannerRecipe recipe)
+        {
+            if (!consumers.TryGetValue(id, out var list))
+            {
+                consumers[id] = list = [];
+            }
+            list.Add(recipe);
+        }
+    }
+
+    /// <summary>A machine buildable early still waits for its input-voltage tier to be powerable.</summary>
+    private static Dictionary<string, int> MachineVoltages(UnifiedItems unified, Dump dump)
+    {
+        var machineVoltage = new Dictionary<string, int>();
+        foreach (var (rawId, voltageTier) in dump.MachineVoltageTiers)
+        {
+            var machineId = unified.Canonical(rawId);
+            if (!machineVoltage.TryGetValue(machineId, out var current) || voltageTier < current)
+            {
+                machineVoltage[machineId] = voltageTier;
+            }
+        }
+        return machineVoltage;
+    }
+
+    private Dictionary<string, int> ExtractTiers(
+        List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, UnifiedItems unified,
+        Dictionary<string, int> era)
+    {
         var tiers = new Dictionary<string, int>();
         foreach (var (id, leafClass) in leafClasses)
         {
@@ -216,7 +249,17 @@ public sealed class IngotTiersService(BuilderConfig config, IOreWorldgenService 
             }
         }
 
-        // Ingots that never bootstrap (recycling-only) fall back to the cheapest direct recipe.
+        var recycled = ApplyRecyclingFallback(tiers, recipes, leafClasses);
+        InheritTwinTiers(tiers, leafClasses, unified);
+
+        logger.LogInformation("  {Recycled:N0} materials tiered by recycling fallback", recycled);
+        return tiers;
+    }
+
+    /// <summary>Ingots that never bootstrap (recycling-only) fall back to the cheapest direct recipe.</summary>
+    private int ApplyRecyclingFallback(
+        Dictionary<string, int> tiers, List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses)
+    {
         var fallback = new Dictionary<string, int>();
         foreach (var recipe in recipes)
         {
@@ -241,8 +284,13 @@ public sealed class IngotTiersService(BuilderConfig config, IOreWorldgenService 
         {
             tiers[id] = tier;
         }
+        return fallback.Count;
+    }
 
-        // A dust is the same material as its ingot; it inherits the ingot's tier.
+    /// <summary>A dust is the same material as its ingot; it inherits the ingot's tier.</summary>
+    private static void InheritTwinTiers(
+        Dictionary<string, int> tiers, Dictionary<string, string> leafClasses, UnifiedItems unified)
+    {
         foreach (var (id, leafClass) in leafClasses)
         {
             if (leafClass != "dust")
@@ -261,8 +309,6 @@ public sealed class IngotTiersService(BuilderConfig config, IOreWorldgenService 
                 tiers[id] = ingotTier;
             }
         }
-
-        return new EraSolve(tiers, era, best, seeds);
     }
 
     public void Explain(EraSolve solve, Dictionary<string, string> names, string itemId) =>
@@ -305,6 +351,19 @@ public sealed class IngotTiersService(BuilderConfig config, IOreWorldgenService 
             var best = slot.Where(solve.Era.ContainsKey).OrderBy(id => solve.Era[id]).FirstOrDefault() ?? slot[0];
             Explain(solve, names, best, depth + 1);
         }
+    }
+
+    private static int CheapestEra(IEnumerable<string> ids, Dictionary<string, int> era)
+    {
+        var cheapest = int.MaxValue;
+        foreach (var id in ids)
+        {
+            if (era.TryGetValue(id, out var itemEra) && itemEra < cheapest)
+            {
+                cheapest = itemEra;
+            }
+        }
+        return cheapest;
     }
 
     /// <summary>Steam machines run their map's LV-and-below recipes in the steam era.</summary>

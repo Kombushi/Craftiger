@@ -7,5 +7,5 @@ public sealed record PlannerData(
     List<PlannerRecipe> Recipes,
     IReadOnlyList<string> OrderedItemIds,
     Dictionary<string, string> LeafClasses,
-    Dictionary<string, int> IngotTiers,
+    Dictionary<string, int> MaterialTiers,
     IReadOnlyDictionary<string, string> Meta);

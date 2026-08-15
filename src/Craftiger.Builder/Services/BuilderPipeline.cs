@@ -11,7 +11,8 @@ public sealed class BuilderPipeline(
     IUnificationService unification,
     IRecipeTransformService recipeTransform,
     ILeafTaggingService leafTagging,
-    IIngotTiersService ingotTiers,
+    IWorldgenErasService worldgenEras,
+    IEraSolveService eraSolveService,
     IAtlasBuilder atlasBuilder,
     IPlannerRepository plannerRepository,
     BuilderConfig config,
@@ -35,7 +36,9 @@ public sealed class BuilderPipeline(
         var leafClasses = Stage("tag leaves", () => leafTagging.Run(itemIds, dump, unified));
         logger.LogInformation("  {Leaves:N0} leaves among {Items:N0} items", leafClasses.Count, itemIds.Count);
 
-        var eraSolve = Stage("tier ingots", () => ingotTiers.Run(recipes, leafClasses, unified, dump));
+        var worldgen = Stage("resolve worldgen eras", () => worldgenEras.Run(dump, unified));
+
+        var eraSolve = Stage("solve eras", () => eraSolveService.Run(recipes, leafClasses, unified, dump, worldgen));
         logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);
 
         if (options.ExplainItem is { } query)
@@ -96,7 +99,7 @@ public sealed class BuilderPipeline(
         }
         else
         {
-            ingotTiers.Explain(eraSolve, names, target);
+            eraSolveService.Explain(eraSolve, names, target);
         }
     }
 

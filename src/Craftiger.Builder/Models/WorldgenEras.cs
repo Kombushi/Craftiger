@@ -1,6 +1,6 @@
 namespace Craftiger.Builder.Models;
 
-public sealed record OreWorldgenEras(
+public sealed record WorldgenEras(
     Dictionary<string, int> OreBlocks, Dictionary<string, int> Drops, List<(string Material, int? Era)> Materials)
 {
     /// <summary>Resolves ore&lt;Stone&gt;&lt;Material&gt; variant oredicts by longest material suffix (MeteoricIron before Iron).</summary>

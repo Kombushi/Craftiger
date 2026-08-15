@@ -21,8 +21,8 @@ public static class BuilderServiceCollectionExtensions
             .AddSingleton<IUnificationService, UnificationService>()
             .AddSingleton<IRecipeTransformService, RecipeTransformService>()
             .AddSingleton<ILeafTaggingService, LeafTaggingService>()
-            .AddSingleton<IOreWorldgenService, OreWorldgenService>()
-            .AddSingleton<IIngotTiersService, IngotTiersService>()
+            .AddSingleton<IWorldgenErasService, WorldgenErasService>()
+            .AddSingleton<IEraSolveService, EraSolveService>()
             .AddSingleton<IAtlasBuilder, AtlasBuilder>()
             .AddSingleton<IBuilderPipeline, BuilderPipeline>();
 }

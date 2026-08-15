@@ -65,7 +65,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 r.Outputs.Select(o => new { RecipeId = r.Id, o.ItemId, o.Amount, o.Chance })), tx);
 
         db.Execute("INSERT INTO item_tiers VALUES (@Key, @Value)",
-            data.IngotTiers.Select(t => new { t.Key, t.Value }), tx);
+            data.MaterialTiers.Select(t => new { t.Key, t.Value }), tx);
 
         db.Execute("INSERT INTO meta VALUES (@Key, @Value)",
             data.Meta.Select(m => new { m.Key, m.Value }), tx);

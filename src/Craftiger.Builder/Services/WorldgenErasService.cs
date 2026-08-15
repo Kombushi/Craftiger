@@ -3,9 +3,9 @@ using Craftiger.Builder.Models;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class OreWorldgenService(BuilderConfig config) : IOreWorldgenService
+public sealed class WorldgenErasService(BuilderConfig config) : IWorldgenErasService
 {
-    public OreWorldgenEras Run(Dump dump, UnifiedItems unified)
+    public WorldgenEras Run(Dump dump, UnifiedItems unified)
     {
         var oreBlocks = new Dictionary<string, int>();
         var drops = new Dictionary<string, int>();
@@ -55,7 +55,7 @@ public sealed class OreWorldgenService(BuilderConfig config) : IOreWorldgenServi
             .Concat(config.NonSpawningOres.Select(m => (m, (int?)null)))
             .OrderByDescending(m => m.Item1.Length)
             .ToList();
-        return new OreWorldgenEras(oreBlocks, drops, materials);
+        return new WorldgenEras(oreBlocks, drops, materials);
     }
 
     private static void Credit(Dictionary<string, int> target, string id, int era)
