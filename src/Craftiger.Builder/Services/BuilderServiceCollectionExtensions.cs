@@ -22,6 +22,7 @@ public static class BuilderServiceCollectionExtensions
             .AddSingleton<IRecipeTransformService, RecipeTransformService>()
             .AddSingleton<ILeafTaggingService, LeafTaggingService>()
             .AddSingleton<IBlockBreakRecipeService, BlockBreakRecipeService>()
+            .AddSingleton<IUndergroundFluidRecipeService, UndergroundFluidRecipeService>()
             .AddSingleton<IWorldgenErasService, WorldgenErasService>()
             .AddSingleton<IEraSolveService, EraSolveService>()
             .AddSingleton<IAtlasBuilder, AtlasBuilder>()

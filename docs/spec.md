@@ -15,7 +15,7 @@ total raw-material bill as a flat grid of item-icon squares.
    Items with no recipe the garage can run (cost `∞`) render grayed at the
    bottom; a "hide unreachable" toggle removes them.
 3. **Full breakdown to leaves** — every plan resolves down to leaf materials
-   (ingots, dusts, gems, logs, minable blocks, free fluids).
+   (ingots, dusts, gems, logs, minable blocks, world fluids).
 4. **Quantity input** — per-target craft count; multiple targets merge into one bill.
 5. **Recipe pinning** — per item, the user may pin a producing recipe that
    overrides the auto-cheapest pick.
@@ -134,7 +134,8 @@ Builder responsibilities, in order:
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
    era of every input)`. World-origin items seed the fixpoint: farmables,
-   logs, free fluids, minable blocks, and mined `ore*` items —
+   logs, minable blocks, the world fluids config lists (water, lava), and
+   mined `ore*` items —
    except ores generated only in later worlds, which seed at the era of
    reaching their cheapest generating dimension. That era is derived from the
    dump's GT worldgen tables (veins, small ores, dimension tiers) through two
@@ -172,7 +173,13 @@ Builder responsibilities, in order:
    land below the era of building one. Cleanroom-flagged recipes additionally
    inherit the Cleanroom Controller's era, which is pinned at HV — the pack's
    circuit-line progression wall, a fact the recipe graph cannot derive.
-   Steam-handled maps run their LV-and-below recipes in the steam era. A
+   Steam-handled maps run their LV-and-below recipes in the steam era. Every
+   fluid the dump says is pumpable gets an era-only pumping recipe (§9) at its
+   cheapest dimension's era, gated by the cheapest drilling rig that can be
+   built — oil lies in the Overworld but still waits for the rig. Pumping only
+   ever gates: being pumpable does not make a fluid free, so hydrogen and the
+   other gases with underground deposits still price through their chemistry,
+   and only the world-fluid list (§4) is a leaf. A
    naive per-recipe minimum would be poisoned by recycling
    (plate → ingot smelting, arc-furnacing machines, block ↔ ingot cycles);
    in the fixpoint those routes need the ingot's own era first and starve.
@@ -207,7 +214,7 @@ Builder responsibilities, in order:
 | Gem | oredict `gem*` | `B × 4^tier`, tiered like an ingot |
 | Log | oredict `logWood` | 1 |
 | Farmable | explicit list: sugar cane, seeds, saplings, crops, … | 1 |
-| Free fluid | explicit list, default: water | 0 |
+| World fluid | explicit list: water, lava, oil and its cuts, natural gas | 0 |
 
 All rules and weights live in **one editable weights table** (config UI, §7). The
 defaults are deliberately crude; the table is the tuning surface.
@@ -306,7 +313,7 @@ Single-page app, English item names (dump locale). Screens:
   machine (`inherit / None / Steam / LV / …`); the EBF row has a voltage picker
   and a coil dropdown; crafting table and furnace are shown as always-owned.
 - **Config** — `B` slider, editable leaf-weights table, minable-block and
-  free-fluid lists.
+  world-fluid lists.
 
 ## 8. Architecture
 
@@ -371,7 +378,9 @@ All "does not / never" rules live here; other sections only reference this one.
   prices — an ore-from-drill recipe forms an amplifying cycle that spirals
   every cost to zero. Mining maps that output ore blocks from real equipment
   (Space Mining) are *era-only*: they gate progression in the era fixpoint
-  (§3 step 6) but never reach `planner.sqlite`, so they can never price.
+  (§3 step 6) but never reach `planner.sqlite`, so they can never price. The
+  same holds for pumping a fluid out of the ground: the rig gates when the
+  fluid becomes available, but the fluid itself is a world fluid priced at 0.
   Breaking a block is the one exception that does price. The dump records what
   each block drops without silk touch or fortune, and the builder turns those
   into ordinary recipes on the always-owned `Mining` machine — a clay ball

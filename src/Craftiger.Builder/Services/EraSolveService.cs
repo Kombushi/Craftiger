@@ -4,12 +4,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Craftiger.Builder.Services;
 
-// TODO: remove FreeFluids and unify everything under WorldFluidEras
 // TODO: research if MinableBlockOredicts, FarmableOredictPrefixes can be replaced with the info from the dump
 
 public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveService> logger) : IEraSolveService
 {
-    private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log", "free_fluid"];
+    private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log"];
 
     /// <summary>Leaf classes priced by production era rather than a flat weight.</summary>
     private static readonly HashSet<string> TieredClasses = ["ingot", "gem"];
@@ -63,9 +62,10 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         }
         foreach (var fluid in dump.Fluids.Values)
         {
-            if (config.WorldFluidEras.TryGetValue(fluid.InternalName, out var fluidEra))
+            // A null era means the fluid is pumped, and its own recipe decides when.
+            if (config.WorldFluids.TryGetValue(fluid.InternalName, out var fluidEra) && fluidEra is { } free)
             {
-                era.TryAdd(fluid.Id, fluidEra);
+                era.TryAdd(fluid.Id, free);
             }
         }
         var seeds = new HashSet<string>(era.Keys);

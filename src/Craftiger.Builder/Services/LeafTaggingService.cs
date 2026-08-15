@@ -13,9 +13,9 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
         {
             if (dump.Fluids.TryGetValue(id, out var fluid))
             {
-                if (config.FreeFluids.Contains(fluid.InternalName))
+                if (config.WorldFluids.ContainsKey(fluid.InternalName))
                 {
-                    classes[id] = "free_fluid";
+                    classes[id] = "world_fluid";
                 }
                 continue;
             }

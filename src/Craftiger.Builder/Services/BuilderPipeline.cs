@@ -11,6 +11,7 @@ public sealed class BuilderPipeline(
     IUnificationService unification,
     IRecipeTransformService recipeTransform,
     IBlockBreakRecipeService blockBreak,
+    IUndergroundFluidRecipeService undergroundFluid,
     ILeafTaggingService leafTagging,
     IWorldgenErasService worldgenEras,
     IEraSolveService eraSolveService,
@@ -39,6 +40,7 @@ public sealed class BuilderPipeline(
         logger.LogInformation("  {Leaves:N0} leaves among {Items:N0} items", leafClasses.Count, itemIds.Count);
 
         var worldgen = Stage("resolve worldgen eras", () => worldgenEras.Run(dump, unified));
+        recipes.AddRange(Stage("pump fluids", () => undergroundFluid.Run(dump, unified, worldgen)));
 
         var eraSolve = Stage("solve eras", () => eraSolveService.Run(recipes, leafClasses, unified, dump, worldgen));
         logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);

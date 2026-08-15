@@ -51,17 +51,23 @@ public sealed record BuilderConfig
     /// by item id — each at the era of the cheapest world it can be mined in.</summary>
     public required IReadOnlyDictionary<string, int> MinableBlockEras { get; init; }
 
-    /// <summary>World-pumped fluids by internal name, seeded at the era of reaching them.</summary>
-    public required IReadOnlyDictionary<string, int> WorldFluidEras { get; init; }
+    /// <summary>Fluids the world hands over freely, by internal name, mapped to the era they are
+    /// free at. A null era means the dump decides it: the fluid is pumped, and its era is the
+    /// cheapest rig that can drill it. Pumpable fluids left off this list are not free — they
+    /// price through their own chemistry, and pumping only gates when they become available.</summary>
+    public required IReadOnlyDictionary<string, int?> WorldFluids { get; init; }
+
+    /// <summary>Machines that pump underground fluids, by item name.</summary>
+    public required IReadOnlyList<string> PumpMachineItemNames { get; init; }
+
+    /// <summary>Machine name for pumping a fluid out of the ground.</summary>
+    public string PumpMachine { get; init; } = "Fluid Drilling";
 
     /// <summary>Oredict prefixes of farmable leaves.</summary>
     public required IReadOnlyList<string> FarmableOredictPrefixes { get; init; }
 
     /// <summary>Machine name for breaking a block by hand, owned from the start.</summary>
     public string BlockBreakMachine { get; init; } = "Mining";
-
-    /// <summary>Fluid internal names priced at zero.</summary>
-    public required IReadOnlyList<string> FreeFluids { get; init; }
 
     /// <summary>EBF coil ladder; tier is the coil's voltage-tier equivalent.</summary>
     public required IReadOnlyList<CoilSpec> Coils { get; init; }
@@ -109,17 +115,22 @@ public sealed record BuilderConfig
             "seed", "crop", "treeSapling", "sugarcane", "blockCactus",
             "treeLeaves", "reed"
         ],
-        FreeFluids = ["water"],
-        WorldFluidEras = new Dictionary<string, int>
+        WorldFluids = new Dictionary<string, int?>
         {
+            ["water"] = 0,
             ["lava"] = 0,
-            ["oil"] = 1,
-            ["gas_natural_gas"] = 1,
-            ["liquid_light_oil"] = 1,
-            ["liquid_medium_oil"] = 1,
-            ["liquid_heavy_oil"] = 1,
-            ["liquid_extra_heavy_oil"] = 1
+            ["oil"] = null,
+            ["gas_natural_gas"] = null,
+            ["liquid_light_oil"] = null,
+            ["liquid_medium_oil"] = null,
+            ["liquid_heavy_oil"] = null,
+            ["liquid_extra_heavy_oil"] = null
         },
+        PumpMachineItemNames =
+        [
+            "Fluid Drilling Rig", "Fluid Drilling Rig II", "Fluid Drilling Rig III",
+            "Fluid Drilling Rig IV", "Infinite Fluid Drilling Rig"
+        ],
         DimensionTierEras = new Dictionary<int, int>
         {
             [1] = 3,  // T1 rocket (Moon): HV

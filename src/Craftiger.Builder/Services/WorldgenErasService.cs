@@ -50,12 +50,21 @@ public sealed class WorldgenErasService(BuilderConfig config) : IWorldgenErasSer
             }
         }
 
+        var fluids = new Dictionary<string, int>();
+        foreach (var fluid in dump.UndergroundFluids)
+        {
+            if (DimensionEra(fluid.DimensionAbbreviation, fluid.DimensionTier) is { } era)
+            {
+                Credit(fluids, fluid.FluidId, era);
+            }
+        }
+
         var materials = materialEras
             .Select(m => (m.Key, (int?)m.Value))
             .Concat(config.NonSpawningOres.Select(m => (m, (int?)null)))
             .OrderByDescending(m => m.Item1.Length)
             .ToList();
-        return new WorldgenEras(oreBlocks, drops, materials);
+        return new WorldgenEras(oreBlocks, drops, materials, fluids);
     }
 
     private static void Credit(Dictionary<string, int> target, string id, int era)
@@ -66,9 +75,12 @@ public sealed class WorldgenErasService(BuilderConfig config) : IWorldgenErasSer
         }
     }
 
-    /// <summary>Unknown dimensions contribute nothing rather than wrongly lowering an era.</summary>
     private int? DimensionEra(DumpWorldgenOre ore) =>
-        config.DimensionEraOverrides.TryGetValue(ore.DimensionAbbreviation, out var overrideEra) ? overrideEra
-        : config.DimensionTierEras.TryGetValue(ore.DimensionTier, out var era) ? era
+        DimensionEra(ore.DimensionAbbreviation, ore.DimensionTier);
+
+    /// <summary>Unknown dimensions contribute nothing rather than wrongly lowering an era.</summary>
+    private int? DimensionEra(string abbreviation, int rocketTier) =>
+        config.DimensionEraOverrides.TryGetValue(abbreviation, out var overrideEra) ? overrideEra
+        : config.DimensionTierEras.TryGetValue(rocketTier, out var era) ? era
         : null;
 }

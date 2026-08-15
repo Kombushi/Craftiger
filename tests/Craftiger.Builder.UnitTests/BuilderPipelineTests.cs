@@ -51,6 +51,20 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.AluIngot}'"));
 
     [Fact]
+    public void UndergroundFluidsWaitForTheirPumpEra() =>
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.OilIngot}'"));
+
+    [Fact]
+    public void PumpedFluidsAreWorldFluidsButNeverPriceThemselves()
+    {
+        Assert.Equal("world_fluid", _fixture.Scalar<string>(
+            $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.Oil}'"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM recipes WHERE id = 'gtuf~{FixtureDump.Oil}'"));
+    }
+
+    [Fact]
     public void EndStoneSeedsAtItsOwnEra() =>
         Assert.Equal(3, _fixture.Scalar<int>(
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.EndIngot}'"));
@@ -252,7 +266,7 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.BronzeDust}'"));
         Assert.Equal("log", _fixture.Scalar<string>(
             $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.Log}'"));
-        Assert.Equal("free_fluid", _fixture.Scalar<string>(
+        Assert.Equal("world_fluid", _fixture.Scalar<string>(
             $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.Water}'"));
         Assert.Equal("minable_block", _fixture.Scalar<string>(
             $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.ObsidianBlock}'"));

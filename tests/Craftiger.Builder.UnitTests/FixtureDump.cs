@@ -52,6 +52,9 @@ public static class FixtureDump
     public const string DearStack = "i~gregtech~gt.blockmachines~799";
     public const string MixIngot = "i~gregtech~gt.metaitem.01~11040";
     public const string DearIngot = "i~gregtech~gt.metaitem.01~11041";
+    public const string Oil = "f~oil";
+    public const string OilIngot = "i~gregtech~gt.metaitem.01~11043";
+    public const string Rig = "i~gregtech~gt.blockmachines~1004";
     public const string EndStone = "i~minecraft~end_stone~0";
     public const string EndIngot = "i~gregtech~gt.metaitem.01~11042";
     public const string GemOre = "i~gregtech~gt.blockores~500";
@@ -184,6 +187,9 @@ public static class FixtureDump
         Item(db, DearStack, "Dear Mixer Array", "gregtech");
         Item(db, MixIngot, "Mixium Ingot", "gregtech");
         Item(db, DearIngot, "Dearium Ingot", "gregtech");
+        Fluid(db, Oil, "oil", "Oil");
+        Item(db, OilIngot, "Oilium Ingot", "gregtech");
+        Item(db, Rig, "Fluid Drilling Rig", "gregtech");
         Item(db, EndStone, "End Stone", "minecraft");
         Item(db, EndIngot, "Endium Ingot", "gregtech");
         Item(db, GemOre, "Gemium Ore", "gregtech");
@@ -212,6 +218,9 @@ public static class FixtureDump
         Group(db, "g_dear_ingot", (DearIngot, 1));
         Oredict(db, "ingotMixium", "g_mix_ingot");
         Oredict(db, "ingotDearium", "g_dear_ingot");
+        db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_oil', 1000, '{Oil}')");
+        Group(db, "g_oil_ingot", (OilIngot, 1));
+        Oredict(db, "ingotOilium", "g_oil_ingot");
         Group(db, "g_endstone", (EndStone, 1));
         Group(db, "g_end_ingot", (EndIngot, 1));
         Oredict(db, "endstone", "g_endstone");
@@ -348,6 +357,12 @@ public static class FixtureDump
 
         // The dryer is buildable at era 0 but runs on MV voltage.
         Recipe(db, "r_dryer_craft", "t_shaped", inputs: [("g_log", 0)], outputs: [(Dryer, 1, 1.0)]);
+        // Oil lies in the Overworld, but only a drilling rig gets it out.
+        db.Execute("INSERT INTO GREG_TECH_UNDERGROUND_FLUID(ID, FLUID_NAME, FLUID_ID) VALUES ('gtuf~oil', 'oil', @id)", new { id = Oil });
+        db.Execute("INSERT INTO GREG_TECH_UNDERGROUND_FLUID_DIMENSIONS(GREG_TECH_UNDERGROUND_FLUID_ID, DIMENSIONS_DIMENSION_ABBREVIATION, DIMENSIONS_MAX_AMOUNT, DIMENSIONS_MIN_AMOUNT, DIMENSIONS_PROBABILITY) VALUES ('gtuf~oil', 'Ow', 100, 0, 1.0)");
+        Recipe(db, "r_rig_craft", "t_shaped", inputs: [("g_naq_ingot", 0)], outputs: [(Rig, 1, 1.0)]);
+        Recipe(db, "r_oil_smelt", "t_furnace", inputs: [], outputs: [(OilIngot, 1, 1.0)], fluidInputs: [("g_oil", 0)]);
+
         // End Stone is only minable once the End is open, so what it smelts into waits too.
         Recipe(db, "r_end_smelt", "t_furnace", inputs: [("g_endstone", 0)], outputs: [(EndIngot, 1, 1.0)]);
 
