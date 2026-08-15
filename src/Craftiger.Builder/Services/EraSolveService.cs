@@ -272,6 +272,11 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         var fallback = new Dictionary<string, int>();
         foreach (var recipe in recipes)
         {
+            // Era-only recipes never price, so they cannot stand in for one that does.
+            if (recipe.EraOnly)
+            {
+                continue;
+            }
             var intrinsic = Intrinsic(recipe, recipe.BestCaseTier);
             foreach (var output in recipe.Outputs)
             {

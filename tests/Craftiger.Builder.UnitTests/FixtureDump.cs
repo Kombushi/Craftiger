@@ -52,6 +52,11 @@ public static class FixtureDump
     public const string DearStack = "i~gregtech~gt.blockmachines~799";
     public const string MixIngot = "i~gregtech~gt.metaitem.01~11040";
     public const string DearIngot = "i~gregtech~gt.metaitem.01~11041";
+    public const string BerryIngot = "i~gregtech~gt.metaitem.01~11044";
+    public const string BerrySeed = "i~cropsnh~genericSeed~0";
+    public const string Berry = "i~cropsnh~berry~0";
+    public const string WeedSeed = "i~cropsnh~genericSeed~1";
+    public const string Weed = "i~cropsnh~weed~0";
     public const string Oil = "f~oil";
     public const string OilIngot = "i~gregtech~gt.metaitem.01~11043";
     public const string Rig = "i~gregtech~gt.blockmachines~1004";
@@ -187,6 +192,11 @@ public static class FixtureDump
         Item(db, DearStack, "Dear Mixer Array", "gregtech");
         Item(db, MixIngot, "Mixium Ingot", "gregtech");
         Item(db, DearIngot, "Dearium Ingot", "gregtech");
+        Item(db, BerryIngot, "Berrium Ingot", "gregtech");
+        Item(db, BerrySeed, "Naquadah Oreberry Seeds", "cropsnh");
+        Item(db, Berry, "Naquadah Oreberry", "cropsnh");
+        Item(db, WeedSeed, "Weed Seeds", "cropsnh");
+        Item(db, Weed, "Weed", "cropsnh");
         Fluid(db, Oil, "oil", "Oil");
         Item(db, OilIngot, "Oilium Ingot", "gregtech");
         Item(db, Rig, "Fluid Drilling Rig", "gregtech");
@@ -220,6 +230,9 @@ public static class FixtureDump
         Oredict(db, "ingotDearium", "g_dear_ingot");
         db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_oil', 1000, '{Oil}')");
         Group(db, "g_oil_ingot", (OilIngot, 1));
+        Group(db, "g_berry", (Berry, 1));
+        Group(db, "g_berry_ingot", (BerryIngot, 1));
+        Oredict(db, "ingotBerrium", "g_berry_ingot");
         Oredict(db, "ingotOilium", "g_oil_ingot");
         Group(db, "g_endstone", (EndStone, 1));
         Group(db, "g_end_ingot", (EndIngot, 1));
@@ -357,6 +370,12 @@ public static class FixtureDump
 
         // The dryer is buildable at era 0 but runs on MV voltage.
         Recipe(db, "r_dryer_craft", "t_shaped", inputs: [("g_log", 0)], outputs: [(Dryer, 1, 1.0)]);
+        // A berry grows only on naquadah ore, so harvesting it waits for Mars.
+        Crop(db, "naqBerry", "Naquadah Oreberry", BerrySeed, hidden: false, drops: [Berry], underBlocks: [NaqOreMars]);
+        Crop(db, "weed", "Weed", WeedSeed, hidden: true, drops: [Weed], underBlocks: []);
+        Recipe(db, "r_berry_seed_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(BerrySeed, 1, 1.0)]);
+        Recipe(db, "r_berry_press", "t_furnace", inputs: [("g_berry", 0)], outputs: [(BerryIngot, 1, 1.0)]);
+
         // Oil lies in the Overworld, but only a drilling rig gets it out.
         db.Execute("INSERT INTO GREG_TECH_UNDERGROUND_FLUID(ID, FLUID_NAME, FLUID_ID) VALUES ('gtuf~oil', 'oil', @id)", new { id = Oil });
         db.Execute("INSERT INTO GREG_TECH_UNDERGROUND_FLUID_DIMENSIONS(GREG_TECH_UNDERGROUND_FLUID_ID, DIMENSIONS_DIMENSION_ABBREVIATION, DIMENSIONS_MAX_AMOUNT, DIMENSIONS_MIN_AMOUNT, DIMENSIONS_PROBABILITY) VALUES ('gtuf~oil', 'Ow', 100, 0, 1.0)");
@@ -460,6 +479,33 @@ public static class FixtureDump
 
     private static void Oredict(SqliteConnection db, string name, string groupId) =>
         db.Execute("INSERT INTO ORE_DICTIONARY VALUES (@id, @name, @groupId)", new { id = $"od_{name}", name, groupId });
+
+    private static void Crop(
+        SqliteConnection db, string cropId, string name, string seedId, bool hidden,
+        string[] drops, string[] underBlocks)
+    {
+        var id = $"cnh~cropsnh:{cropId}";
+        db.Execute(
+            """
+            INSERT INTO CROPS_NH_CROP(ID, CROP_ID, DROP_CHANCE, GROWTH_DURATION, HIDDEN,
+                MACHINE_BREEDING_RECIPE_TIER, MAX_LIGHT_LEVEL, MIN_LIGHT_LEVEL, MIN_SEED_BED_TIER,
+                NAME, SOIL_LIST_ID, TIER, SEED_ID)
+            VALUES (@id, @cropId, 0.95, 600, @hidden, 1, NULL, NULL, -1, @name, 'dirt', 1, @seedId)
+            """,
+            new { id, cropId = $"cropsnh:{cropId}", hidden = hidden ? 1 : 0, name, seedId });
+        foreach (var drop in drops)
+        {
+            db.Execute(
+                "INSERT INTO CROPS_NH_CROP_DROPS(CROPS_NH_CROP_ID, DROPS_ITEM_ID, DROPS_WEIGHT) VALUES (@id, @drop, 500)",
+                new { id, drop });
+        }
+        foreach (var block in underBlocks)
+        {
+            db.Execute(
+                "INSERT INTO CROPS_NH_CROP_UNDER_BLOCKS(CROPS_NH_CROP_ID, UNDER_BLOCKS_ITEM_ID) VALUES (@id, @block)",
+                new { id, block });
+        }
+    }
 
     private static void BlockDrop(SqliteConnection db, string blockName, string blockItemId, string dropId, int quantity) =>
         db.Execute(

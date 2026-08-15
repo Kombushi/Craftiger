@@ -12,6 +12,7 @@ public sealed class BuilderPipeline(
     IRecipeTransformService recipeTransform,
     IBlockBreakRecipeService blockBreak,
     IUndergroundFluidRecipeService undergroundFluid,
+    ICropHarvestRecipeService cropHarvest,
     ILeafTaggingService leafTagging,
     IWorldgenErasService worldgenEras,
     IEraSolveService eraSolveService,
@@ -32,6 +33,7 @@ public sealed class BuilderPipeline(
 
         var recipes = Stage("transform recipes", () => recipeTransform.Run(dump, unified));
         recipes.AddRange(Stage("break blocks", () => blockBreak.Run(dump, unified)));
+        recipes.AddRange(Stage("harvest crops", () => cropHarvest.Run(dump, unified)));
         var solverRecipes = recipes.Where(r => !r.EraOnly).ToList();
         logger.LogInformation("  kept {Kept:N0} recipes ({EraOnly:N0} era-only)", solverRecipes.Count, recipes.Count - solverRecipes.Count);
 

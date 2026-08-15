@@ -63,6 +63,9 @@ public sealed record BuilderConfig
     /// <summary>Machine name for pumping a fluid out of the ground.</summary>
     public string PumpMachine { get; init; } = "Fluid Drilling";
 
+    /// <summary>Machine name for harvesting a crop.</summary>
+    public string CropHarvestMachine { get; init; } = "Crop Farming";
+
     /// <summary>Oredict prefixes of farmable leaves.</summary>
     public required IReadOnlyList<string> FarmableOredictPrefixes { get; init; }
 

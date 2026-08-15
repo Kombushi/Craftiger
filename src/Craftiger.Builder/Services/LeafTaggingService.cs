@@ -7,6 +7,11 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
 {
     public Dictionary<string, string> Run(IEnumerable<string> canonicalIds, Dump dump, UnifiedItems unified)
     {
+        var cropDrops = dump.Crops
+            .Where(c => !c.Hidden)
+            .SelectMany(c => c.Drops)
+            .Select(unified.Canonical)
+            .ToHashSet();
         var classes = new Dictionary<string, string>();
 
         foreach (var id in canonicalIds)
@@ -27,12 +32,12 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
             }
 
             var oredict = unified.PrimaryOredictByCanonical.GetValueOrDefault(id);
-            if (oredict is null)
-            {
-                continue;
-            }
+            var leafClass = oredict is null
+                ? null
+                : Classify(oredict, unified.OredictsByCanonical.GetValueOrDefault(id));
 
-            var leafClass = Classify(oredict, unified.OredictsByCanonical.GetValueOrDefault(id));
+            // Most crop drops carry no oredict at all, so they are classified last.
+            leafClass ??= cropDrops.Contains(id) ? "crop_drop" : null;
             if (leafClass is not null)
             {
                 classes[id] = leafClass;

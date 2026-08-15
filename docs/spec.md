@@ -15,7 +15,7 @@ total raw-material bill as a flat grid of item-icon squares.
    Items with no recipe the garage can run (cost `∞`) render grayed at the
    bottom; a "hide unreachable" toggle removes them.
 3. **Full breakdown to leaves** — every plan resolves down to leaf materials
-   (ingots, dusts, gems, logs, minable blocks, world fluids).
+   (ingots, dusts, gems, logs, minable blocks, world fluids, crop drops).
 4. **Quantity input** — per-target craft count; multiple targets merge into one bill.
 5. **Recipe pinning** — per item, the user may pin a producing recipe that
    overrides the auto-cheapest pick.
@@ -125,7 +125,10 @@ Builder responsibilities, in order:
    map's tier plus cumulative variants (`id~b3`, `id~b4`, …) floored at the
    slot's tier, so byproducts stay behind the right garage tier and era, and
    steam macerators grind primaries only.
-5. **Leaf tagging** — mark leaves by oredict prefix and lists (§4); the
+5. **Leaf tagging** — mark leaves by oredict prefix and lists (§4). What a
+   CropsNH crop drops is a leaf too, claimed last so a vanilla farmable
+   oredict always wins, and by item id since most crop drops carry no oredict.
+   The
    minable-block list names blocks by oredict or, where the dump gives a block
    none at all (clay), by item id, and matches every oredict of the unified
    item, not only its primary, since unification prefers `block*` names
@@ -173,7 +176,10 @@ Builder responsibilities, in order:
    land below the era of building one. Cleanroom-flagged recipes additionally
    inherit the Cleanroom Controller's era, which is pinned at HV — the pack's
    circuit-line progression wall, a fact the recipe graph cannot derive.
-   Steam-handled maps run their LV-and-below recipes in the steam era. Every
+   Steam-handled maps run their LV-and-below recipes in the steam era. Crop
+   drops are not seeded: each non-hidden crop gets an era-only harvest recipe
+   (§9) taking its seed and, when it needs one, the cheapest block it grows
+   on — so an Aluminium Oreberry dates from the Moon rather than era 0. Every
    fluid the dump says is pumpable gets an era-only pumping recipe (§9) at its
    cheapest dimension's era, gated by the cheapest drilling rig that can be
    built — oil lies in the Overworld but still waits for the rig. Pumping only
@@ -214,6 +220,7 @@ Builder responsibilities, in order:
 | Gem | oredict `gem*` | `B × 4^tier`, tiered like an ingot |
 | Log | oredict `logWood` | 1 |
 | Farmable | explicit list: sugar cane, seeds, saplings, crops, … | 1 |
+| Crop drop | what a CropsNH crop drops, where no other class claims it | 1 |
 | World fluid | explicit list: water, lava, oil and its cuts, natural gas | 0 |
 
 All rules and weights live in **one editable weights table** (config UI, §7). The
@@ -381,6 +388,11 @@ All "does not / never" rules live here; other sections only reference this one.
   (§3 step 6) but never reach `planner.sqlite`, so they can never price. The
   same holds for pumping a fluid out of the ground: the rig gates when the
   fluid becomes available, but the fluid itself is a world fluid priced at 0.
+  Harvesting a CropsNH crop is era-only for the same reason: growing a crop is
+  renewable, so its drops price as leaves, while the harvest edge still dates
+  them by what the crop needs — a seed, and one of the blocks it grows on.
+  Drop weights and chances are deliberately ignored, since era-only recipes
+  never price.
   Breaking a block is the one exception that does price. The dump records what
   each block drops without silk touch or fortune, and the builder turns those
   into ordinary recipes on the always-owned `Mining` machine — a clay ball

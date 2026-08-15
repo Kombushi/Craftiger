@@ -1,0 +1,56 @@
+using Craftiger.Builder.Interfaces;
+using Craftiger.Builder.Models;
+using Microsoft.Extensions.Logging;
+
+namespace Craftiger.Builder.Services;
+
+public sealed class CropHarvestRecipeService(BuilderConfig config, ILogger<CropHarvestRecipeService> logger)
+    : ICropHarvestRecipeService
+{
+    public List<PlannerRecipe> Run(Dump dump, UnifiedItems unified)
+    {
+        var recipes = new List<PlannerRecipe>();
+        foreach (var crop in dump.Crops)
+        {
+            if (crop.Hidden || crop.SeedId is not { } seedId || !dump.Items.ContainsKey(seedId))
+            {
+                continue;
+            }
+
+            var drops = crop.Drops
+                .Where(dump.Items.ContainsKey)
+                .Select(unified.Canonical)
+                .Distinct()
+                .Select(id => new PlannerOutput(id, 1, 1.0))
+                .ToList();
+            if (drops.Count == 0)
+            {
+                continue;
+            }
+
+            // A crop grows on any one of its accepted blocks, so the cheapest decides its era.
+            var slots = new List<IReadOnlyList<string>> { new[] { unified.Canonical(seedId) } };
+            var underBlocks = crop.UnderBlocks
+                .Where(dump.Items.ContainsKey)
+                .Select(unified.Canonical)
+                .Distinct()
+                .ToList();
+            if (underBlocks.Count > 0)
+            {
+                slots.Add(underBlocks);
+            }
+
+            recipes.Add(new PlannerRecipe(
+                crop.Id, config.CropHarvestMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0,
+                Inputs: [],
+                Outputs: drops,
+                Machines: [],
+                InputSlotAlternatives: slots,
+                RequiresCleanroom: false,
+                EraOnly: true));
+        }
+
+        logger.LogInformation("  {Count:N0} crop harvests", recipes.Count);
+        return recipes;
+    }
+}

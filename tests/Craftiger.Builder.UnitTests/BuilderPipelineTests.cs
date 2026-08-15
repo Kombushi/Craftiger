@@ -51,6 +51,21 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.AluIngot}'"));
 
     [Fact]
+    public void CropHarvestsInheritTheirUnderBlockEra() =>
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.BerryIngot}'"));
+
+    [Fact]
+    public void CropDropsClassifyAsCropDrops() =>
+        Assert.Equal("crop_drop", _fixture.Scalar<string>(
+            $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.Berry}'"));
+
+    [Fact]
+    public void HiddenCropsProduceNoHarvestRecipe() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipes WHERE id LIKE 'cnh~%'"));
+
+    [Fact]
     public void UndergroundFluidsWaitForTheirPumpEra() =>
         Assert.Equal(4, _fixture.Scalar<int>(
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.OilIngot}'"));
