@@ -422,6 +422,14 @@ All "does not / never" rules live here; other sections only reference this one.
   costs a quarter of a clay block. This conjures nothing: the block is
   consumed, and a block no route can reach simply never prices. Drops equal to
   the block itself are not recipes at all, just picking the block back up.
+- **Matter fabrication** — the Replicator, Matter Fabricator, Matter Amplifier
+  and Mass Fabrication turn scrap and EU into any element. Their real price is
+  energy, which this model refuses to count, so it can only ever undercount
+  them: replicated neutronium comes out at roughly half its own leaf weight,
+  and everything neutronium follows it down. Excluding them is consistency
+  with the material-only cost model, not a workaround. The GT Recycler is
+  excluded alongside them — it eats almost any item for scrap by chance, and
+  exports no recipes to price in the first place.
 - **Intermediates as leaves** — an item that exists only partway through a
   chain (`crushed*`, `dustImpure*`, `dustPure*`, `ingotHot*`) never carries a
   leaf class, whatever its oredict prefix says. A leaf weight is a ceiling the
