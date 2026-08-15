@@ -17,6 +17,12 @@ public sealed class Dump
     public required Dictionary<string, List<string>> HandlerItemsByRecipeTypeId { get; init; }
     public required List<DumpWorldgenOre> WorldgenOres { get; init; }
 
+    /// <summary>GregTech recipe map per recipe type; non-GregTech types have none.</summary>
+    public required Dictionary<string, DumpRecipeMap> RecipeMapByTypeId { get; init; }
+    public required List<DumpBlockDrop> BlockDrops { get; init; }
+    public required List<DumpCrop> Crops { get; init; }
+    public required List<DumpUndergroundFluid> UndergroundFluids { get; init; }
+
     /// <summary>Input-voltage tier per machine item, parsed from its "Voltage IN" tooltip.</summary>
     public required Dictionary<string, int> MachineVoltageTiers { get; init; }
     public required string ExporterVersion { get; init; }
@@ -33,4 +39,7 @@ public sealed class Dump
         return Fluids.TryGetValue(id, out var fluid) ? fluid.ImagePath
             : Items.TryGetValue(id, out var item) ? item.ImagePath : "";
     }
+
+    public IEnumerable<string> ItemIdsNamed(string name) =>
+        Items.Values.Where(i => i.Name == name).Select(i => i.Id);
 }

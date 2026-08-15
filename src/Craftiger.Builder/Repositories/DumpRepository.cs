@@ -165,6 +165,82 @@ public sealed partial class DumpRepository : IDumpRepository
             worldgenOres.Add(new DumpWorldgenOre(r.ItemId, MaterialName: null, r.Dimension, r.Tier, IsDrop: true));
         }
 
+        var machinesByMapId = new Dictionary<string, List<DumpRecipeMapMachine>>();
+        foreach (var r in db.Query<(string MapId, string ItemId, long Multiblock, int? Tier)>("""
+            SELECT GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER
+            FROM GREG_TECH_RECIPE_MAP_MACHINES
+            """))
+        {
+            Add(machinesByMapId, r.MapId, new DumpRecipeMapMachine(r.ItemId, r.Multiblock != 0, r.Tier));
+        }
+
+        var recipeMaps = new Dictionary<string, DumpRecipeMap>();
+        foreach (var r in db.Query<(string Id, string Unlocalized, string Name, int Amperage, long Single, long Multi)>("""
+            SELECT ID, UNLOCALIZED_NAME, LOCALIZED_NAME, AMPERAGE, HAS_SINGLE_BLOCK, HAS_MULTI_BLOCK
+            FROM GREG_TECH_RECIPE_MAP
+            """))
+        {
+            recipeMaps[r.Unlocalized] = new DumpRecipeMap(
+                r.Unlocalized, r.Name, r.Amperage, r.Single != 0, r.Multi != 0,
+                machinesByMapId.GetValueOrDefault(r.Id) ?? []);
+        }
+
+        // A GregTech recipe type is named rt~gregtech~<recipe map>~<voltage>.
+        var recipeMapByTypeId = new Dictionary<string, DumpRecipeMap>();
+        foreach (var typeId in db.Query<string>("""SELECT ID FROM RECIPE_TYPE WHERE CATEGORY = 'gregtech'"""))
+        {
+            var parts = typeId.Split('~');
+            if (parts.Length == 4 && recipeMaps.TryGetValue(parts[2], out var map))
+            {
+                recipeMapByTypeId[typeId] = map;
+            }
+        }
+
+        var blockDrops = new List<DumpBlockDrop>();
+        foreach (var r in db.Query<(string Id, string BlockItemId, string DropItemId, int Quantity)>("""
+            SELECT ID, BLOCK_ITEM_ID, DROP_ID, QUANTITY
+            FROM BLOCK_DROP
+            WHERE BLOCK_ITEM_ID IS NOT NULL AND DROP_ID IS NOT NULL AND QUANTITY > 0
+            """))
+        {
+            blockDrops.Add(new DumpBlockDrop(r.Id, r.BlockItemId, r.DropItemId, r.Quantity));
+        }
+
+        var cropDrops = new Dictionary<string, List<string>>();
+        foreach (var (cropId, itemId) in db.Query<(string, string)>(
+            """SELECT CROPS_NH_CROP_ID, DROPS_ITEM_ID FROM CROPS_NH_CROP_DROPS"""))
+        {
+            Add(cropDrops, cropId, itemId);
+        }
+        var cropUnderBlocks = new Dictionary<string, List<string>>();
+        foreach (var (cropId, itemId) in db.Query<(string, string)>(
+            """SELECT CROPS_NH_CROP_ID, UNDER_BLOCKS_ITEM_ID FROM CROPS_NH_CROP_UNDER_BLOCKS"""))
+        {
+            Add(cropUnderBlocks, cropId, itemId);
+        }
+        var crops = new List<DumpCrop>();
+        foreach (var r in db.Query<(string Id, string CropId, string Name, string? SeedId, long Hidden)>("""
+            SELECT ID, CROP_ID, NAME, SEED_ID, HIDDEN FROM CROPS_NH_CROP
+            """))
+        {
+            crops.Add(new DumpCrop(
+                r.Id, r.CropId, r.Name, r.SeedId, r.Hidden != 0,
+                cropDrops.GetValueOrDefault(r.Id) ?? [],
+                cropUnderBlocks.GetValueOrDefault(r.Id) ?? []));
+        }
+
+        var undergroundFluids = new List<DumpUndergroundFluid>();
+        foreach (var r in db.Query<(string FluidId, string Dimension, int Tier)>("""
+            SELECT F.FLUID_ID, D.ABBREVIATION, D.ROCKET_TIER
+            FROM GREG_TECH_UNDERGROUND_FLUID F
+            JOIN GREG_TECH_UNDERGROUND_FLUID_DIMENSIONS FD ON FD.GREG_TECH_UNDERGROUND_FLUID_ID = F.ID
+            JOIN GREG_TECH_DIMENSION D ON D.ABBREVIATION = FD.DIMENSIONS_DIMENSION_ABBREVIATION
+            WHERE F.FLUID_ID IS NOT NULL
+            """))
+        {
+            undergroundFluids.Add(new DumpUndergroundFluid(r.FluidId, r.Dimension, r.Tier));
+        }
+
         var metadata = db.Query<(string Version, long CreatedMillis)>(
             """SELECT VERSION, CREATION_TIME_MILLIS FROM METADATA LIMIT 1""").FirstOrDefault();
 
@@ -183,6 +259,10 @@ public sealed partial class DumpRepository : IDumpRepository
             ContainersByItemId = containers,
             HandlerItemsByRecipeTypeId = handlerItems,
             WorldgenOres = worldgenOres,
+            RecipeMapByTypeId = recipeMapByTypeId,
+            BlockDrops = blockDrops,
+            Crops = crops,
+            UndergroundFluids = undergroundFluids,
             MachineVoltageTiers = machineVoltageTiers,
             ExporterVersion = metadata.Version ?? "unknown",
             ExportedAt = DateTimeOffset.FromUnixTimeMilliseconds(metadata.CreatedMillis)
