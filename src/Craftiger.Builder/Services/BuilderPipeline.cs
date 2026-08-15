@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Craftiger.Builder.Services;
 
@@ -13,28 +14,29 @@ public sealed class BuilderPipeline(
     IIngotTiersService ingotTiers,
     IAtlasBuilder atlasBuilder,
     IPlannerRepository plannerRepository,
-    BuilderConfig config) : IBuilderPipeline
+    BuilderConfig config,
+    ILogger<BuilderPipeline> logger) : IBuilderPipeline
 {
     public int Run(BuilderOptions options)
     {
         var total = Stopwatch.StartNew();
 
         var dump = Stage("read dump", () => dumpRepository.Read(options.DumpPath));
-        Console.WriteLine($"  items {dump.Items.Count:N0}, fluids {dump.Fluids.Count:N0}, recipes {dump.Recipes.Count:N0}");
+        logger.LogInformation("  items {Items:N0}, fluids {Fluids:N0}, recipes {Recipes:N0}", dump.Items.Count, dump.Fluids.Count, dump.Recipes.Count);
 
         var unified = Stage("unify", () => unification.Run(dump));
-        Console.WriteLine($"  {unified.CanonicalByRawId.Count:N0} oredicted items in {unified.AliasesByCanonical.Count:N0} classes");
+        logger.LogInformation("  {Oredicted:N0} oredicted items in {Classes:N0} classes", unified.CanonicalByRawId.Count, unified.AliasesByCanonical.Count);
 
         var recipes = Stage("transform recipes", () => recipeTransform.Run(dump, unified));
         var solverRecipes = recipes.Where(r => !r.EraOnly).ToList();
-        Console.WriteLine($"  kept {solverRecipes.Count:N0} recipes ({recipes.Count - solverRecipes.Count:N0} era-only)");
+        logger.LogInformation("  kept {Kept:N0} recipes ({EraOnly:N0} era-only)", solverRecipes.Count, recipes.Count - solverRecipes.Count);
 
         var itemIds = CollectItemIds(solverRecipes);
         var leafClasses = Stage("tag leaves", () => leafTagging.Run(itemIds, dump, unified));
-        Console.WriteLine($"  {leafClasses.Count:N0} leaves among {itemIds.Count:N0} items");
+        logger.LogInformation("  {Leaves:N0} leaves among {Items:N0} items", leafClasses.Count, itemIds.Count);
 
         var eraSolve = Stage("tier ingots", () => ingotTiers.Run(recipes, leafClasses, unified, dump));
-        Console.WriteLine($"  {eraSolve.Tiers.Count:N0} materials tiered");
+        logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);
 
         if (options.ExplainItem is { } query)
         {
@@ -62,14 +64,14 @@ public sealed class BuilderPipeline(
                 options.ImagesPath, icons,
                 Path.Combine(options.OutputDir, "atlas.webp"),
                 Path.Combine(options.OutputDir, "atlas-offsets.json")));
-            Console.WriteLine($"  {atlas.Width}x{atlas.Height} px, cell {atlas.Cell}");
+            logger.LogInformation("  {Width}x{Height} px, cell {Cell}", atlas.Width, atlas.Height, atlas.Cell);
             meta["atlas_width"] = atlas.Width.ToString();
             meta["atlas_height"] = atlas.Height.ToString();
             meta["atlas_cell"] = atlas.Cell.ToString();
         }
         else
         {
-            Console.WriteLine($"image.zip not found at {options.ImagesPath}; skipping atlas");
+            logger.LogWarning("image.zip not found at {ImagesPath}; skipping atlas", options.ImagesPath);
         }
 
         var plannerPath = Path.Combine(options.OutputDir, "planner.sqlite");
@@ -80,7 +82,7 @@ public sealed class BuilderPipeline(
             return 0;
         });
 
-        Console.WriteLine($"Done in {total.Elapsed.TotalSeconds:F1}s -> {plannerPath}");
+        logger.LogInformation("Done in {Seconds:F1}s -> {PlannerPath}", total.Elapsed.TotalSeconds, plannerPath);
         return 0;
     }
 
@@ -112,11 +114,11 @@ public sealed class BuilderPipeline(
         return ids;
     }
 
-    private static T Stage<T>(string name, Func<T> run)
+    private T Stage<T>(string name, Func<T> run)
     {
         var sw = Stopwatch.StartNew();
         var result = run();
-        Console.WriteLine($"[{sw.Elapsed.TotalSeconds,6:F1}s] {name}");
+        logger.LogInformation("[{Seconds,6:F1}s] {Stage}", sw.Elapsed.TotalSeconds, name);
         return result;
     }
 }

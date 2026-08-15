@@ -3,8 +3,6 @@ using Craftiger.Builder.Models;
 using Craftiger.Builder.Services;
 using Microsoft.Extensions.DependencyInjection;
 
-// TODO: replace Console[.Error].WriteLine logging with ILogger
-
 if (args.Length == 0)
 {
     Console.Error.WriteLine("Usage: Craftiger.Builder <dump.sqlite> [--output <dir>] [--pack-version <version>]");
