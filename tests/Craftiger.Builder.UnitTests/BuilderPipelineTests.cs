@@ -162,6 +162,26 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.DearIngot}'"));
 
     [Fact]
+    public void MixedMapsShipATierForEachKindOfMachine()
+    {
+        Assert.Equal(3, _fixture.Scalar<int>("SELECT tier FROM recipes WHERE id = 'r_mix'"));
+        Assert.Equal(2, _fixture.Scalar<int>("SELECT multi_tier FROM recipes WHERE id = 'r_mix'"));
+    }
+
+    [Fact]
+    public void MultiblockOnlyMapsCarryTheAllowanceInTheirOwnTier()
+    {
+        Assert.Equal(1, _fixture.Scalar<int>("SELECT tier FROM recipes WHERE id = 'r_ebf'"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(multi_tier) FROM recipes WHERE id = 'r_ebf'"));
+    }
+
+    [Fact]
+    public void SingleBlockOnlyMapsHaveNoMultiblockTier() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(multi_tier) FROM recipes WHERE id = 'r_macerate'"));
+
+    [Fact]
     public void EbfRecipeKeepsHeat() =>
         Assert.Equal(1700, _fixture.Scalar<int>("SELECT heat FROM recipes WHERE id = 'r_ebf'"));
 

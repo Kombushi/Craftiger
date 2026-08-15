@@ -50,12 +50,16 @@ total raw-material bill as a flat grid of item-icon squares.
 - **Garage**: the machines the user owns. A global default tier plus
   per-machine overrides; `effectiveTier(machine) = override ?? globalDefault`,
   and `None` marks a machine as not owned. For multiblocks the tier means the
-  best energy hatch installed. The EBF is configured by two values: voltage
-  tier and installed coil — it is the only heat-gated map. Crafting table and
-  furnace are always owned at tier 0.
-- **Garage-legal recipe**: `recipe.tier ≤ effectiveTier(recipe.machine)`; EBF
-  recipes additionally require `recipe.heat ≤ maxHeat(installed coil)`.
-  Recipes of `None` machines are never legal.
+  best energy hatch installed. A map served by both kinds of machine carries a
+  second switch, whether its multiblock is built, because the hatch allowance
+  is worth a tier and belongs to whoever built the multiblock. The EBF is
+  configured by two values: voltage tier and installed coil — it is the only
+  heat-gated map. Crafting table and furnace are always owned at tier 0.
+- **Garage-legal recipe**: `required ≤ effectiveTier(recipe.machine)`, where
+  `required` is `recipe.tier`, or `recipe.multi_tier` when the map has one and
+  the garage says the multiblock is built. EBF recipes additionally require
+  `recipe.heat ≤ maxHeat(installed coil)`. Recipes of `None` machines are
+  never legal.
 - **Upstream closure** of a set of items: every recipe (and its machine) that
   could take part in any production route of those items, found by walking
   "producible-by" edges tier-agnostically from the targets down to leaves.
@@ -112,10 +116,13 @@ Builder responsibilities, in order:
    screwdriver, wrench, …), which crafting-grid recipes list at size 1.
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
-4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). The tier
-   shipped in `planner.sqlite` is the best case, the tier on the cheapest kind
-   of machine serving the map, so a map with any multiblock ships the hatch
-   allowance already applied. Machine names normalize by stripping the recipe
+4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). Two tiers
+   ship, because 41 of the pack's 167 maps are served by both single-blocks and
+   a multiblock, and between them they carry 85% of GT's recipes: `tier` is what
+   a single-block needs, and `multi_tier` what the multiblock needs, set only
+   where owning one actually lowers the bar. A map with nothing but multiblocks
+   has no second option, so its `tier` already carries the allowance and its
+   `multi_tier` stays empty. Machine names normalize by stripping the recipe
    map's constant voltage suffix ("Macerator (ULV)" → "Macerator") and merging
    crafting variants (shaped/shapeless → "Crafting Table"). Any recipe with a coil
    heat requirement keeps it in `recipes.heat` (EBF and its multiblock
@@ -211,7 +218,8 @@ Builder responsibilities, in order:
 
 - `items(id, name_en, oredict, is_fluid, leaf_class NULL, atlas_idx)`
 - `item_aliases(item_id, alias)` — merged names and oredict names for search
-- `recipes(id, machine, tier, heat NULL, duration_ticks, eu_t)` — `heat` for
+- `recipes(id, machine, tier, multi_tier NULL, heat NULL, duration_ticks, eu_t)`
+  — `multi_tier` for maps whose multiblock lowers the tier, `heat` for
   coil-gated recipes only
 - `recipe_inputs(recipe_id, item_id, amount)` — amount in units, or mB for fluids
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`

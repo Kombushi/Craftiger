@@ -20,6 +20,20 @@ public sealed record PlannerRecipe(
     public int BestCaseTier =>
         Machines.Count == 0 ? Tier : Machines.Min(machine => TierOn(machine));
 
+    /// <summary>What the garage must reach with no multiblock installed. A map served only by
+    /// multiblocks offers nothing else, so there its own discounted tier is the requirement.</summary>
+    public int SingleBlockTier => HasSingleBlock ? Tier : BestCaseTier;
+
+    /// <summary>What the garage must reach once the map's multiblock is installed, where owning
+    /// one lowers the bar. Null when the map has no multiblock, or nothing but multiblocks.</summary>
+    public int? MultiblockTier =>
+        HasSingleBlock && Machines.Any(machine => machine.Multiblock) && BestCaseTier < Tier
+            ? BestCaseTier
+            : null;
+
+    private bool HasSingleBlock =>
+        Machines.Count == 0 || Machines.Any(machine => !machine.Multiblock);
+
     /// <summary>The voltage tier this recipe runs at on one machine. The coil gate of a
     /// heat recipe is a material requirement, so it never takes the multiblock allowance.</summary>
     public int TierOn(RecipeMachine machine) =>

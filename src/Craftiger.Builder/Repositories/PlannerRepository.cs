@@ -26,6 +26,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 id TEXT PRIMARY KEY,
                 machine TEXT NOT NULL,
                 tier INTEGER NOT NULL,
+                multi_tier INTEGER,
                 heat INTEGER,
                 duration_ticks INTEGER NOT NULL,
                 eu_t INTEGER NOT NULL);
@@ -54,10 +55,12 @@ public sealed class PlannerRepository : IPlannerRepository
                 (data.Unified.AliasesByCanonical.GetValueOrDefault(id) ?? [])
                 .Select(alias => new { Id = id, Alias = alias })), tx);
 
-        db.Execute("INSERT INTO recipes VALUES (@Id, @Machine, @Tier, @Heat, @DurationTicks, @EuT)",
+        db.Execute(
+            "INSERT INTO recipes VALUES (@Id, @Machine, @Tier, @MultiTier, @Heat, @DurationTicks, @EuT)",
             data.Recipes.Select(r => new
             {
-                r.Id, r.Machine, Tier = r.BestCaseTier, r.Heat, r.DurationTicks, r.EuT
+                r.Id, r.Machine, Tier = r.SingleBlockTier, MultiTier = r.MultiblockTier,
+                r.Heat, r.DurationTicks, r.EuT
             }), tx);
 
         db.Execute("INSERT INTO recipe_inputs VALUES (@RecipeId, @ItemId, @Amount)",
