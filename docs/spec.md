@@ -113,10 +113,10 @@ Builder responsibilities, in order:
    most catalysts (programmed circuits, molds, shapes, lenses) with stack
    size 0, which is the primary signal; a static editable prefix list
    additionally strips GT crafting tools (wire cutter, hammer, file, saw,
-   screwdriver, wrench, …), which crafting-grid recipes list at size 1. A
-   catalyst leaves its slot on its own: where it was one option among several,
-   the rest of them still stand, and only a slot that is nothing but catalysts
-   disappears.
+   screwdriver, wrench, …), which crafting-grid recipes list at size 1. One
+   catalyst condemns its whole slot: a tool slot lists every mod's version of
+   that tool and the prefix list only recognises GregTech's, so judging members
+   one at a time would leave the third-party tools priced as ingredients.
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
 4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). Two tiers
@@ -274,10 +274,10 @@ candidate(output) = Σ over slots (min over alternatives (cost × amount))
                     / (output_amount × chance)
 ```
 
-- **A slot with alternatives costs its cheapest one.** Around 30,000 recipes
-  accept any of several items in a slot — `listAllmeatraw`, `ingotAnyIron` — and
-  which one is cheapest depends on the garage and the weights table, so it
-  cannot be decided at build time.
+- **A slot with alternatives costs its cheapest one.** Some 3,600 recipes accept
+  any of several items in a slot — `listAllmeatraw`, `ingotAnyIron` — and which
+  one is cheapest depends on the garage and the weights table, so it cannot be
+  decided at build time.
 - **Chanced outputs use expected value** — dividing by `chance` prices the average
   number of runs needed. It also keeps otherwise-chance-only items reachable.
 - **Each output is priced independently** from the full input cost of its

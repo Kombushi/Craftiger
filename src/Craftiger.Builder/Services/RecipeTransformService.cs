@@ -190,24 +190,24 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
         _config.ExcludedMachineSuffixes.Any(s => machine.EndsWith(s, StringComparison.Ordinal)) ||
         _config.ExcludedMachinePrefixes.Any(p => machine.StartsWith(p, StringComparison.Ordinal));
 
-    /// <summary>Every member of an input slot the recipe really consumes. A member that is a
-    /// catalyst, or that the dump marks non-consumed with stack size 0, drops out on its own —
-    /// it never takes the rest of the slot with it. An empty result means the whole slot is
-    /// catalysts, which is exactly the case that should vanish.</summary>
+    /// <summary>Every member of an input slot the recipe really consumes, or nothing when the
+    /// slot is a catalyst. One catalyst condemns the whole slot on purpose: a tool slot lists
+    /// every mod's version of that tool, and the prefix list only recognises GregTech's, so
+    /// judging members one by one would leave the third-party tools priced as ingredients.</summary>
     private List<(string ItemId, long Amount)> ResolveSlot(Dump dump, UnifiedItems unified, string groupId)
     {
-        var members = new List<(string ItemId, long Amount)>();
         if (!dump.GroupStacks.TryGetValue(groupId, out var stacks))
         {
-            return members;
+            return [];
         }
 
+        var members = new List<(string ItemId, long Amount)>();
         foreach (var stack in stacks.OrderBy(stack => unified.Canonical(stack.ItemId), StringComparer.Ordinal))
         {
             var canonical = unified.Canonical(stack.ItemId);
             if (stack.Size <= 0 || IsCatalyst(stack.ItemId) || IsCatalyst(canonical))
             {
-                continue;
+                return [];
             }
             members.Add((canonical, stack.Size));
         }

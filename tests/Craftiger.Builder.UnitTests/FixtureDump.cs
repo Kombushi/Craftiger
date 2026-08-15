@@ -378,9 +378,10 @@ public static class FixtureDump
         Recipe(db, "r_cast_use", "t_shaped", inputs: [("g_cast_iron", 0)], outputs: [(Plank, 1, 1.0)]);
         // A slot that takes either iron must ship both, not whichever sorts first.
         Recipe(db, "r_any_iron_use", "t_shaped", inputs: [("g_any_iron", 0)], outputs: [(Plank, 1, 1.0)]);
-        // A tool among the alternatives drops out alone, leaving the slot usable.
+        // A tool anywhere in a slot marks the whole slot as tools, third-party ones included.
         Group(db, "g_saw_or_iron", (Saw, 1), (IronIngot, 1));
-        Recipe(db, "r_tool_choice", "t_shaped", inputs: [("g_saw_or_iron", 0)], outputs: [(Plank, 1, 1.0)]);
+        Recipe(db, "r_tool_choice", "t_shaped", inputs: [("g_saw_or_iron", 0), ("g_log", 1)],
+            outputs: [(Plank, 1, 1.0)]);
         // A concrete input and a choice must not share a slot number.
         Recipe(db, "r_mixed_slots", "t_shaped", inputs: [("g_log", 0), ("g_any_iron", 1)],
             outputs: [(Plank, 1, 1.0)]);

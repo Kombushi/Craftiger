@@ -208,11 +208,11 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
-    public void ToolsLeaveAChoiceWithoutTakingTheSlotWithThem()
+    public void OneToolCondemnsTheWholeSlot()
     {
         Assert.Equal(1, _fixture.Scalar<int>(
             "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_tool_choice'"));
-        Assert.Equal(FixtureDump.IronIngot, _fixture.Scalar<string>(
+        Assert.Equal(FixtureDump.Log, _fixture.Scalar<string>(
             "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_tool_choice'"));
     }
 
