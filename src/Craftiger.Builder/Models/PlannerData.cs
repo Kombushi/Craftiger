@@ -8,4 +8,5 @@ public sealed record PlannerData(
     IReadOnlyList<string> OrderedItemIds,
     Dictionary<string, string> LeafClasses,
     Dictionary<string, int> MaterialTiers,
+    IReadOnlyDictionary<string, double> LeafWeights,
     IReadOnlyDictionary<string, string> Meta);

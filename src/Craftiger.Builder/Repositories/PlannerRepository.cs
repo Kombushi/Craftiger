@@ -32,6 +32,7 @@ public sealed class PlannerRepository : IPlannerRepository
             CREATE TABLE recipe_inputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL);
             CREATE TABLE recipe_outputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, chance REAL NOT NULL);
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
+            CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             """);
 
@@ -69,6 +70,11 @@ public sealed class PlannerRepository : IPlannerRepository
 
         db.Execute("INSERT INTO item_tiers VALUES (@Key, @Value)",
             data.MaterialTiers.Select(t => new { t.Key, t.Value }), tx);
+
+        db.Execute("INSERT INTO item_weights VALUES (@Key, @Value)",
+            data.LeafWeights
+                .Where(w => data.LeafClasses.ContainsKey(w.Key))
+                .Select(w => new { w.Key, w.Value }), tx);
 
         db.Execute("INSERT INTO meta VALUES (@Key, @Value)",
             data.Meta.Select(m => new { m.Key, m.Value }), tx);

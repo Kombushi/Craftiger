@@ -13,7 +13,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
     private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log"];
 
     /// <summary>Leaf classes priced by production era rather than a flat weight.</summary>
-    private static readonly HashSet<string> TieredClasses = ["ingot", "gem"];
+    private static readonly HashSet<string> TieredClasses = ["ingot", "gem", "dust"];
 
     public EraSolve Run(
         List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, UnifiedItems unified,
@@ -65,7 +65,8 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
         foreach (var fluid in dump.Fluids.Values)
         {
             // A null era means the fluid is pumped, and its own recipe decides when.
-            if (_config.WorldFluids.TryGetValue(fluid.InternalName, out var fluidEra) && fluidEra is { } free)
+            if (_config.WorldFluids.TryGetValue(fluid.InternalName, out var worldFluid) &&
+                worldFluid.Era is { } free)
             {
                 era.TryAdd(fluid.Id, free);
             }

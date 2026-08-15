@@ -70,6 +70,10 @@ public static class FixtureDump
     public const string DryIngot = "i~gregtech~gt.metaitem.01~11777";
     public const string ByDust = "i~gregtech~gt.metaitem.01~2778";
     public const string ByIngot = "i~gregtech~gt.metaitem.01~11778";
+    public const string NugIngot = "i~gregtech~gt.metaitem.01~11045";
+    public const string NugNugget = "i~gregtech~gt.metaitem.01~9045";
+    public const string NugImpure = "i~gregtech~gt.metaitem.01~2945";
+    public const string LostIngot = "i~gregtech~gt.metaitem.01~11046";
     public const string Oxygen = "f~oxygen";
     public const string Water = "f~water";
     public const string Lava = "f~lava";
@@ -207,6 +211,10 @@ public static class FixtureDump
         Item(db, GemDust, "Gemium Dust", "gregtech");
         Item(db, ClayBlock, "Clay", "minecraft");
         Item(db, ClayBall, "Clay Ball", "minecraft");
+        Item(db, NugIngot, "Nugium Ingot", "gregtech");
+        Item(db, NugNugget, "Nugium Nugget", "gregtech");
+        Item(db, NugImpure, "Impure Pile of Nugium Dust", "gregtech");
+        Item(db, LostIngot, "Lostium Ingot", "gregtech");
         Item(db, DryIngot, "Dryium Ingot", "gregtech");
         Item(db, ByDust, "Byprodium Dust", "gregtech");
         Item(db, ByIngot, "Byprodium Ingot", "gregtech");
@@ -234,6 +242,14 @@ public static class FixtureDump
         Group(db, "g_berry_ingot", (BerryIngot, 1));
         Oredict(db, "ingotBerrium", "g_berry_ingot");
         Oredict(db, "ingotOilium", "g_oil_ingot");
+        Group(db, "g_nug_ingot", (NugIngot, 1));
+        Group(db, "g_nug_nugget", (NugNugget, 9));
+        Group(db, "g_nug_impure", (NugImpure, 1));
+        Group(db, "g_lost_ingot", (LostIngot, 1));
+        Oredict(db, "ingotNugium", "g_nug_ingot");
+        Oredict(db, "nuggetNugium", "g_nug_nugget");
+        Oredict(db, "dustImpureNugium", "g_nug_impure");
+        Oredict(db, "ingotLostium", "g_lost_ingot");
         Group(db, "g_endstone", (EndStone, 1));
         Group(db, "g_end_ingot", (EndIngot, 1));
         Oredict(db, "endstone", "g_endstone");
@@ -390,6 +406,17 @@ public static class FixtureDump
             outputs: [(Gem, 1, 1.0)], voltage: 120, duration: 100);
         Recipe(db, "r_gem_grind", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_gem", 0)],
             outputs: [(GemDust, 1, 1.0)], voltage: 4, duration: 100);
+        // Nugium covers the derived and intermediate leaf rules: a nugget priced off its
+        // ingot, and an ore-washing pile that has to price from its own recipe.
+        Recipe(db, "r_nug_smelt", "t_furnace", inputs: [("g_copper_ingot", 0)], outputs: [(NugIngot, 1, 1.0)]);
+        Recipe(db, "r_nug_split", "t_shaped", inputs: [("g_nug_ingot", 0)], outputs: [(NugNugget, 9, 1.0)]);
+        Recipe(db, "r_nug_wash", "t_furnace", inputs: [("g_nug_impure", 0)], outputs: [(NugIngot, 1, 1.0)]);
+        Recipe(db, "r_nug_grind", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_nug_ingot", 0)],
+            outputs: [(NugImpure, 1, 1.0)], voltage: 4, duration: 100);
+        // Lostium is only ever consumed, so the era solve never reaches it.
+        Recipe(db, "r_lost_use", "t_furnace", inputs: [("g_lost_ingot", 0)], outputs: [(IronIngot, 1, 1.0)]);
+        // Clay balls are also farmed, but breaking the block already prices them.
+        Crop(db, "clayCrop", "Clay Crop", BerrySeed, hidden: false, drops: [ClayBall], underBlocks: []);
         Recipe(db, "r_brick", "t_furnace", inputs: [("g_clay_ball", 0)], outputs: [(IronIngot, 1, 1.0)]);
         Recipe(db, "r_ebf_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(EbfController, 1, 1.0)]);
         Recipe(db, "r_macerator_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MaceratorLv, 1, 1.0)]);

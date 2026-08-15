@@ -108,6 +108,31 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.GemDust}'"));
 
     [Fact]
+    public void NuggetsAreLeavesOfTheirOwnClass() =>
+        Assert.Equal("nugget", _fixture.Scalar<string>(
+            $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.NugNugget}'"));
+
+    [Fact]
+    public void OreProcessingIntermediatesAreNeverLeaves() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT COUNT(leaf_class) FROM items WHERE id = '{FixtureDump.NugImpure}'"));
+
+    [Fact]
+    public void CropDropsAnotherRecipeMakesAreNotLeaves() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT COUNT(leaf_class) FROM items WHERE id = '{FixtureDump.ClayBall}'"));
+
+    [Fact]
+    public void TieredLeavesTheEraSolveNeverReachedAreDropped() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT COUNT(leaf_class) FROM items WHERE id = '{FixtureDump.LostIngot}'"));
+
+    [Fact]
+    public void WorldFluidsCarryTheirOwnWeight() =>
+        Assert.Equal(8.0, _fixture.Scalar<double>(
+            $"SELECT weight FROM item_weights WHERE item_id = '{FixtureDump.Oil}'"));
+
+    [Fact]
     public void ClayBallPricesFromBreakingItsBlock()
     {
         Assert.Equal(1, _fixture.Scalar<int>(

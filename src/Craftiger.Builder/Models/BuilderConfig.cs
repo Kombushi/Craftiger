@@ -51,11 +51,10 @@ public sealed record BuilderConfig
     /// by item id — each at the era of the cheapest world it can be mined in.</summary>
     public required IReadOnlyDictionary<string, int> MinableBlockEras { get; init; }
 
-    /// <summary>Fluids the world hands over freely, by internal name, mapped to the era they are
-    /// free at. A null era means the dump decides it: the fluid is pumped, and its era is the
-    /// cheapest rig that can drill it. Pumpable fluids left off this list are not free — they
-    /// price through their own chemistry, and pumping only gates when they become available.</summary>
-    public required IReadOnlyDictionary<string, int?> WorldFluids { get; init; }
+    /// <summary>Fluids the world hands over, by internal name. Pumpable fluids left off this
+    /// list are not world fluids — they price through their own chemistry, and pumping only
+    /// gates when they become available.</summary>
+    public required IReadOnlyDictionary<string, WorldFluid> WorldFluids { get; init; }
 
     /// <summary>Machines that pump underground fluids, by item name.</summary>
     public required IReadOnlyList<string> PumpMachineItemNames { get; init; }
@@ -65,6 +64,10 @@ public sealed record BuilderConfig
 
     /// <summary>Machine name for harvesting a crop.</summary>
     public required string CropHarvestMachine { get; init; }
+
+    /// <summary>Oredict prefixes of ore-processing and smelting intermediates. They are never
+    /// leaves: pricing them from a flat weight would cap every material made through them.</summary>
+    public required IReadOnlyList<string> IntermediateOredictPrefixes { get; init; }
 
     /// <summary>Oredict prefixes of farmable leaves.</summary>
     public required IReadOnlyList<string> FarmableOredictPrefixes { get; init; }

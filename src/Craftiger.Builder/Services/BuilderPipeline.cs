@@ -50,7 +50,8 @@ public sealed class BuilderPipeline(
         logger.LogInformation("  kept {Kept:N0} recipes ({EraOnly:N0} era-only)", solverRecipes.Count, recipes.Count - solverRecipes.Count);
 
         var itemIds = CollectItemIds(solverRecipes);
-        var leafClasses = Stage("tag leaves", () => leafTagging.Run(itemIds, dump, unified));
+        var produced = CollectProducedIds(solverRecipes);
+        var leafClasses = Stage("tag leaves", () => leafTagging.Run(itemIds, produced, dump, unified));
         logger.LogInformation("  {Leaves:N0} leaves among {Items:N0} items", leafClasses.Count, itemIds.Count);
 
         var worldgen = Stage("resolve worldgen eras", () => worldgenEras.Run(dump, unified));
@@ -58,6 +59,10 @@ public sealed class BuilderPipeline(
 
         var eraSolve = Stage("solve eras", () => eraSolveService.Run(recipes, leafClasses, unified, dump, worldgen));
         logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);
+
+        // Only now are tiers known, so only now can an unpriceable leaf be told apart.
+        leafTagging.Prune(leafClasses, eraSolve.Tiers, unified);
+        logger.LogInformation("  {Leaves:N0} leaves kept", leafClasses.Count);
 
         if (_options.ExplainItem is { } query)
         {
@@ -99,7 +104,8 @@ public sealed class BuilderPipeline(
         Stage("write planner.sqlite", () =>
         {
             plannerRepository.Write(plannerPath, new PlannerData(
-                dump, unified, solverRecipes, orderedItemIds, leafClasses, eraSolve.Tiers, meta));
+                dump, unified, solverRecipes, orderedItemIds, leafClasses, eraSolve.Tiers,
+                leafTagging.Overrides(dump), meta));
             return 0;
         });
 
@@ -119,6 +125,19 @@ public sealed class BuilderPipeline(
         {
             eraSolveService.Explain(eraSolve, names, target);
         }
+    }
+
+    private static HashSet<string> CollectProducedIds(List<PlannerRecipe> recipes)
+    {
+        var ids = new HashSet<string>();
+        foreach (var recipe in recipes)
+        {
+            foreach (var output in recipe.Outputs)
+            {
+                ids.Add(output.ItemId);
+            }
+        }
+        return ids;
     }
 
     private static HashSet<string> CollectItemIds(List<PlannerRecipe> recipes)

@@ -2,8 +2,14 @@ using Craftiger.Builder.Models;
 
 namespace Craftiger.Builder.Interfaces;
 
-/// <summary>Assigns leaf classes to canonical items by oredict and config lists.</summary>
+/// <summary>Decides which items the planner never expands, and what fixes their price.</summary>
 public interface ILeafTaggingService
 {
-    Dictionary<string, string> Run(IEnumerable<string> canonicalIds, Dump dump, UnifiedItems unified);
+    Dictionary<string, string> Run(
+        IEnumerable<string> canonicalIds, IReadOnlySet<string> produced, Dump dump, UnifiedItems unified);
+
+    void Prune(
+        Dictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers, UnifiedItems unified);
+
+    Dictionary<string, double> Overrides(Dump dump);
 }

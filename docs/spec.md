@@ -15,7 +15,8 @@ total raw-material bill as a flat grid of item-icon squares.
    Items with no recipe the garage can run (cost `∞`) render grayed at the
    bottom; a "hide unreachable" toggle removes them.
 3. **Full breakdown to leaves** — every plan resolves down to leaf materials
-   (ingots, dusts, gems, logs, minable blocks, world fluids, crop drops).
+   (ingots, gems, dusts and their fractions, nuggets, logs, minable blocks,
+   world fluids, crop drops).
 4. **Quantity input** — per-target craft count; multiple targets merge into one bill.
 5. **Recipe pinning** — per item, the user may pin a producing recipe that
    overrides the auto-cheapest pick.
@@ -125,10 +126,17 @@ Builder responsibilities, in order:
    map's tier plus cumulative variants (`id~b3`, `id~b4`, …) floored at the
    slot's tier, so byproducts stay behind the right garage tier and era, and
    steam macerators grind primaries only.
-5. **Leaf tagging** — mark leaves by oredict prefix and lists (§4). What a
-   CropsNH crop drops is a leaf too, claimed last so a vanilla farmable
-   oredict always wins, and by item id since most crop drops carry no oredict.
-   The
+5. **Leaf tagging** — mark leaves by oredict prefix and lists (§4).
+   Ore-washing and blast-furnace intermediates (`crushed*`, `dustImpure*`,
+   `dustPure*`, `ingotHot*`) are never leaves: they exist only inside a chain,
+   so a flat weight on one would cap every material made through it. What a
+   CropsNH crop drops is a leaf too, but only where farming is the one way in —
+   anything another recipe also makes is priced from that recipe. Crop drops
+   are claimed last so a vanilla farmable oredict always wins, and by item id
+   since most carry no oredict. Once eras are known the leaf set is pruned
+   again: a tiered leaf the fixpoint never reached, and a fraction whose parent
+   is not itself priced, lose their class and fall back to their recipes, so
+   every leaf that ships has a weight the solver can work out. The
    minable-block list names blocks by oredict or, where the dump gives a block
    none at all (clay), by item id, and matches every oredict of the unified
    item, not only its primary, since unification prefers `block*` names
@@ -165,7 +173,9 @@ Builder responsibilities, in order:
    dusts still reach era 0 through tier-0 crushing. Gems are not seeded
    either: like ingots they earn an era from the recipes that cut or grow
    them, so a diamond from a tier-0 ore stays cheap while an endgame crystal
-   does not. An EBF
+   does not. Dusts are tiered the same way, by their own era, which the
+   matching `ingot*` or `gem*` twin then overrides where one exists — a dust
+   is the same material as its metal. An EBF
    recipe's intrinsic tier is `max(voltage tier, coil tier of its required
    heat)`. Machine availability gates the era too: a recipe costs what the
    cheapest machine that can run it costs, taking for each machine serving its
@@ -205,8 +215,9 @@ Builder responsibilities, in order:
   coil-gated recipes only
 - `recipe_inputs(recipe_id, item_id, amount)` — amount in units, or mB for fluids
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
-- `item_tiers(item_id, tier)` — tiered materials: ingots, gems, and their
-  matching dusts (§4)
+- `item_tiers(item_id, tier)` — tiered materials: ingots, gems and dusts (§4)
+- `item_weights(item_id, weight)` — weights overriding the item's leaf class,
+  where one class covers items worth different amounts (§4)
 - `meta(key, value)` — pack version, dump date, atlas dimensions, coil list
 
 ## 4. Cost model
@@ -219,16 +230,22 @@ Builder responsibilities, in order:
 |---|---|---|
 | Minable block | explicit list, each with the era of the cheapest world it is mined in (End Stone at HV) | 1 |
 | Ingot | oredict `ingot*` | `B × 4^tier` (see below) |
-| Dust | oredict `dust*` | the material's ingot or gem price when a matching `ingot*` or `gem*` exists (same `B × 4^tier`), else 1 |
+| Dust | oredict `dust*` | `B × 4^tier`, from the matching `ingot*` or `gem*` where the material has one, else from the dust's own era |
 | Small / tiny dust | `dustSmall*` / `dustTiny*` | parent dust ÷ 4 / ÷ 9 |
+| Nugget | oredict `nugget*` | parent ingot or gem ÷ 9 |
 | Gem | oredict `gem*` | `B × 4^tier`, tiered like an ingot |
 | Log | oredict `logWood` | 1 |
 | Farmable | explicit list: sugar cane, seeds, saplings, crops, … | 1 |
 | Crop drop | what a CropsNH crop drops, where no other class claims it | 1 |
-| World fluid | explicit list: water, lava, oil and its cuts, natural gas | 0 |
+| World fluid | explicit list: water, lava, oil and its cuts, natural gas | per fluid, from `item_weights`: water 1, lava 2, oil and gas 8 |
 
-All rules and weights live in **one editable weights table** (config UI, §7). The
-defaults are deliberately crude; the table is the tuning surface.
+Ore-washing and blast-furnace intermediates (`crushed*`, `dustImpure*`,
+`dustPure*`, `ingotHot*`) are **not** leaves in any class — see §9.
+
+All rules and weights live in **one editable weights table** (config UI, §7).
+An `item_weights` row overrides its item's class, for a class whose members are
+not worth the same. The defaults are deliberately crude; the table is the
+tuning surface.
 
 ### Ingot pricing
 
@@ -393,7 +410,7 @@ All "does not / never" rules live here; other sections only reference this one.
   (Space Mining) are *era-only*: they gate progression in the era fixpoint
   (§3 step 6) but never reach `planner.sqlite`, so they can never price. The
   same holds for pumping a fluid out of the ground: the rig gates when the
-  fluid becomes available, but the fluid itself is a world fluid priced at 0.
+  fluid becomes available, but the fluid itself prices as a world fluid.
   Harvesting a CropsNH crop is era-only for the same reason: growing a crop is
   renewable, so its drops price as leaves, while the harvest edge still dates
   them by what the crop needs — a seed, and one of the blocks it grows on.
@@ -405,6 +422,13 @@ All "does not / never" rules live here; other sections only reference this one.
   costs a quarter of a clay block. This conjures nothing: the block is
   consumed, and a block no route can reach simply never prices. Drops equal to
   the block itself are not recipes at all, just picking the block back up.
+- **Intermediates as leaves** — an item that exists only partway through a
+  chain (`crushed*`, `dustImpure*`, `dustPure*`, `ingotHot*`) never carries a
+  leaf class, whatever its oredict prefix says. A leaf weight is a ceiling the
+  solver may undercut but never exceed, so pricing a purified pile at a flat
+  weight would cap the metal it becomes, and everything built from it. The
+  same reasoning bars a crop drop another recipe already makes, and any leaf
+  whose weight cannot be worked out (§3 step 5).
 - **Overclocking, parallelism, and multiblock efficiency bonuses** — they
   affect time, energy, or machine-specific discounts; recipes price at their
   listed amounts.
@@ -451,3 +475,10 @@ All "does not / never" rules live here; other sections only reference this one.
 12. An empty cell consumed as a genuine component (no matching output) stays
     in the raw totals; balanced cells never appear in them.
 13. A clay ball costs a quarter of a clay block, from breaking the block (§9).
+14. A nugget costs a ninth of its ingot, and no ingot prices from a nugget.
+15. No ore-washing or blast-furnace intermediate carries a leaf class, so no
+    metal prices below the material it is refined from.
+16. An item a crop drops but another recipe also makes is priced from that
+    recipe, not as a crop drop.
+17. Every leaf that ships has a weight: a tiered leaf has an `item_tiers` row,
+    and a fraction has a priced parent.
