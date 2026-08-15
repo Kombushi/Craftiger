@@ -182,6 +182,10 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             "SELECT COUNT(multi_tier) FROM recipes WHERE id = 'r_macerate'"));
 
     [Fact]
+    public void RecyclingCategoriesNeverReachTheArtifact() =>
+        Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_recycle'"));
+
+    [Fact]
     public void EbfRecipeKeepsHeat() =>
         Assert.Equal(1700, _fixture.Scalar<int>("SELECT heat FROM recipes WHERE id = 'r_ebf'"));
 

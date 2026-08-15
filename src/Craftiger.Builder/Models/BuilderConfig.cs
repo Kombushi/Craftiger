@@ -13,6 +13,12 @@ public sealed record BuilderConfig
     /// <summary>Exact machine names dropped as pseudo-recipe sources.</summary>
     public required IReadOnlyList<string> ExcludedMachines { get; init; }
 
+    /// <summary>GregTech recipe-category suffixes dropped outright, matched case-insensitively.
+    /// Reverse-crafting files under its own categories, and melting a crafted item down is not
+    /// how it is made — routes that recover more material than the crafting recipe used would
+    /// otherwise drive every price toward zero.</summary>
+    public required IReadOnlyList<string> ExcludedRecipeCategorySuffixes { get; init; }
+
     /// <summary>Machines whose recipes gate eras but never price: real mechanics that would amplify matter.</summary>
     public required IReadOnlyList<string> EraOnlyMachines { get; init; }
 

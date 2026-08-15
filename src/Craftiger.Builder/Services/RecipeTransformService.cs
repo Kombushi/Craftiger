@@ -53,6 +53,11 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             }
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
+            if (gt is not null && IsExcludedCategory(gt.Category))
+            {
+                continue;
+            }
+
             var tier = gt is null || gt.Voltage <= 0 ? 0 : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage);
 
             var inputs = new Dictionary<string, long>();
@@ -184,6 +189,10 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
 
     private string NormalizeMachine(string type) =>
         _config.MachineRenames.TryGetValue(type, out var renamed) ? renamed : TierSuffix().Replace(type, "");
+
+    private bool IsExcludedCategory(string category) =>
+        _config.ExcludedRecipeCategorySuffixes.Any(
+            suffix => category.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
 
     private bool IsExcluded(string machine) =>
         _config.ExcludedMachines.Contains(machine) ||

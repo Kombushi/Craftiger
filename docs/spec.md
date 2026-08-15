@@ -439,6 +439,17 @@ All "does not / never" rules live here; other sections only reference this one.
   costs a quarter of a clay block. This conjures nothing: the block is
   consumed, and a block no route can reach simply never prices. Drops equal to
   the block itself are not recipes at all, just picking the block back up.
+- **Recycling** — GregTech files reverse-crafting under its own recipe
+  categories (`arcFurnaceRecycling`, `maceratorRecycling`,
+  `fluidExtractorRecycling`, `alloySmelterRecycling`, `forgeHammerRecycling`),
+  and every category whose name ends in `recycling` is dropped. Melting a
+  crafted item down is not how it is made, and GregTech decides what comes back
+  from the item's material composition rather than from the recipe that built
+  it — so wherever the pack also sells a cheaper crafting recipe, the round trip
+  returns more than it consumed. An iron door costs four plates and arc-furnaces
+  into six ingots; left in, that loop alone drives iron, and everything built
+  from iron, toward zero. Storage-block cycles are safe by contrast: nine ingots
+  in, nine ingots back.
 - **Matter fabrication** — the Replicator, Matter Fabricator, Matter Amplifier
   and Mass Fabrication turn scrap and EU into any element. Their real price is
   energy, which this model refuses to count, so it can only ever undercount
@@ -511,3 +522,5 @@ All "does not / never" rules live here; other sections only reference this one.
     and changing the weights table can change which one that is.
 19. A recipe on a mixed map is illegal at a garage tier below `tier` until the
     map's multiblock is marked built, then legal at `multi_tier`.
+20. No recipe from a `*recycling` category ships, and no item prices below a
+    small fraction of its own leaf weight.

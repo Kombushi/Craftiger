@@ -3,10 +3,11 @@ using Dapper;
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 
 namespace Craftiger.Builder.Repositories;
 
-public sealed partial class DumpRepository : IDumpRepository
+public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDumpRepository
 {
     [GeneratedRegex("§.")]
     private static partial Regex Formatting();
@@ -48,15 +49,22 @@ public sealed partial class DumpRepository : IDumpRepository
         }
 
         // coil_heat metadata is authoritative; RECIPE_SPECIAL_VALUE holds the same number for EBF maps.
+        var categoryColumn = HasColumn(db, "GREG_TECH_RECIPE", "RECIPE_CATEGORY") ? "g.RECIPE_CATEGORY" : "''";
         var gt = new Dictionary<string, DumpGtData>();
-        foreach (var r in db.Query<(string Id, long Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom)>("""
-            SELECT g.RECIPE_ID, g.VOLTAGE, g.AMPERAGE, g.DURATION, m.METADATA_VALUE, g.VOLTAGE_TIER, g.REQUIRES_CLEANROOM
+        foreach (var r in db.Query<(string Id, long Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom, string? Category)>($"""
+            SELECT g.RECIPE_ID, g.VOLTAGE, g.AMPERAGE, g.DURATION, m.METADATA_VALUE, g.VOLTAGE_TIER, g.REQUIRES_CLEANROOM, {categoryColumn}
             FROM GREG_TECH_RECIPE g
             LEFT JOIN GREG_TECH_RECIPE_METADATA m ON m.GREG_TECH_RECIPE_ID = g.ID AND m.METADATA_KEY = 'coil_heat'
             """))
         {
             gt[r.Id] = new DumpGtData(
-                r.Id, r.Voltage, r.Amperage, r.Duration, (int?)r.Heat, r.TierLabel, r.Cleanroom is not (null or 0));
+                r.Id, r.Voltage, r.Amperage, r.Duration, (int?)r.Heat, r.TierLabel,
+                r.Cleanroom is not (null or 0), r.Category ?? "");
+        }
+        if (categoryColumn == "''")
+        {
+            logger.LogWarning(
+                "dump predates RECIPE_CATEGORY; recycling recipes cannot be told from production ones");
         }
 
         var groupStacks = new Dictionary<string, List<DumpItemStack>>();
@@ -268,6 +276,11 @@ public sealed partial class DumpRepository : IDumpRepository
             ExportedAt = DateTimeOffset.FromUnixTimeMilliseconds(metadata.CreatedMillis)
         };
     }
+
+    /// <summary>Lets the builder read a dump taken before a column existed.</summary>
+    private static bool HasColumn(SqliteConnection db, string table, string column) =>
+        db.Query<string>($"SELECT name FROM pragma_table_info('{table}')")
+            .Any(name => name.Equals(column, StringComparison.OrdinalIgnoreCase));
 
     private static void Add<T>(Dictionary<string, List<T>> map, string key, T value)
     {

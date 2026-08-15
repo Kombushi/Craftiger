@@ -97,7 +97,7 @@ public static class FixtureDump
             CREATE TABLE RECIPE(ID TEXT, RECIPE_TYPE_ID TEXT);
             CREATE TABLE RECIPE_TYPE(ID TEXT, CATEGORY TEXT, TYPE TEXT);
             CREATE TABLE RECIPE_TYPE_ITEM(RECIPE_TYPE_ID TEXT, ICON_ID TEXT);
-            CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, REQUIRES_CLEANROOM INTEGER, RECIPE_ID TEXT);
+            CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, RECIPE_CATEGORY TEXT, REQUIRES_CLEANROOM INTEGER, RECIPE_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE_METADATA(GREG_TECH_RECIPE_ID TEXT, METADATA_KEY TEXT, METADATA_VALUE INTEGER);
             CREATE TABLE ITEM_GROUP_ITEM_STACKS(ITEM_GROUP_ID TEXT, ITEM_STACKS_ITEM_ID TEXT, ITEM_STACKS_STACK_SIZE INTEGER);
             CREATE TABLE ORE_DICTIONARY(ID TEXT, NAME TEXT, ITEM_GROUP_ID TEXT);
@@ -242,6 +242,7 @@ public static class FixtureDump
         Group(db, "g_berry_ingot", (BerryIngot, 1));
         Oredict(db, "ingotBerrium", "g_berry_ingot");
         Oredict(db, "ingotOilium", "g_oil_ingot");
+        Group(db, "g_alu_rod", (AluRod, 1));
         Group(db, "g_nug_ingot", (NugIngot, 1));
         Group(db, "g_nug_nugget", (NugNugget, 9));
         Group(db, "g_nug_impure", (NugImpure, 1));
@@ -426,6 +427,9 @@ public static class FixtureDump
         Recipe(db, "r_lost_use", "t_furnace", inputs: [("g_lost_ingot", 0)], outputs: [(IronIngot, 1, 1.0)]);
         // Clay balls are also farmed, but breaking the block already prices them.
         Crop(db, "clayCrop", "Clay Crop", BerrySeed, hidden: false, drops: [ClayBall], underBlocks: []);
+        // Melting a crafted item back down is not how it is made.
+        Recipe(db, "r_recycle", "rt~gregtech~gt.recipe.arcfurnace~LV", inputs: [("g_alu_rod", 0)],
+            outputs: [(AluIngot, 6, 1.0)], voltage: 30, duration: 100, category: "arcFurnaceRecycling");
         Recipe(db, "r_brick", "t_furnace", inputs: [("g_clay_ball", 0)], outputs: [(IronIngot, 1, 1.0)]);
         Recipe(db, "r_ebf_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(EbfController, 1, 1.0)]);
         Recipe(db, "r_macerator_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MaceratorLv, 1, 1.0)]);
@@ -590,7 +594,8 @@ public static class FixtureDump
         (string ItemId, long Amount, double Chance)[] outputs,
         long? voltage = null, long duration = 0, int? heat = null,
         (string GroupId, int Slot)[]? fluidInputs = null,
-        (string ItemId, long Amount, double Chance, int Slot)[]? byproducts = null)
+        (string ItemId, long Amount, double Chance, int Slot)[]? byproducts = null,
+        string category = "")
     {
         db.Execute("INSERT INTO RECIPE VALUES (@id, @typeId)", new { id, typeId });
         foreach (var (groupId, slot) in inputs)
@@ -617,8 +622,8 @@ public static class FixtureDump
         {
             var label = voltage <= 32 ? "LV" : voltage <= 128 ? "MV" : "HV";
             db.Execute(
-                "INSERT INTO GREG_TECH_RECIPE VALUES (@gtId, 1, @duration, @voltage, @label, 0, @id)",
-                new { gtId = $"gtr~{id}", duration, voltage, label, id });
+                "INSERT INTO GREG_TECH_RECIPE VALUES (@gtId, 1, @duration, @voltage, @label, @category, 0, @id)",
+                new { gtId = $"gtr~{id}", duration, voltage, label, category, id });
             if (heat is not null)
             {
                 db.Execute(
