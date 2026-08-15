@@ -1,10 +1,13 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class WorldgenErasService(BuilderConfig config) : IWorldgenErasService
+public sealed class WorldgenErasService(IOptions<BuilderConfig> options) : IWorldgenErasService
 {
+    private readonly BuilderConfig _config = options.Value;
+
     public WorldgenEras Run(Dump dump, UnifiedItems unified)
     {
         var oreBlocks = new Dictionary<string, int>();
@@ -61,7 +64,7 @@ public sealed class WorldgenErasService(BuilderConfig config) : IWorldgenErasSer
 
         var materials = materialEras
             .Select(m => (m.Key, (int?)m.Value))
-            .Concat(config.NonSpawningOres.Select(m => (m, (int?)null)))
+            .Concat(_config.NonSpawningOres.Select(m => (m, (int?)null)))
             .OrderByDescending(m => m.Item1.Length)
             .ToList();
         return new WorldgenEras(oreBlocks, drops, materials, fluids);
@@ -80,7 +83,7 @@ public sealed class WorldgenErasService(BuilderConfig config) : IWorldgenErasSer
 
     /// <summary>Unknown dimensions contribute nothing rather than wrongly lowering an era.</summary>
     private int? DimensionEra(string abbreviation, int rocketTier) =>
-        config.DimensionEraOverrides.TryGetValue(abbreviation, out var overrideEra) ? overrideEra
-        : config.DimensionTierEras.TryGetValue(rocketTier, out var era) ? era
+        _config.DimensionEraOverrides.TryGetValue(abbreviation, out var overrideEra) ? overrideEra
+        : _config.DimensionTierEras.TryGetValue(rocketTier, out var era) ? era
         : null;
 }

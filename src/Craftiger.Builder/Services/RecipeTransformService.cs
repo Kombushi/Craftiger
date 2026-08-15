@@ -1,11 +1,14 @@
 using System.Text.RegularExpressions;
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed partial class RecipeTransformService(BuilderConfig config) : IRecipeTransformService
+public sealed partial class RecipeTransformService(IOptions<BuilderConfig> options) : IRecipeTransformService
 {
+    private readonly BuilderConfig _config = options.Value;
+
     [GeneratedRegex(@" \((ULV|LV|MV|HV|EV|IV|LuV|ZPM|UV|UHV|UEV|UIV|UMV|UXV|MAX)\)$")]
     private static partial Regex TierSuffix();
 
@@ -111,12 +114,12 @@ public sealed partial class RecipeTransformService(BuilderConfig config) : IReci
                 }
                 outputs.Add((new PlannerOutput(o.FluidId, o.Amount, Math.Min(o.Chance, 1.0)), 0));
             }
-            if (inputs.Keys.Any(id => config.ExcludedInputItems.Contains(dump.NameOf(id))))
+            if (inputs.Keys.Any(id => _config.ExcludedInputItems.Contains(dump.NameOf(id))))
             {
                 continue;
             }
 
-            var slotTiers = config.ByproductSlotTiers.GetValueOrDefault(machine);
+            var slotTiers = _config.ByproductSlotTiers.GetValueOrDefault(machine);
             foreach (var (variantId, variantTier, variantOutputs) in Variants(recipe.Id, tier, outputs, slotTiers))
             {
                 var variantInputs = new Dictionary<string, long>(inputs);
@@ -136,7 +139,7 @@ public sealed partial class RecipeTransformService(BuilderConfig config) : IReci
                         : machinesByTypeId.GetValueOrDefault(recipe.RecipeTypeId) ?? [],
                     slots,
                     gt?.RequiresCleanroom ?? false,
-                    config.EraOnlyMachines.Contains(machine)));
+                    _config.EraOnlyMachines.Contains(machine)));
             }
         }
 
@@ -167,12 +170,12 @@ public sealed partial class RecipeTransformService(BuilderConfig config) : IReci
     }
 
     private string NormalizeMachine(string type) =>
-        config.MachineRenames.TryGetValue(type, out var renamed) ? renamed : TierSuffix().Replace(type, "");
+        _config.MachineRenames.TryGetValue(type, out var renamed) ? renamed : TierSuffix().Replace(type, "");
 
     private bool IsExcluded(string machine) =>
-        config.ExcludedMachines.Contains(machine) ||
-        config.ExcludedMachineSuffixes.Any(s => machine.EndsWith(s, StringComparison.Ordinal)) ||
-        config.ExcludedMachinePrefixes.Any(p => machine.StartsWith(p, StringComparison.Ordinal));
+        _config.ExcludedMachines.Contains(machine) ||
+        _config.ExcludedMachineSuffixes.Any(s => machine.EndsWith(s, StringComparison.Ordinal)) ||
+        _config.ExcludedMachinePrefixes.Any(p => machine.StartsWith(p, StringComparison.Ordinal));
 
     private (string ItemId, long Amount)? ResolveSlot(Dump dump, UnifiedItems unified, string groupId)
     {
@@ -215,7 +218,7 @@ public sealed partial class RecipeTransformService(BuilderConfig config) : IReci
     }
 
     private bool IsCatalyst(string itemId) =>
-        config.CatalystItemIdPrefixes.Any(p => itemId.StartsWith(p, StringComparison.Ordinal));
+        _config.CatalystItemIdPrefixes.Any(p => itemId.StartsWith(p, StringComparison.Ordinal));
 
     private static List<PlannerOutput> Merge(List<PlannerOutput> outputs) =>
         outputs

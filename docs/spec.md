@@ -333,6 +333,8 @@ Single-page app, English item names (dump locale). Screens:
 - `src/Craftiger.Builder/` — standalone .NET console project; NESQL dump in,
   artifacts out. Runs offline on demand, is never deployed, and holds no
   project reference to or from the API — the artifacts (§3) are the contract.
+  Paths, pack version and every builder-config list live in `appsettings.json`,
+  bound through `IOptions`; the tests run against that same file.
 - `src/Craftiger.Solver/` — pure class library: the cost engine (§5) and BOM
   computation (§6). No I/O and no dump dependency; referenced by the API and
   exercised directly by fixture tests.

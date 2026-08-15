@@ -72,9 +72,11 @@ types and identifiers.
 - C# style: Allman braces with 4-space indent; every `if`/`for`/`foreach`
   body is a braced block, even single statements. Every file ends with a
   newline. Encoded in `.editorconfig`.
-- Executables compose via a DI container (plain `ServiceCollection`) and are
-  laid out as `Models/`, `Interfaces/`, `Services/`, `Repositories/` — one
-  type per file, every service and repository behind an interface.
+- Executables compose via `IHost`, take their settings from `appsettings.json`
+  through `IOptions`, and are laid out as `Models/`, `Interfaces/`,
+  `Services/`, `Repositories/` — one type per file, every service and
+  repository behind an interface. Logging goes through `ILogger`, never
+  `Console`.
 - Comments explain why, not what. No decorative comments, no narration of
   changes, no session references; docs and comments are timeless.
 - Commit messages: header in past tense, sentence case, ≤ 50 chars after the

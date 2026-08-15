@@ -1,6 +1,7 @@
 [tools]
 dotnet = "10"
 node = "lts"
+sqlite = "latest"
 
 [tasks.build]
 description = "Build the .NET solution"
@@ -12,7 +13,7 @@ run = "dotnet test Craftiger.slnx"
 
 [tasks.builder]
 description = "Run the artifact builder (NESQL dump in, planner artifacts out)"
-run = "dotnet run --project src/Craftiger.Builder --"
+run = "dotnet run --project src/Craftiger.Builder"
 
 [tasks.api]
 description = "Run the API"

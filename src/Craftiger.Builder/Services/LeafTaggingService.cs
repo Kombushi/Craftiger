@@ -1,10 +1,13 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingService
+public sealed class LeafTaggingService(IOptions<BuilderConfig> options) : ILeafTaggingService
 {
+    private readonly BuilderConfig _config = options.Value;
+
     public Dictionary<string, string> Run(IEnumerable<string> canonicalIds, Dump dump, UnifiedItems unified)
     {
         var cropDrops = dump.Crops
@@ -18,14 +21,14 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
         {
             if (dump.Fluids.TryGetValue(id, out var fluid))
             {
-                if (config.WorldFluids.ContainsKey(fluid.InternalName))
+                if (_config.WorldFluids.ContainsKey(fluid.InternalName))
                 {
                     classes[id] = "world_fluid";
                 }
                 continue;
             }
 
-            if (config.MinableBlockEras.ContainsKey(id))
+            if (_config.MinableBlockEras.ContainsKey(id))
             {
                 classes[id] = "minable_block";
                 continue;
@@ -49,12 +52,12 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
 
     private string? Classify(string oredict, HashSet<string>? allOredicts)
     {
-        if (config.MinableBlockEras.ContainsKey(oredict) ||
-            (allOredicts is not null && allOredicts.Any(config.MinableBlockEras.ContainsKey)))
+        if (_config.MinableBlockEras.ContainsKey(oredict) ||
+            (allOredicts is not null && allOredicts.Any(_config.MinableBlockEras.ContainsKey)))
         {
             return "minable_block";
         }
-        if (config.FarmableOredictPrefixes.Any(p => oredict.StartsWith(p, StringComparison.Ordinal)))
+        if (_config.FarmableOredictPrefixes.Any(p => oredict.StartsWith(p, StringComparison.Ordinal)))
         {
             return "farmable";
         }

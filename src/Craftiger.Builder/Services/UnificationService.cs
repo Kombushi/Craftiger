@@ -1,10 +1,13 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class UnificationService(BuilderConfig config) : IUnificationService
+public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnificationService
 {
+    private readonly BuilderConfig _config = options.Value;
+
     private static readonly string[] LeafPrefixes = ["ingot", "dustSmall", "dustTiny", "dust", "gem", "logWood", "block"];
 
     public UnifiedItems Run(Dump dump)
@@ -117,9 +120,9 @@ public sealed class UnificationService(BuilderConfig config) : IUnificationServi
     }
 
     private bool IsGrouping(string name) =>
-        config.GroupingOredictNames.Contains(name) ||
-        config.GroupingOredictPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)) ||
-        config.GroupingOredictInfixes.Any(i => name.Contains(i, StringComparison.Ordinal));
+        _config.GroupingOredictNames.Contains(name) ||
+        _config.GroupingOredictPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)) ||
+        _config.GroupingOredictInfixes.Any(i => name.Contains(i, StringComparison.Ordinal));
 
     private static string PickPrimary(SortedSet<string> oredicts)
     {

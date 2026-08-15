@@ -3,6 +3,7 @@ using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
 using Craftiger.Builder.Services;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -18,9 +19,21 @@ public sealed class BuilderPipelineFixture : IDisposable
         _directory = Directory.CreateTempSubdirectory("craftiger-tests").FullName;
         var dumpPath = FixtureDump.Create(_directory);
 
-        using var services = new ServiceCollection().AddBuilderServices().BuildServiceProvider();
-        services.GetRequiredService<IBuilderPipeline>().Run(new BuilderOptions(
-            dumpPath, _directory, "fixture-pack", Path.Combine(_directory, "image.zip"), ExplainItem: null));
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json")
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BuilderOptions:DumpPath"] = dumpPath,
+                ["BuilderOptions:OutputDir"] = _directory,
+                ["BuilderOptions:PackVersion"] = "fixture-pack",
+                ["BuilderOptions:ImagesPath"] = Path.Combine(_directory, "image.zip")
+            })
+            .Build();
+
+        using var services = new ServiceCollection()
+            .AddBuilderServices(configuration)
+            .BuildServiceProvider();
+        services.GetRequiredService<IBuilderPipeline>().Run();
 
         PlannerPath = Path.Combine(_directory, "planner.sqlite");
     }

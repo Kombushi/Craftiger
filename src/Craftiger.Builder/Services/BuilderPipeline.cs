@@ -3,6 +3,7 @@ using System.Text.Json;
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
@@ -18,14 +19,25 @@ public sealed class BuilderPipeline(
     IEraSolveService eraSolveService,
     IAtlasBuilder atlasBuilder,
     IPlannerRepository plannerRepository,
-    BuilderConfig config,
+    IOptions<BuilderOptions> options,
+    IOptions<BuilderConfig> config,
     ILogger<BuilderPipeline> logger) : IBuilderPipeline
 {
-    public int Run(BuilderOptions options)
+    private readonly BuilderOptions _options = options.Value;
+    private readonly BuilderConfig _config = config.Value;
+
+    public int Run()
     {
+        if (!File.Exists(_options.DumpPath))
+        {
+            logger.LogError("Dump not found: {DumpPath}", _options.DumpPath);
+            return 1;
+        }
+        Directory.CreateDirectory(_options.OutputDir);
+
         var total = Stopwatch.StartNew();
 
-        var dump = Stage("read dump", () => dumpRepository.Read(options.DumpPath));
+        var dump = Stage("read dump", () => dumpRepository.Read(_options.DumpPath));
         logger.LogInformation("  items {Items:N0}, fluids {Fluids:N0}, recipes {Recipes:N0}", dump.Items.Count, dump.Fluids.Count, dump.Recipes.Count);
 
         var unified = Stage("unify", () => unification.Run(dump));
@@ -47,7 +59,7 @@ public sealed class BuilderPipeline(
         var eraSolve = Stage("solve eras", () => eraSolveService.Run(recipes, leafClasses, unified, dump, worldgen));
         logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);
 
-        if (options.ExplainItem is { } query)
+        if (_options.ExplainItem is { } query)
         {
             Explain(dump, itemIds, eraSolve, query);
             return 0;
@@ -59,20 +71,20 @@ public sealed class BuilderPipeline(
         var maxTier = solverRecipes.Count == 0 ? 0 : solverRecipes.Max(r => r.BestCaseTier);
         var meta = new Dictionary<string, string>
         {
-            ["pack_version"] = options.PackVersion,
+            ["pack_version"] = _options.PackVersion,
             ["exporter_version"] = dump.ExporterVersion,
             ["dump_date"] = dump.ExportedAt.ToString("O"),
             ["tier_names"] = JsonSerializer.Serialize(TierLadder.Names.Take(Math.Min(maxTier + 1, TierLadder.Names.Count))),
-            ["coils"] = JsonSerializer.Serialize(config.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier }))
+            ["coils"] = JsonSerializer.Serialize(_config.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier }))
         };
 
-        if (File.Exists(options.ImagesPath))
+        if (File.Exists(_options.ImagesPath))
         {
             var icons = orderedItemIds.Select(id => (id, dump.ImagePathOf(id))).ToList();
             var atlas = Stage("build atlas", () => atlasBuilder.Build(
-                options.ImagesPath, icons,
-                Path.Combine(options.OutputDir, "atlas.webp"),
-                Path.Combine(options.OutputDir, "atlas-offsets.json")));
+                _options.ImagesPath, icons,
+                Path.Combine(_options.OutputDir, "atlas.webp"),
+                Path.Combine(_options.OutputDir, "atlas-offsets.json")));
             logger.LogInformation("  {Width}x{Height} px, cell {Cell}", atlas.Width, atlas.Height, atlas.Cell);
             meta["atlas_width"] = atlas.Width.ToString();
             meta["atlas_height"] = atlas.Height.ToString();
@@ -80,10 +92,10 @@ public sealed class BuilderPipeline(
         }
         else
         {
-            logger.LogWarning("image.zip not found at {ImagesPath}; skipping atlas", options.ImagesPath);
+            logger.LogWarning("image.zip not found at {ImagesPath}; skipping atlas", _options.ImagesPath);
         }
 
-        var plannerPath = Path.Combine(options.OutputDir, "planner.sqlite");
+        var plannerPath = Path.Combine(_options.OutputDir, "planner.sqlite");
         Stage("write planner.sqlite", () =>
         {
             plannerRepository.Write(plannerPath, new PlannerData(
@@ -101,7 +113,7 @@ public sealed class BuilderPipeline(
         var target = names.FirstOrDefault(kv => kv.Value.Equals(query, StringComparison.OrdinalIgnoreCase)).Key;
         if (target is null)
         {
-            Console.WriteLine($"--explain: no item named '{query}'");
+            logger.LogWarning("no item named {Query}", query);
         }
         else
         {

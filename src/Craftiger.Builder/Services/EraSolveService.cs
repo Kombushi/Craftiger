@@ -1,11 +1,15 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveService> logger) : IEraSolveService
+public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<EraSolveService> logger)
+    : IEraSolveService
 {
+    private readonly BuilderConfig _config = options.Value;
+
     private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log"];
 
     /// <summary>Leaf classes priced by production era rather than a flat weight.</summary>
@@ -61,7 +65,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         foreach (var fluid in dump.Fluids.Values)
         {
             // A null era means the fluid is pumped, and its own recipe decides when.
-            if (config.WorldFluids.TryGetValue(fluid.InternalName, out var fluidEra) && fluidEra is { } free)
+            if (_config.WorldFluids.TryGetValue(fluid.InternalName, out var fluidEra) && fluidEra is { } free)
             {
                 era.TryAdd(fluid.Id, free);
             }
@@ -84,10 +88,10 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
     /// <summary>The cheapest world a block can be mined in, by item id or any of its oredicts.</summary>
     private int MinableEra(string id, UnifiedItems unified)
     {
-        var cheapest = config.MinableBlockEras.GetValueOrDefault(id, int.MaxValue);
+        var cheapest = _config.MinableBlockEras.GetValueOrDefault(id, int.MaxValue);
         foreach (var oredict in unified.OredictsByCanonical.GetValueOrDefault(id) ?? [])
         {
-            if (config.MinableBlockEras.TryGetValue(oredict, out var era) && era < cheapest)
+            if (_config.MinableBlockEras.TryGetValue(oredict, out var era) && era < cheapest)
             {
                 cheapest = era;
             }
@@ -101,7 +105,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         UnifiedItems unified, Dump dump)
     {
         var cleanroomIds = dump.Items.Values
-            .Where(i => i.Name == config.CleanroomItemName)
+            .Where(i => i.Name == _config.CleanroomItemName)
             .Select(i => unified.Canonical(i.Id))
             .ToHashSet();
         var consumers = BuildConsumers(recipes, cleanroomIds);
@@ -127,7 +131,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
                     continue;
                 }
                 var floored = cleanroomIds.Contains(output.ItemId)
-                    ? Math.Max(candidate, config.CleanroomMinEra)
+                    ? Math.Max(candidate, _config.CleanroomMinEra)
                     : candidate;
                 if (era.TryGetValue(output.ItemId, out var current) && current <= floored)
                 {
@@ -330,24 +334,24 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
     public void Explain(EraSolve solve, Dictionary<string, string> names, string itemId) =>
         Explain(solve, names, itemId, depth: 0);
 
-    private static void Explain(EraSolve solve, Dictionary<string, string> names, string itemId, int depth)
+    private void Explain(EraSolve solve, Dictionary<string, string> names, string itemId, int depth)
     {
         var name = names.GetValueOrDefault(itemId, itemId);
         var indent = new string(' ', depth * 2);
         if (!solve.Era.TryGetValue(itemId, out var era))
         {
-            Console.WriteLine($"{indent}{name}: unreachable");
+            Line($"{indent}{name}: unreachable");
             return;
         }
         if (solve.Seeds.Contains(itemId) || !solve.BestRecipe.TryGetValue(itemId, out var recipe))
         {
-            Console.WriteLine($"{indent}{name}: era {era} (seed)");
+            Line($"{indent}{name}: era {era} (seed)");
             return;
         }
-        Console.WriteLine($"{indent}{name}: era {era} via {recipe.Machine} tier {recipe.Tier} ({recipe.Id})");
+        Line($"{indent}{name}: era {era} via {recipe.Machine} tier {recipe.Tier} ({recipe.Id})");
         if (depth >= 12)
         {
-            Console.WriteLine($"{indent}  ...");
+            Line($"{indent}  ...");
             return;
         }
         var machine = recipe.Machines
@@ -357,7 +361,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
             .FirstOrDefault();
         if (machine is not null && solve.Era[machine] > 0)
         {
-            Console.WriteLine($"{indent}  [machine] {names.GetValueOrDefault(machine, machine)}: era {solve.Era[machine]}");
+            Line($"{indent}  [machine] {names.GetValueOrDefault(machine, machine)}: era {solve.Era[machine]}");
             if (depth < 3)
             {
                 Explain(solve, names, machine, depth + 2);
@@ -369,6 +373,8 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
             Explain(solve, names, best, depth + 1);
         }
     }
+
+    private void Line(string text) => logger.LogInformation("{Line}", text);
 
     private static int CheapestEra(IEnumerable<string> ids, Dictionary<string, int> era)
     {
@@ -396,7 +402,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
             {
                 continue;
             }
-            if (config.SteamMachinePrefixes.Any(p => item.Name.StartsWith(p, StringComparison.Ordinal)))
+            if (_config.SteamMachinePrefixes.Any(p => item.Name.StartsWith(p, StringComparison.Ordinal)))
             {
                 return true;
             }
@@ -442,13 +448,13 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
 
     private int CoilTier(int heat)
     {
-        foreach (var coil in config.Coils)
+        foreach (var coil in _config.Coils)
         {
             if (heat <= coil.MaxHeat)
             {
                 return coil.Tier;
             }
         }
-        return config.Coils[^1].Tier + 1;
+        return _config.Coils[^1].Tier + 1;
     }
 }

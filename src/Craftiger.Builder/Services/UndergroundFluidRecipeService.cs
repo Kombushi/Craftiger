@@ -1,15 +1,19 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
 public sealed class UndergroundFluidRecipeService(
-    BuilderConfig config, ILogger<UndergroundFluidRecipeService> logger) : IUndergroundFluidRecipeService
+    IOptions<BuilderConfig> options, ILogger<UndergroundFluidRecipeService> logger)
+    : IUndergroundFluidRecipeService
 {
+    private readonly BuilderConfig _config = options.Value;
+
     public List<PlannerRecipe> Run(Dump dump, UnifiedItems unified, WorldgenEras worldgen)
     {
-        var rigs = config.PumpMachineItemNames
+        var rigs = _config.PumpMachineItemNames
             .SelectMany(dump.ItemIdsNamed)
             .Select(unified.Canonical)
             .Distinct()
@@ -26,7 +30,7 @@ public sealed class UndergroundFluidRecipeService(
 
             // Reaching the dimension is not enough; something has to pump the fluid out.
             recipes.Add(new PlannerRecipe(
-                $"gtuf~{fluidId}", config.PumpMachine, dimensionEra, Heat: null, DurationTicks: 0, EuT: 0,
+                $"gtuf~{fluidId}", _config.PumpMachine, dimensionEra, Heat: null, DurationTicks: 0, EuT: 0,
                 Inputs: [],
                 Outputs: [new PlannerOutput(fluidId, 1, 1.0)],
                 Machines: rigs,

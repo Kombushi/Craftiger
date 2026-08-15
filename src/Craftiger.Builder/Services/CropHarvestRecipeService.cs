@@ -1,12 +1,15 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class CropHarvestRecipeService(BuilderConfig config, ILogger<CropHarvestRecipeService> logger)
-    : ICropHarvestRecipeService
+public sealed class CropHarvestRecipeService(
+    IOptions<BuilderConfig> options, ILogger<CropHarvestRecipeService> logger) : ICropHarvestRecipeService
 {
+    private readonly BuilderConfig _config = options.Value;
+
     public List<PlannerRecipe> Run(Dump dump, UnifiedItems unified)
     {
         var recipes = new List<PlannerRecipe>();
@@ -41,7 +44,7 @@ public sealed class CropHarvestRecipeService(BuilderConfig config, ILogger<CropH
             }
 
             recipes.Add(new PlannerRecipe(
-                crop.Id, config.CropHarvestMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0,
+                crop.Id, _config.CropHarvestMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0,
                 Inputs: [],
                 Outputs: drops,
                 Machines: [],

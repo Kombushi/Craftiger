@@ -1,12 +1,15 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class BlockBreakRecipeService(BuilderConfig config, ILogger<BlockBreakRecipeService> logger)
-    : IBlockBreakRecipeService
+public sealed class BlockBreakRecipeService(
+    IOptions<BuilderConfig> options, ILogger<BlockBreakRecipeService> logger) : IBlockBreakRecipeService
 {
+    private readonly BuilderConfig _config = options.Value;
+
     public List<PlannerRecipe> Run(Dump dump, UnifiedItems unified)
     {
         var recipes = new List<PlannerRecipe>();
@@ -28,7 +31,7 @@ public sealed class BlockBreakRecipeService(BuilderConfig config, ILogger<BlockB
             }
 
             recipes.Add(new PlannerRecipe(
-                drop.Id, config.BlockBreakMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0,
+                drop.Id, _config.BlockBreakMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0,
                 Inputs: new Dictionary<string, long> { [blockId] = 1 },
                 Outputs: [new PlannerOutput(dropId, drop.Quantity, 1.0)],
                 Machines: [],
