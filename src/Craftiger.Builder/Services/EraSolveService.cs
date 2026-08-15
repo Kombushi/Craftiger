@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 namespace Craftiger.Builder.Services;
 
 // TODO: remove FreeFluids and unify everything under WorldFluidEras
-// TODO: what about minable blocks from higher eras? For example, end stone (HV era)
 // TODO: research if MinableBlockOredicts, FarmableOredictPrefixes can be replaced with the info from the dump
 
 public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveService> logger) : IEraSolveService
@@ -35,7 +34,11 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         var era = new Dictionary<string, int>();
         foreach (var (id, leafClass) in leafClasses)
         {
-            if (WorldOriginClasses.Contains(leafClass))
+            if (leafClass == "minable_block")
+            {
+                era[id] = MinableEra(id, unified);
+            }
+            else if (WorldOriginClasses.Contains(leafClass))
             {
                 era[id] = 0;
             }
@@ -78,6 +81,20 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
 
         logger.LogInformation("  {Seeds:N0} world-origin seeds, {Soft:N0} lowerable drops", seeds.Count, era.Count - seeds.Count);
         return (era, seeds);
+    }
+
+    /// <summary>The cheapest world a block can be mined in, by item id or any of its oredicts.</summary>
+    private int MinableEra(string id, UnifiedItems unified)
+    {
+        var cheapest = config.MinableBlockEras.GetValueOrDefault(id, int.MaxValue);
+        foreach (var oredict in unified.OredictsByCanonical.GetValueOrDefault(id) ?? [])
+        {
+            if (config.MinableBlockEras.TryGetValue(oredict, out var era) && era < cheapest)
+            {
+                cheapest = era;
+            }
+        }
+        return cheapest == int.MaxValue ? 0 : cheapest;
     }
 
     /// <summary>Runs the min-of-max fixpoint to exhaustion, improving eras strictly.</summary>

@@ -47,11 +47,9 @@ public sealed record BuilderConfig
     /// <summary>Ore materials whose blocks exist as items but never world-generate; they get no era seed.</summary>
     public required IReadOnlyList<string> NonSpawningOres { get; init; }
 
-    /// <summary>Oredict names of world-minable leaf blocks.</summary>
-    public required IReadOnlyList<string> MinableBlockOredicts { get; init; }
-
-    /// <summary>Minable blocks the dump gives no oredict, by item id.</summary>
-    public required IReadOnlyList<string> MinableBlockItemIds { get; init; }
+    /// <summary>World-minable leaf blocks by oredict name or, where the dump gives none,
+    /// by item id — each at the era of the cheapest world it can be mined in.</summary>
+    public required IReadOnlyDictionary<string, int> MinableBlockEras { get; init; }
 
     /// <summary>World-pumped fluids by internal name, seeded at the era of reaching them.</summary>
     public required IReadOnlyDictionary<string, int> WorldFluidEras { get; init; }
@@ -97,13 +95,15 @@ public sealed record BuilderConfig
         GroupingOredictPrefixes = ["listAll", "crafting"],
         GroupingOredictInfixes = ["Any"],
         GroupingOredictNames = ["glowstone", "stoneGlowstone"],
-        MinableBlockItemIds = ["i~minecraft~clay~0"],
-        MinableBlockOredicts =
-        [
-            "stone", "cobblestone", "sand", "gravel", "dirt", "netherrack",
-            "endstone", "obsidian", "glowstone", "ice", "sandstone", "mycelium",
-            "soulsand", "blockClay"
-        ],
+        MinableBlockEras = new Dictionary<string, int>
+        {
+            ["stone"] = 0, ["cobblestone"] = 0, ["sand"] = 0, ["gravel"] = 0,
+            ["dirt"] = 0, ["netherrack"] = 0, ["obsidian"] = 0, ["glowstone"] = 0,
+            ["ice"] = 0, ["sandstone"] = 0, ["mycelium"] = 0, ["soulsand"] = 0,
+            ["blockClay"] = 0, ["i~minecraft~clay~0"] = 0,
+            // The End opens with the first rocket.
+            ["endstone"] = 3
+        },
         FarmableOredictPrefixes =
         [
             "seed", "crop", "treeSapling", "sugarcane", "blockCactus",

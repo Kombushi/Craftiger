@@ -87,11 +87,21 @@ public sealed class UnificationService(BuilderConfig config) : IUnificationServi
         }
 
         var canonicalByOredict = new Dictionary<string, string>();
+        var oredictsByCanonical = new Dictionary<string, HashSet<string>>();
         foreach (var (name, members) in membersByOredict)
         {
             if (members.Count > 0)
             {
                 canonicalByOredict[name] = canonicalByRawId.GetValueOrDefault(members[0], members[0]);
+            }
+            foreach (var member in members)
+            {
+                var canonical = canonicalByRawId.GetValueOrDefault(member, member);
+                if (!oredictsByCanonical.TryGetValue(canonical, out var set))
+                {
+                    oredictsByCanonical[canonical] = set = [];
+                }
+                set.Add(name);
             }
         }
 
@@ -101,6 +111,7 @@ public sealed class UnificationService(BuilderConfig config) : IUnificationServi
             PrimaryOredictByCanonical = primaryOredict,
             AliasesByCanonical = aliases,
             MembersByOredict = membersByOredict,
+            OredictsByCanonical = oredictsByCanonical,
             CanonicalByOredict = canonicalByOredict
         };
     }

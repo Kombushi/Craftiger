@@ -7,21 +7,6 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
 {
     public Dictionary<string, string> Run(IEnumerable<string> canonicalIds, Dump dump, UnifiedItems unified)
     {
-        // The primary oredict may hide the minable name (blockObsidian over obsidian).
-        var oredictsByCanonical = new Dictionary<string, HashSet<string>>();
-        foreach (var (name, members) in unified.MembersByOredict)
-        {
-            foreach (var member in members)
-            {
-                var canonical = unified.Canonical(member);
-                if (!oredictsByCanonical.TryGetValue(canonical, out var set))
-                {
-                    oredictsByCanonical[canonical] = set = [];
-                }
-                set.Add(name);
-            }
-        }
-
         var classes = new Dictionary<string, string>();
 
         foreach (var id in canonicalIds)
@@ -35,7 +20,7 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
                 continue;
             }
 
-            if (config.MinableBlockItemIds.Contains(id))
+            if (config.MinableBlockEras.ContainsKey(id))
             {
                 classes[id] = "minable_block";
                 continue;
@@ -47,7 +32,7 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
                 continue;
             }
 
-            var leafClass = Classify(oredict, oredictsByCanonical.GetValueOrDefault(id));
+            var leafClass = Classify(oredict, unified.OredictsByCanonical.GetValueOrDefault(id));
             if (leafClass is not null)
             {
                 classes[id] = leafClass;
@@ -59,8 +44,8 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
 
     private string? Classify(string oredict, HashSet<string>? allOredicts)
     {
-        if (config.MinableBlockOredicts.Contains(oredict) ||
-            (allOredicts is not null && config.MinableBlockOredicts.Any(allOredicts.Contains)))
+        if (config.MinableBlockEras.ContainsKey(oredict) ||
+            (allOredicts is not null && allOredicts.Any(config.MinableBlockEras.ContainsKey)))
         {
             return "minable_block";
         }

@@ -126,14 +126,15 @@ Builder responsibilities, in order:
    slot's tier, so byproducts stay behind the right garage tier and era, and
    steam macerators grind primaries only.
 5. **Leaf tagging** — mark leaves by oredict prefix and lists (§4); the
-   minable-block list matches every oredict of the unified item, not only its
-   primary, since unification prefers `block*` names (`blockObsidian` would
-   otherwise hide `obsidian`).
+   minable-block list names blocks by oredict or, where the dump gives a block
+   none at all (clay), by item id, and matches every oredict of the unified
+   item, not only its primary, since unification prefers `block*` names
+   (`blockObsidian` would otherwise hide `obsidian`).
 6. **Ingot tiering** — an ingot's tier is its production era, computed as a
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
-   era of every input)`. Era seeds at 0 are world-origin items only: minable
-   blocks, farmables, logs, free fluids, and mined `ore*` items —
+   era of every input)`. World-origin items seed the fixpoint: farmables,
+   logs, free fluids, minable blocks, and mined `ore*` items —
    except ores generated only in later worlds, which seed at the era of
    reaching their cheapest generating dimension. That era is derived from the
    dump's GT worldgen tables (veins, small ores, dimension tiers) through two
@@ -199,7 +200,7 @@ Builder responsibilities, in order:
 
 | Leaf class | Membership rule | Default weight |
 |---|---|---|
-| Minable block | explicit list: stone, cobblestone, sand, gravel, dirt, netherrack, … | 1 |
+| Minable block | explicit list, each with the era of the cheapest world it is mined in (End Stone at HV) | 1 |
 | Ingot | oredict `ingot*` | `B × 4^tier` (see below) |
 | Dust | oredict `dust*` | the material's ingot or gem price when a matching `ingot*` or `gem*` exists (same `B × 4^tier`), else 1 |
 | Small / tiny dust | `dustSmall*` / `dustTiny*` | parent dust ÷ 4 / ÷ 9 |

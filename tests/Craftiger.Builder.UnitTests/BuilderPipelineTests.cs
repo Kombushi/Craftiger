@@ -51,6 +51,11 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.AluIngot}'"));
 
     [Fact]
+    public void EndStoneSeedsAtItsOwnEra() =>
+        Assert.Equal(3, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.EndIngot}'"));
+
+    [Fact]
     public void GemsTierByTheirProductionEra() =>
         Assert.Equal(2, _fixture.Scalar<int>(
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.Gem}'"));
