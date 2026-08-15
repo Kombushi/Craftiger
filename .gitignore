@@ -11,6 +11,7 @@ web/dist/
 dump.sqlite
 dump-*.sqlite
 planner.sqlite
+image.zip
 atlas.webp
 atlas-offsets.json
 artifacts/
