@@ -13,7 +13,7 @@ if (args.Length == 0)
 
 var dumpPath = args[0];
 var outputDir = ".";
-var packVersion = "2.9.0-beta2";
+var packVersion = "2.9.0-beta-2";
 var imagesPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!, "image.zip");
 string? explainItem = null;
 for (var i = 1; i < args.Length - 1; i++)
