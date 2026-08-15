@@ -146,6 +146,10 @@ public sealed class BuilderPipeline(
         foreach (var recipe in recipes)
         {
             ids.UnionWith(recipe.Inputs.Keys);
+            foreach (var choice in recipe.Choices)
+            {
+                ids.UnionWith(choice.Alternatives);
+            }
             foreach (var output in recipe.Outputs)
             {
                 ids.Add(output.ItemId);

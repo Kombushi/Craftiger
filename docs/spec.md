@@ -113,7 +113,10 @@ Builder responsibilities, in order:
    most catalysts (programmed circuits, molds, shapes, lenses) with stack
    size 0, which is the primary signal; a static editable prefix list
    additionally strips GT crafting tools (wire cutter, hammer, file, saw,
-   screwdriver, wrench, …), which crafting-grid recipes list at size 1.
+   screwdriver, wrench, …), which crafting-grid recipes list at size 1. A
+   catalyst leaves its slot on its own: where it was one option among several,
+   the rest of them still stand, and only a slot that is nothing but catalysts
+   disappears.
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
 4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). Two tiers
@@ -221,7 +224,8 @@ Builder responsibilities, in order:
 - `recipes(id, machine, tier, multi_tier NULL, heat NULL, duration_ticks, eu_t)`
   — `multi_tier` for maps whose multiblock lowers the tier, `heat` for
   coil-gated recipes only
-- `recipe_inputs(recipe_id, item_id, amount)` — amount in units, or mB for fluids
+- `recipe_inputs(recipe_id, item_id, amount, slot)` — amount in units, or mB for
+  fluids; rows sharing a `slot` are alternatives the recipe accepts any one of
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
 - `item_tiers(item_id, tier)` — tiered materials: ingots, gems and dusts (§4)
 - `item_weights(item_id, weight)` — weights overriding the item's leaf class,
@@ -266,9 +270,14 @@ each tier multiplies by 4, mirroring EU voltage steps.
 For a garage-legal recipe and one chosen output:
 
 ```
-candidate(output) = Σ over inputs (cost(input) × amount) / (output_amount × chance)
+candidate(output) = Σ over slots (min over alternatives (cost × amount))
+                    / (output_amount × chance)
 ```
 
+- **A slot with alternatives costs its cheapest one.** Around 30,000 recipes
+  accept any of several items in a slot — `listAllmeatraw`, `ingotAnyIron` — and
+  which one is cheapest depends on the garage and the weights table, so it
+  cannot be decided at build time.
 - **Chanced outputs use expected value** — dividing by `chance` prices the average
   number of runs needed. It also keeps otherwise-chance-only items reachable.
 - **Each output is priced independently** from the full input cost of its
@@ -498,3 +507,7 @@ All "does not / never" rules live here; other sections only reference this one.
     recipe, not as a crop drop.
 17. Every leaf that ships has a weight: a tiered leaf has an `item_tiers` row,
     and a fraction has a priced parent.
+18. A recipe accepting any of several items prices from the cheapest of them,
+    and changing the weights table can change which one that is.
+19. A recipe on a mixed map is illegal at a garage tier below `tier` until the
+    map's multiblock is marked built, then legal at `multi_tier`.

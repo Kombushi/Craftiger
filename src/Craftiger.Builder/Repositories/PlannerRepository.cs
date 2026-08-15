@@ -30,7 +30,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 heat INTEGER,
                 duration_ticks INTEGER NOT NULL,
                 eu_t INTEGER NOT NULL);
-            CREATE TABLE recipe_inputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL);
+            CREATE TABLE recipe_inputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, slot INTEGER NOT NULL);
             CREATE TABLE recipe_outputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, chance REAL NOT NULL);
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
@@ -63,9 +63,15 @@ public sealed class PlannerRepository : IPlannerRepository
                 r.Heat, r.DurationTicks, r.EuT
             }), tx);
 
-        db.Execute("INSERT INTO recipe_inputs VALUES (@RecipeId, @ItemId, @Amount)",
+        // Rows sharing a slot are alternatives; the solver takes the cheapest of them.
+        db.Execute("INSERT INTO recipe_inputs VALUES (@RecipeId, @ItemId, @Amount, @Slot)",
             data.Recipes.SelectMany(r =>
-                r.Inputs.Select(i => new { RecipeId = r.Id, ItemId = i.Key, Amount = i.Value })), tx);
+                r.Inputs
+                    .Select((i, slot) => new { RecipeId = r.Id, ItemId = i.Key, Amount = i.Value, Slot = slot })
+                    .Concat(r.Choices.SelectMany((choice, index) => choice.Alternatives.Select(id => new
+                    {
+                        RecipeId = r.Id, ItemId = id, Amount = choice.Amount, Slot = r.Inputs.Count + index
+                    })))), tx);
 
         db.Execute("INSERT INTO recipe_outputs VALUES (@RecipeId, @ItemId, @Amount, @Chance)",
             data.Recipes.SelectMany(r =>

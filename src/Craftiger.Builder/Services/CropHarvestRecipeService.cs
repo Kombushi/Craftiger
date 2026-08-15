@@ -46,6 +46,7 @@ public sealed class CropHarvestRecipeService(
             recipes.Add(new PlannerRecipe(
                 crop.Id, _config.CropHarvestMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0,
                 Inputs: [],
+                Choices: [],
                 Outputs: drops,
                 Machines: [],
                 InputSlotAlternatives: slots,

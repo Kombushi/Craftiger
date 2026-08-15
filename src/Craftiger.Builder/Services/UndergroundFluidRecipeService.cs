@@ -32,6 +32,7 @@ public sealed class UndergroundFluidRecipeService(
             recipes.Add(new PlannerRecipe(
                 $"gtuf~{fluidId}", _config.PumpMachine, dimensionEra, Heat: null, DurationTicks: 0, EuT: 0,
                 Inputs: [],
+                Choices: [],
                 Outputs: [new PlannerOutput(fluidId, 1, 1.0)],
                 Machines: rigs,
                 InputSlotAlternatives: [],

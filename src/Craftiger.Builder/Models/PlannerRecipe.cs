@@ -9,6 +9,7 @@ public sealed record PlannerRecipe(
     long DurationTicks,
     long EuT,
     Dictionary<string, long> Inputs,
+    IReadOnlyList<PlannerChoice> Choices,
     List<PlannerOutput> Outputs,
     IReadOnlyList<RecipeMachine> Machines,
     IReadOnlyList<IReadOnlyList<string>> InputSlotAlternatives,

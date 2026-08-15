@@ -376,6 +376,14 @@ public static class FixtureDump
         // Distinct materials share the wildcard ingotAnyIron group but must stay separate.
         Recipe(db, "r_iron_use", "t_shaped", inputs: [("g_iron", 0)], outputs: [(Plank, 1, 1.0)]);
         Recipe(db, "r_cast_use", "t_shaped", inputs: [("g_cast_iron", 0)], outputs: [(Plank, 1, 1.0)]);
+        // A slot that takes either iron must ship both, not whichever sorts first.
+        Recipe(db, "r_any_iron_use", "t_shaped", inputs: [("g_any_iron", 0)], outputs: [(Plank, 1, 1.0)]);
+        // A tool among the alternatives drops out alone, leaving the slot usable.
+        Group(db, "g_saw_or_iron", (Saw, 1), (IronIngot, 1));
+        Recipe(db, "r_tool_choice", "t_shaped", inputs: [("g_saw_or_iron", 0)], outputs: [(Plank, 1, 1.0)]);
+        // A concrete input and a choice must not share a slot number.
+        Recipe(db, "r_mixed_slots", "t_shaped", inputs: [("g_log", 0), ("g_any_iron", 1)],
+            outputs: [(Plank, 1, 1.0)]);
 
         // Annealed copper: real era is the LV arc route; the dust-smelting loop
         // must inherit it rather than grant era 0. The slot-1 byproduct only

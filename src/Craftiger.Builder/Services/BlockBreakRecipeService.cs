@@ -33,6 +33,7 @@ public sealed class BlockBreakRecipeService(
             recipes.Add(new PlannerRecipe(
                 drop.Id, _config.BlockBreakMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0,
                 Inputs: new Dictionary<string, long> { [blockId] = 1 },
+                Choices: [],
                 Outputs: [new PlannerOutput(dropId, drop.Quantity, 1.0)],
                 Machines: [],
                 InputSlotAlternatives: [new[] { blockId }],

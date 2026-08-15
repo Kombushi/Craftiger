@@ -56,15 +56,27 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             var tier = gt is null || gt.Voltage <= 0 ? 0 : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage);
 
             var inputs = new Dictionary<string, long>();
+            var choices = new List<PlannerChoice>();
             var slots = new List<IReadOnlyList<string>>();
             foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
             {
-                var stack = ResolveSlot(dump, unified, groupId);
-                if (stack is null)
+                var members = ResolveSlot(dump, unified, groupId);
+                if (members.Count == 0)
                 {
                     continue;
                 }
-                foreach (var (partId, partAmount) in Decompose(dump, stack.Value.ItemId, stack.Value.Amount))
+
+                var alternatives = members.Select(member => member.ItemId).Distinct().ToList();
+                if (alternatives.Count > 1)
+                {
+                    // A real choice of ingredient: ship every option so the solver can
+                    // take the cheapest, rather than freezing one at build time.
+                    choices.Add(new PlannerChoice(alternatives, members[0].Amount));
+                    slots.Add(alternatives);
+                    continue;
+                }
+
+                foreach (var (partId, partAmount) in Decompose(dump, members[0].ItemId, members[0].Amount))
                 {
                     inputs[unified.Canonical(partId)] = inputs.GetValueOrDefault(unified.Canonical(partId)) + partAmount;
                 }
@@ -81,7 +93,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                 }
                 else
                 {
-                    slots.Add(stacks.Select(s => unified.Canonical(s.ItemId)).Distinct().ToList());
+                    slots.Add(alternatives);
                 }
             }
             foreach (var fluid in dump.FluidInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
@@ -114,7 +126,8 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                 }
                 outputs.Add((new PlannerOutput(o.FluidId, o.Amount, Math.Min(o.Chance, 1.0)), 0));
             }
-            if (inputs.Keys.Any(id => _config.ExcludedInputItems.Contains(dump.NameOf(id))))
+            if (inputs.Keys.Concat(choices.SelectMany(choice => choice.Alternatives))
+                .Any(id => _config.ExcludedInputItems.Contains(dump.NameOf(id))))
             {
                 continue;
             }
@@ -125,7 +138,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                 var variantInputs = new Dictionary<string, long>(inputs);
                 var merged = Merge(variantOutputs);
                 Net(variantInputs, merged);
-                if (merged.Count == 0 || variantInputs.Count == 0)
+                if (merged.Count == 0 || (variantInputs.Count == 0 && choices.Count == 0))
                 {
                     continue;
                 }
@@ -133,7 +146,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                 result.Add(new PlannerRecipe(
                     variantId, machine, variantTier, gt?.Heat,
                     gt?.Duration ?? 0, gt?.Voltage ?? 0,
-                    variantInputs, merged,
+                    variantInputs, choices, merged,
                     ungatedTypeIds.Contains(recipe.RecipeTypeId)
                         ? []
                         : machinesByTypeId.GetValueOrDefault(recipe.RecipeTypeId) ?? [],
@@ -177,31 +190,28 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
         _config.ExcludedMachineSuffixes.Any(s => machine.EndsWith(s, StringComparison.Ordinal)) ||
         _config.ExcludedMachinePrefixes.Any(p => machine.StartsWith(p, StringComparison.Ordinal));
 
-    private (string ItemId, long Amount)? ResolveSlot(Dump dump, UnifiedItems unified, string groupId)
+    /// <summary>Every member of an input slot the recipe really consumes. A member that is a
+    /// catalyst, or that the dump marks non-consumed with stack size 0, drops out on its own —
+    /// it never takes the rest of the slot with it. An empty result means the whole slot is
+    /// catalysts, which is exactly the case that should vanish.</summary>
+    private List<(string ItemId, long Amount)> ResolveSlot(Dump dump, UnifiedItems unified, string groupId)
     {
+        var members = new List<(string ItemId, long Amount)>();
         if (!dump.GroupStacks.TryGetValue(groupId, out var stacks))
         {
-            return null;
+            return members;
         }
 
-        (string ItemId, long Amount)? best = null;
-        foreach (var stack in stacks)
+        foreach (var stack in stacks.OrderBy(stack => unified.Canonical(stack.ItemId), StringComparer.Ordinal))
         {
-            if (stack.Size <= 0)
-            {
-                return null;
-            }
             var canonical = unified.Canonical(stack.ItemId);
-            if (IsCatalyst(stack.ItemId) || IsCatalyst(canonical))
+            if (stack.Size <= 0 || IsCatalyst(stack.ItemId) || IsCatalyst(canonical))
             {
-                return null;
+                continue;
             }
-            if (best is null || string.CompareOrdinal(canonical, best.Value.ItemId) < 0)
-            {
-                best = (canonical, stack.Size);
-            }
+            members.Add((canonical, stack.Size));
         }
-        return best;
+        return members;
     }
 
     private static IEnumerable<(string ItemId, long Amount)> Decompose(Dump dump, string itemId, long amount)

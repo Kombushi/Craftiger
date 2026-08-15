@@ -199,6 +199,33 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
+    public void ChoiceSlotsShipEveryAlternativeUnderOneSlot()
+    {
+        Assert.Equal(2, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_any_iron_use'"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            "SELECT COUNT(DISTINCT slot) FROM recipe_inputs WHERE recipe_id = 'r_any_iron_use'"));
+    }
+
+    [Fact]
+    public void ToolsLeaveAChoiceWithoutTakingTheSlotWithThem()
+    {
+        Assert.Equal(1, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_tool_choice'"));
+        Assert.Equal(FixtureDump.IronIngot, _fixture.Scalar<string>(
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_tool_choice'"));
+    }
+
+    [Fact]
+    public void ConcreteInputsAndChoicesGetSeparateSlots()
+    {
+        Assert.Equal(3, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_mixed_slots'"));
+        Assert.Equal(2, _fixture.Scalar<int>(
+            "SELECT COUNT(DISTINCT slot) FROM recipe_inputs WHERE recipe_id = 'r_mixed_slots'"));
+    }
+
+    [Fact]
     public void OredictEquivalentIngotsUnifyToOneCanonicalItem()
     {
         Assert.Equal(0, _fixture.Scalar<int>(
