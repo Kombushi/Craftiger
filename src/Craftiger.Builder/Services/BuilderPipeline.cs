@@ -50,7 +50,7 @@ public sealed class BuilderPipeline(
         // The items table's atlas_idx and the atlas builder must agree on this order.
         var orderedItemIds = itemIds.Order(StringComparer.Ordinal).ToList();
 
-        var maxTier = solverRecipes.Count == 0 ? 0 : solverRecipes.Max(r => r.Tier);
+        var maxTier = solverRecipes.Count == 0 ? 0 : solverRecipes.Max(r => r.BestCaseTier);
         var meta = new Dictionary<string, string>
         {
             ["pack_version"] = options.PackVersion,

@@ -51,6 +51,16 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.AluIngot}'"));
 
     [Fact]
+    public void MixedMapsDiscountOnceTheirMultiblockIsReachable() =>
+        Assert.Equal(2, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.MixIngot}'"));
+
+    [Fact]
+    public void MixedMapsKeepFullTierWhileOnlyTheirSingleBlocksAreAffordable() =>
+        Assert.Equal(3, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.DearIngot}'"));
+
+    [Fact]
     public void EbfRecipeKeepsHeat() =>
         Assert.Equal(1700, _fixture.Scalar<int>("SELECT heat FROM recipes WHERE id = 'r_ebf'"));
 

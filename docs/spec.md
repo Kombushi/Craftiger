@@ -1,6 +1,6 @@
-# GTNH Crafting Planner — Specification v1.7
+# GTNH Crafting Planner — Specification v1.8
 
-Target pack: **GregTech: New Horizons 2.9.0-beta2**. A web app that, for the
+Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
 raw-material cost, lets the user pick targets and quantities, and renders the
 total raw-material bill as a flat grid of item-icon squares.
@@ -32,13 +32,15 @@ total raw-material bill as a flat grid of item-icon squares.
   machine amperage quirks (3-amp arc furnaces, 2-amp thermal centrifuges).
   Fallback when the label is absent: smallest `n ≥ 1` with
   `EU/t ≤ 32 × 4^(n−1)`. Multiblocks are fed by two 2-amp energy hatches and
-  run recipes one tier above the hatches, so their recipes tier one step
-  lower — an LV-hatched EBF legally runs 120 EU/t recipes. The builder
-  detects multiblock maps from the dump: a single-block map lists its tiered
-  machine family as NEI handlers (9+), a multiblock map lists its few
-  controllers; per-machine overrides are builder config. Zero-EU/t recipes,
-  and those run by steam machines, a plain furnace, or a crafting table, map
-  to tier 0.
+  run recipes one tier above the hatches, so a recipe run on one tiers a step
+  lower — an LV-hatched EBF legally runs 120 EU/t recipes. The allowance is a
+  property of the machine, not the map: the dump names every machine serving a
+  map and whether it is a multiblock, and many maps (macerator, assembler,
+  centrifuge) are served by both kinds. A recipe therefore has a tier per
+  machine, and the era fixpoint takes the cheapest machine that can actually
+  run it (§3 step 6), so the allowance only applies once the multiblock itself
+  is affordable. Zero-EU/t recipes, and those run by steam machines, a plain
+  furnace, or a crafting table, map to tier 0.
 - **Machine**: a recipe map (NEI recipe category), not a specific block.
   Multiblocks are machines like any other (Pyrolyse Oven, Distillation Tower,
   Large Chemical Reactor, Implosion Compressor, Vacuum Freezer, Assembly
@@ -109,11 +111,12 @@ Builder responsibilities, in order:
    screwdriver, wrench, …), which crafting-grid recipes list at size 1.
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
-4. **Tier tagging** — per recipe: voltage tier per §2 (GT label, hatch
-   allowance for multi-amp multiblocks). Machine names
-   normalize by stripping the recipe map's constant
-   voltage suffix ("Macerator (ULV)" → "Macerator") and merging crafting
-   variants (shaped/shapeless → "Crafting Table"). Any recipe with a coil
+4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). The tier
+   shipped in `planner.sqlite` is the best case, the tier on the cheapest kind
+   of machine serving the map, so a map with any multiblock ships the hatch
+   allowance already applied. Machine names normalize by stripping the recipe
+   map's constant voltage suffix ("Macerator (ULV)" → "Macerator") and merging
+   crafting variants (shaped/shapeless → "Crafting Table"). Any recipe with a coil
    heat requirement keeps it in `recipes.heat` (EBF and its multiblock
    upgrades); the coil list (name → max heat + tier equivalent, builder
    config) is exported into `meta` for the garage UI. Macerator byproduct
@@ -152,12 +155,16 @@ Builder responsibilities, in order:
    metal (annealed copper) inherits the metal's era, while ore-processing
    dusts still reach era 0 through tier-0 crushing. An EBF
    recipe's intrinsic tier is `max(voltage tier, coil tier of its required
-   heat)`. Machine availability gates the era too: each recipe's intrinsic
-   tier includes the era of the cheapest producible machine handling its map
-   (NEI handler items), each floored at that machine's input-voltage tier
-   (parsed from its "Voltage IN" tooltip) — a machine buildable early still
-   waits for its power tier, so an MV-only dehydrator cannot run in the LV
-   era. So a chain through a Large Chemical Reactor cannot
+   heat)`. Machine availability gates the era too: a recipe costs what the
+   cheapest machine that can run it costs, taking for each machine serving its
+   map the highest of the machine's own era, the machine's input-voltage tier,
+   and the recipe's tier on that machine (§2, hatch allowance for multiblocks).
+   A machine buildable early still waits for its power tier, so an MV-only
+   dehydrator cannot run in the LV era; and a multiblock's tier allowance
+   costs whatever the multiblock costs, so a recipe only gets it once that
+   machine is affordable. Machine voltage comes from the recipe map's machine
+   tier, or from the "Voltage IN" tooltip for machines the map does not tier
+   (multiblock controllers). So a chain through a Large Chemical Reactor cannot
    land below the era of building one. Cleanroom-flagged recipes additionally
    inherit the Cleanroom Controller's era, which is pinned at HV — the pack's
    circuit-line progression wall, a fact the recipe graph cannot derive.

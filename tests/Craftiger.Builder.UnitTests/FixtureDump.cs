@@ -45,6 +45,13 @@ public static class FixtureDump
     public const string ComIngot = "i~miscutils~ingotComancheite~0";
     public const string ObsidianBlock = "i~minecraft~obsidian~0";
     public const string Dryer = "i~gregtech~gt.blockmachines~2002";
+    public const string EbfController = "i~gregtech~gt.blockmachines~1003";
+    public const string MaceratorLv = "i~gregtech~gt.blockmachines~106";
+    public const string MixerLv = "i~gregtech~gt.blockmachines~110";
+    public const string MixerStack = "i~gregtech~gt.blockmachines~798";
+    public const string DearStack = "i~gregtech~gt.blockmachines~799";
+    public const string MixIngot = "i~gregtech~gt.metaitem.01~11040";
+    public const string DearIngot = "i~gregtech~gt.metaitem.01~11041";
     public const string DryIngot = "i~gregtech~gt.metaitem.01~11777";
     public const string ByDust = "i~gregtech~gt.metaitem.01~2778";
     public const string ByIngot = "i~gregtech~gt.metaitem.01~11778";
@@ -163,6 +170,13 @@ public static class FixtureDump
         Item(db, ComIngot, "Comancheite Ingot", "miscutils");
         Item(db, ObsidianBlock, "Obsidian", "minecraft");
         Item(db, Dryer, "Basic Dryer", "gregtech");
+        Item(db, EbfController, "Electric Blast Furnace", "gregtech");
+        Item(db, MaceratorLv, "Macerator", "gregtech");
+        Item(db, MixerLv, "Mixer", "gregtech");
+        Item(db, MixerStack, "Mixer Array", "gregtech");
+        Item(db, DearStack, "Dear Mixer Array", "gregtech");
+        Item(db, MixIngot, "Mixium Ingot", "gregtech");
+        Item(db, DearIngot, "Dearium Ingot", "gregtech");
         Item(db, DryIngot, "Dryium Ingot", "gregtech");
         Item(db, ByDust, "Byprodium Dust", "gregtech");
         Item(db, ByIngot, "Byprodium Ingot", "gregtech");
@@ -180,6 +194,10 @@ public static class FixtureDump
         Group(db, "g_saw", (Saw, 1));
         Group(db, "g_mold", (Mold, 0));
         Group(db, "g_log", (Log, 1));
+        Group(db, "g_mix_ingot", (MixIngot, 1));
+        Group(db, "g_dear_ingot", (DearIngot, 1));
+        Oredict(db, "ingotMixium", "g_mix_ingot");
+        Oredict(db, "ingotDearium", "g_dear_ingot");
         db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_water', 1000, '{Water}')");
 
         Oredict(db, "ingotBronze", "g_bronze_ingot");
@@ -249,17 +267,24 @@ public static class FixtureDump
 
         RecipeType(db, "t_shaped", "minecraft", "Crafting (Shaped)");
         RecipeType(db, "t_furnace", "minecraft", "Furnace");
-        RecipeType(db, "t_ebf", "gregtech", "Blast Furnace (MV)", handlerIcons: 2);
-        RecipeType(db, "t_extruder", "gregtech", "Extruder (MV)");
-        RecipeType(db, "t_macerator", "gregtech", "Macerator (ULV)");
-        RecipeType(db, "t_solidifier", "gregtech", "Fluid Solidifier (MV)");
-        RecipeType(db, "t_fuels", "gregtech", "Large Boiler Fuels (ULV)");
-        RecipeType(db, "t_electrolyzer", "gregtech", "Electrolyzer (MV)");
-        RecipeType(db, "t_arc", "gregtech", "Arc Furnace (LV)");
-        RecipeType(db, "t_alloy", "gregtech", "Alloy Smelter (ULV)");
-        RecipeType(db, "t_freezer", "gregtech", "Vacuum Freezer (MV)", handlerIcons: 0, handlerItem: FreezerItem);
-        RecipeType(db, "t_space", "gregtech", "Space Mining (HV)", handlerIcons: 0, handlerItem: SpaceMiner);
-        RecipeType(db, "t_dryer", "gregtech", "Dryer (LV)", handlerIcons: 0, handlerItem: Dryer);
+        RecipeType(db, "rt~gregtech~gt.recipe.blastfurnace~MV", "gregtech", "Blast Furnace (MV)", handlerIcons: 2);
+        RecipeType(db, "rt~gregtech~gt.recipe.extruder~MV", "gregtech", "Extruder (MV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.macerator~ULV", "gregtech", "Macerator (ULV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.fluidsolidifier~MV", "gregtech", "Fluid Solidifier (MV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.largeboilerfakefuels~ULV", "gregtech", "Large Boiler Fuels (ULV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.electrolyzer~MV", "gregtech", "Electrolyzer (MV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.arcfurnace~LV", "gregtech", "Arc Furnace (LV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.alloysmelter~ULV", "gregtech", "Alloy Smelter (ULV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.vacuumfreezer~MV", "gregtech", "Vacuum Freezer (MV)", handlerIcons: 0, handlerItem: FreezerItem);
+        RecipeType(db, "rt~gregtech~gt.recipe.spacemining~HV", "gregtech", "Space Mining (HV)", handlerIcons: 0, handlerItem: SpaceMiner);
+        RecipeType(db, "rt~gregtech~gt.recipe.dryer~LV", "gregtech", "Dryer (LV)", handlerIcons: 0, handlerItem: Dryer);
+        RecipeType(db, "rt~gregtech~gt.recipe.mixer~HV", "gregtech", "Mixer (HV)", handlerIcons: 0);
+        RecipeType(db, "rt~gregtech~gt.recipe.dearmixer~HV", "gregtech", "Dear Mixer (HV)", handlerIcons: 0);
+
+        RecipeMap(db, "gt.recipe.blastfurnace", "Blast Furnace", [(EbfController, true, null)]);
+        RecipeMap(db, "gt.recipe.macerator", "Macerator", [(MaceratorLv, false, 1)]);
+        RecipeMap(db, "gt.recipe.mixer", "Mixer", [(MixerLv, false, 1), (MixerStack, true, null)]);
+        RecipeMap(db, "gt.recipe.dearmixer", "Dear Mixer", [(MixerLv, false, 1), (DearStack, true, null)]);
 
         // Ingot <-> block cycle, both directions on the crafting table.
         Recipe(db, "r_block", "t_shaped", inputs: [("g_bronze_ingot9", 0)], outputs: [(BronzeBlock, 1, 1.0)]);
@@ -269,18 +294,18 @@ public static class FixtureDump
 
         // Smelting bronze dust is the tier-0 route; EBF is aluminium's only real route.
         Recipe(db, "r_smelt", "t_furnace", inputs: [("g_bronze_dust", 0)], outputs: [(GtBronze, 1, 1.0)]);
-        Recipe(db, "r_ebf", "t_ebf", inputs: [("g_alu_dust", 0)], outputs: [(AluIngot, 1, 1.0)], voltage: 120, duration: 500, heat: 1700);
+        Recipe(db, "r_ebf", "rt~gregtech~gt.recipe.blastfurnace~MV", inputs: [("g_alu_dust", 0)], outputs: [(AluIngot, 1, 1.0)], voltage: 120, duration: 500, heat: 1700);
 
         // Chanced byproduct plus a saw catalyst on the grid.
-        Recipe(db, "r_macerate", "t_macerator", inputs: [("g_bronze_ingot", 0)], outputs: [(BronzeDust, 1, 1.0), (BronzeDust, 1, 0.9)], voltage: 4, duration: 100);
+        Recipe(db, "r_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_bronze_ingot", 0)], outputs: [(BronzeDust, 1, 1.0), (BronzeDust, 1, 0.9)], voltage: 4, duration: 100);
         Recipe(db, "r_planks", "t_shaped", inputs: [("g_log", 0), ("g_saw", 1)], outputs: [(Plank, 4, 1.0)]);
 
         // Extruder-only rod with a zero-size shape mold; solidifier gives a pinnable alternative.
-        Recipe(db, "r_extrude", "t_extruder", inputs: [("g_alu_ingot", 0), ("g_mold", 1)], outputs: [(AluRod, 2, 1.0)], voltage: 96, duration: 200);
-        Recipe(db, "r_solidify", "t_solidifier", inputs: [("g_alu_ingot", 0)], outputs: [(AluRod, 1, 1.0)], voltage: 24, duration: 100, fluidInputs: [("g_water", 0)]);
+        Recipe(db, "r_extrude", "rt~gregtech~gt.recipe.extruder~MV", inputs: [("g_alu_ingot", 0), ("g_mold", 1)], outputs: [(AluRod, 2, 1.0)], voltage: 96, duration: 200);
+        Recipe(db, "r_solidify", "rt~gregtech~gt.recipe.fluidsolidifier~MV", inputs: [("g_alu_ingot", 0)], outputs: [(AluRod, 1, 1.0)], voltage: 24, duration: 100, fluidInputs: [("g_water", 0)]);
 
         // Fuel tabs are pseudo-recipes and must be dropped.
-        Recipe(db, "r_fuel", "t_fuels", inputs: [("g_bronze_dust", 0)], outputs: [(BronzeDust, 1, 1.0)], voltage: 32, duration: 1);
+        Recipe(db, "r_fuel", "rt~gregtech~gt.recipe.largeboilerfakefuels~ULV", inputs: [("g_bronze_dust", 0)], outputs: [(BronzeDust, 1, 1.0)], voltage: 32, duration: 1);
 
         // Distinct materials share the wildcard ingotAnyIron group but must stay separate.
         Recipe(db, "r_iron_use", "t_shaped", inputs: [("g_iron", 0)], outputs: [(Plank, 1, 1.0)]);
@@ -289,31 +314,42 @@ public static class FixtureDump
         // Annealed copper: real era is the LV arc route; the dust-smelting loop
         // must inherit it rather than grant era 0. The slot-1 byproduct only
         // exists on HV+ macerators, splitting the recipe into tiered variants.
-        Recipe(db, "r_cu_macerate", "t_macerator", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 2, 1.0)], voltage: 4, duration: 100,
+        Recipe(db, "r_cu_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 2, 1.0)], voltage: 4, duration: 100,
             byproducts: [(ByDust, 1, 0.5, 1)]);
         Recipe(db, "r_by_smelt", "t_furnace", inputs: [("g_by_dust", 0)], outputs: [(ByIngot, 1, 1.0)]);
 
         // The dryer is buildable at era 0 but runs on MV voltage.
         Recipe(db, "r_dryer_craft", "t_shaped", inputs: [("g_log", 0)], outputs: [(Dryer, 1, 1.0)]);
-        Recipe(db, "r_dry", "t_dryer", inputs: [("g_copper_dust", 0)], outputs: [(DryIngot, 1, 1.0)], voltage: 24, duration: 100);
+        Recipe(db, "r_ebf_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(EbfController, 1, 1.0)]);
+        Recipe(db, "r_macerator_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MaceratorLv, 1, 1.0)]);
+        Recipe(db, "r_mixer_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MixerLv, 1, 1.0)]);
+
+        // A mixed map takes the cheaper of its single blocks and its multiblock's allowance.
+        Recipe(db, "r_mixer_stack_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MixerStack, 1, 1.0)]);
+        Recipe(db, "r_dear_stack_craft", "t_shaped", inputs: [("g_naq_ingot", 0)], outputs: [(DearStack, 1, 1.0)]);
+        Recipe(db, "r_mix", "rt~gregtech~gt.recipe.mixer~HV", inputs: [("g_copper_ingot", 0)],
+            outputs: [(MixIngot, 1, 1.0)], voltage: 480, duration: 100);
+        Recipe(db, "r_dear", "rt~gregtech~gt.recipe.dearmixer~HV", inputs: [("g_copper_ingot", 0)],
+            outputs: [(DearIngot, 1, 1.0)], voltage: 480, duration: 100);
+        Recipe(db, "r_dry", "rt~gregtech~gt.recipe.dryer~LV", inputs: [("g_copper_dust", 0)], outputs: [(DryIngot, 1, 1.0)], voltage: 24, duration: 100);
         Recipe(db, "r_cu_hammer", "t_shaped", inputs: [("g_copper_ore", 0)], outputs: [(CopperDust, 1, 1.0)]);
-        Recipe(db, "r_alu_macerate", "t_macerator", inputs: [("g_alu_ore", 0)], outputs: [(AluDust, 2, 1.0)], voltage: 4, duration: 100);
-        Recipe(db, "r_naq_macerate", "t_macerator", inputs: [("g_naq_ore", 0)], outputs: [(NaqDust, 2, 1.0)], voltage: 4, duration: 100);
-        Recipe(db, "r_naq_smelt", "t_alloy", inputs: [("g_naq_dust", 0)], outputs: [(NaqIngot, 1, 1.0)], voltage: 16, duration: 100);
+        Recipe(db, "r_alu_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_alu_ore", 0)], outputs: [(AluDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_naq_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_naq_ore", 0)], outputs: [(NaqDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_naq_smelt", "rt~gregtech~gt.recipe.alloysmelter~ULV", inputs: [("g_naq_dust", 0)], outputs: [(NaqIngot, 1, 1.0)], voltage: 16, duration: 100);
 
         // The freezer itself is naquadah-era, gating its recipes regardless of voltage.
         Recipe(db, "r_freezer_craft", "t_shaped", inputs: [("g_naq_ingot", 0)], outputs: [(FreezerItem, 1, 1.0)]);
-        Recipe(db, "r_freeze", "t_freezer", inputs: [("g_alu_ingot", 0)], outputs: [(ColdIngot, 1, 1.0)], voltage: 30, duration: 100);
+        Recipe(db, "r_freeze", "rt~gregtech~gt.recipe.vacuumfreezer~MV", inputs: [("g_alu_ingot", 0)], outputs: [(ColdIngot, 1, 1.0)], voltage: 30, duration: 100);
         Recipe(db, "r_cu_smelt", "t_furnace", inputs: [("g_copper_dust", 0)], outputs: [(CopperIngot, 1, 1.0)]);
-        Recipe(db, "r_oxygen", "t_electrolyzer", inputs: [], outputs: [], voltage: 30, duration: 100, fluidInputs: [("g_water", 0)]);
-        Recipe(db, "r_anneal", "t_arc", inputs: [("g_copper_ingot", 0)], outputs: [(AnnealedIngot, 1, 1.0)], voltage: 30, duration: 100, fluidInputs: [("g_oxygen", 0)]);
-        Recipe(db, "r_ann_macerate", "t_macerator", inputs: [("g_annealed_ingot", 0)], outputs: [(AnnealedDust, 1, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_oxygen", "rt~gregtech~gt.recipe.electrolyzer~MV", inputs: [], outputs: [], voltage: 30, duration: 100, fluidInputs: [("g_water", 0)]);
+        Recipe(db, "r_anneal", "rt~gregtech~gt.recipe.arcfurnace~LV", inputs: [("g_copper_ingot", 0)], outputs: [(AnnealedIngot, 1, 1.0)], voltage: 30, duration: 100, fluidInputs: [("g_oxygen", 0)]);
+        Recipe(db, "r_ann_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_annealed_ingot", 0)], outputs: [(AnnealedDust, 1, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_ann_smelt", "t_furnace", inputs: [("g_annealed_dust", 0)], outputs: [(AnnealedIngot, 1, 1.0)]);
         db.Execute($"INSERT INTO RECIPE_FLUID_OUTPUTS VALUES ('r_oxygen', 500, '{Oxygen}', NULL, 0)");
 
         // Cell-based recipe: decomposition plus netting must leave only fluids.
         Group(db, "g_water_cell", (WaterCell, 1));
-        Recipe(db, "r_electrolyze", "t_electrolyzer", inputs: [("g_water_cell", 0)], outputs: [(EmptyCell, 1, 1.0)], voltage: 30, duration: 300);
+        Recipe(db, "r_electrolyze", "rt~gregtech~gt.recipe.electrolyzer~MV", inputs: [("g_water_cell", 0)], outputs: [(EmptyCell, 1, 1.0)], voltage: 30, duration: 300);
         db.Execute($"INSERT INTO RECIPE_FLUID_OUTPUTS VALUES ('r_electrolyze', 1000, '{Hydrogen}', NULL, 0)");
 
         // Naquadah seeds at the Mars-tier era via a vein placing an un-oredicted
@@ -339,12 +375,12 @@ public static class FixtureDump
 
         // Koboldite never world-generates; its era comes from the era-only Space Mining map.
         Recipe(db, "r_miner_craft", "t_shaped", inputs: [("g_naq_ingot", 0)], outputs: [(SpaceMiner, 1, 1.0)]);
-        Recipe(db, "r_space", "t_space", inputs: [("g_naq_dust", 0)], outputs: [(KobOre, 1, 1.0)], voltage: 512, duration: 100);
-        Recipe(db, "r_kob_macerate", "t_macerator", inputs: [("g_kob_ore", 0)], outputs: [(KobDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_space", "rt~gregtech~gt.recipe.spacemining~HV", inputs: [("g_naq_dust", 0)], outputs: [(KobOre, 1, 1.0)], voltage: 512, duration: 100);
+        Recipe(db, "r_kob_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_kob_ore", 0)], outputs: [(KobDust, 2, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_kob_smelt", "t_furnace", inputs: [("g_kob_dust", 0)], outputs: [(KobIngot, 1, 1.0)]);
-        Recipe(db, "r_runite_macerate", "t_macerator", inputs: [("g_raw_runite", 0)], outputs: [(RuniteDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_runite_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_raw_runite", 0)], outputs: [(RuniteDust, 2, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_runite_smelt", "t_furnace", inputs: [("g_runite_dust", 0)], outputs: [(RuniteIngot, 1, 1.0)]);
-        Recipe(db, "r_com_macerate", "t_macerator", inputs: [("g_com_ore", 0)], outputs: [(ComDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_com_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_com_ore", 0)], outputs: [(ComDust, 2, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_com_smelt", "t_furnace", inputs: [("g_com_dust", 0)], outputs: [(ComIngot, 1, 1.0)]);
         Recipe(db, "r_obs_use", "t_shaped", inputs: [("g_obsidian", 0)], outputs: [(Plank, 1, 1.0)]);
 
@@ -372,6 +408,27 @@ public static class FixtureDump
 
     private static void Oredict(SqliteConnection db, string name, string groupId) =>
         db.Execute("INSERT INTO ORE_DICTIONARY VALUES (@id, @name, @groupId)", new { id = $"od_{name}", name, groupId });
+
+    /// <summary>A recipe map and the machines serving it; only a multiblock earns the tier allowance.</summary>
+    private static void RecipeMap(
+        SqliteConnection db, string map, string name, (string ItemId, bool Multiblock, int? Tier)[] machines)
+    {
+        var id = $"gtrm~{map}";
+        db.Execute(
+            "INSERT INTO GREG_TECH_RECIPE_MAP(ID, AMPERAGE, HAS_MULTI_BLOCK, HAS_SINGLE_BLOCK, LOCALIZED_NAME, UNLOCALIZED_NAME) VALUES (@id, 1, @multi, @single, @name, @map)",
+            new
+            {
+                id, name, map,
+                multi = machines.Any(m => m.Multiblock) ? 1 : 0,
+                single = machines.Any(m => !m.Multiblock) ? 1 : 0
+            });
+        foreach (var machine in machines)
+        {
+            db.Execute(
+                "INSERT INTO GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER) VALUES (@id, @itemId, @multiblock, @tier)",
+                new { id, itemId = machine.ItemId, multiblock = machine.Multiblock ? 1 : 0, tier = machine.Tier });
+        }
+    }
 
     /// <summary>Single-block maps list a tiered machine family; multiblocks list few controllers.</summary>
     private static void RecipeType(

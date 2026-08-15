@@ -62,14 +62,6 @@ public sealed record BuilderConfig
     /// <summary>Fluid internal names priced at zero.</summary>
     public required IReadOnlyList<string> FreeFluids { get; init; }
 
-    /// <summary>Multiblocks are detected from the dump (few map handlers vs a tiered
-    /// single-block family); these lists override that classification per machine.</summary>
-    public required IReadOnlyList<string> ForceSingleAmp { get; init; }
-    public required IReadOnlyList<string> ForceMultiAmp { get; init; }
-
-    /// <summary>Maps with at most this many handler machines classify as multiblocks.</summary>
-    public int MultiblockMaxHandlers { get; init; } = 8;
-
     /// <summary>EBF coil ladder; tier is the coil's voltage-tier equivalent.</summary>
     public required IReadOnlyList<CoilSpec> Coils { get; init; }
 
@@ -125,8 +117,6 @@ public sealed record BuilderConfig
             ["liquid_heavy_oil"] = 1,
             ["liquid_extra_heavy_oil"] = 1
         },
-        ForceSingleAmp = [],
-        ForceMultiAmp = [],
         DimensionTierEras = new Dictionary<int, int>
         {
             [1] = 3,  // T1 rocket (Moon): HV

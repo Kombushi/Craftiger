@@ -142,18 +142,12 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         PlannerRecipe recipe, Dictionary<string, int> era, HashSet<string> cleanroomIds,
         Dictionary<string, int> machineVoltage, Dump dump)
     {
-        var candidate = Intrinsic(recipe);
-        if (candidate == 1 && recipe.Heat is null && HasSteamHandler(recipe, era, dump))
-        {
-            candidate = 0;
-        }
-
-        var machineEra = MachineEra(recipe, era, machineVoltage);
-        if (machineEra == int.MaxValue)
+        var steam = recipe.Tier == 1 && recipe.Heat is null && HasSteamHandler(recipe, era, dump);
+        var candidate = MachineEra(recipe, era, machineVoltage, steam);
+        if (candidate == int.MaxValue)
         {
             return int.MaxValue;
         }
-        candidate = Math.Max(candidate, machineEra);
 
         if (recipe.RequiresCleanroom)
         {
@@ -193,9 +187,9 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
                     Add(consumers, alternative, recipe);
                 }
             }
-            foreach (var machineId in recipe.MachineItemIds)
+            foreach (var machine in recipe.Machines)
             {
-                Add(consumers, machineId, recipe);
+                Add(consumers, machine.ItemId, recipe);
             }
             if (recipe.RequiresCleanroom)
             {
@@ -263,7 +257,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         var fallback = new Dictionary<string, int>();
         foreach (var recipe in recipes)
         {
-            var intrinsic = Intrinsic(recipe);
+            var intrinsic = Intrinsic(recipe, recipe.BestCaseTier);
             foreach (var output in recipe.Outputs)
             {
                 if (leafClasses.GetValueOrDefault(output.ItemId) != "ingot")
@@ -334,7 +328,8 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
             Console.WriteLine($"{indent}  ...");
             return;
         }
-        var machine = recipe.MachineItemIds
+        var machine = recipe.Machines
+            .Select(m => m.ItemId)
             .Where(id => solve.Era.ContainsKey(id))
             .OrderBy(id => solve.Era[id])
             .FirstOrDefault();
@@ -369,13 +364,13 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
     /// <summary>Steam machines run their map's LV-and-below recipes in the steam era.</summary>
     private bool HasSteamHandler(PlannerRecipe recipe, Dictionary<string, int> era, Dump dump)
     {
-        foreach (var machineId in recipe.MachineItemIds)
+        foreach (var machine in recipe.Machines)
         {
-            if (!era.ContainsKey(machineId))
+            if (!era.ContainsKey(machine.ItemId))
             {
                 continue;
             }
-            if (!dump.Items.TryGetValue(machineId, out var item))
+            if (!dump.Items.TryGetValue(machine.ItemId, out var item))
             {
                 continue;
             }
@@ -387,33 +382,41 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         return false;
     }
 
-    /// <summary>The cheapest producible handler machine gates the recipe's era,
-    /// each floored at its own input-voltage tier.</summary>
-    private static int MachineEra(
-        PlannerRecipe recipe, Dictionary<string, int> era, Dictionary<string, int> machineVoltage)
+    /// <summary>The cheapest producible machine gates the recipe's era: each one is floored
+    /// at its own input voltage, and only a multiblock brings the hatch allowance with it.</summary>
+    private int MachineEra(
+        PlannerRecipe recipe, Dictionary<string, int> era, Dictionary<string, int> machineVoltage, bool steam)
     {
-        if (recipe.MachineItemIds.Count == 0)
+        if (recipe.Machines.Count == 0)
         {
-            return 0;
+            return Intrinsic(recipe, recipe.Tier, steam);
         }
         var best = int.MaxValue;
-        foreach (var machineId in recipe.MachineItemIds)
+        foreach (var machine in recipe.Machines)
         {
-            if (!era.TryGetValue(machineId, out var machineEra))
+            if (!era.TryGetValue(machine.ItemId, out var machineEra))
             {
                 continue;
             }
-            var floored = Math.Max(machineEra, machineVoltage.GetValueOrDefault(machineId, 0));
-            if (floored < best)
+            var voltageFloor = machine.Tier ?? machineVoltage.GetValueOrDefault(machine.ItemId, 0);
+            var on = Math.Max(
+                Math.Max(machineEra, voltageFloor),
+                Intrinsic(recipe, recipe.TierOn(machine), steam));
+            if (on < best)
             {
-                best = floored;
+                best = on;
             }
         }
         return best;
     }
 
-    private int Intrinsic(PlannerRecipe recipe) =>
-        recipe.Heat is { } heat ? Math.Max(recipe.Tier, CoilTier(heat)) : recipe.Tier;
+    /// <summary>A recipe's own floor at a given voltage tier: its coil gate, if it has one.</summary>
+    private int Intrinsic(PlannerRecipe recipe, int tier, bool steam = false)
+    {
+        // Steam machines run their map's LV-and-below recipes in the steam era.
+        var voltage = steam && tier == 1 ? 0 : tier;
+        return recipe.Heat is { } heat ? Math.Max(voltage, CoilTier(heat)) : voltage;
+    }
 
     private int CoilTier(int heat)
     {

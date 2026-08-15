@@ -4,8 +4,6 @@ using Craftiger.Builder.Models;
 
 namespace Craftiger.Builder.Services;
 
-// TODO: make IsMultiAmp check more reliable. There are single-block machines with less then 9 handlers. We can implement new exporter plugin if necessary.
-
 public sealed partial class RecipeTransformService(BuilderConfig config) : IRecipeTransformService
 {
     [GeneratedRegex(@" \((ULV|LV|MV|HV|EV|IV|LuV|ZPM|UV|UHV|UEV|UIV|UMV|UXV|MAX)\)$")]
@@ -16,14 +14,28 @@ public sealed partial class RecipeTransformService(BuilderConfig config) : IReci
         var result = new List<PlannerRecipe>();
 
         // Machine items gate an era only when they exist as real craftable items.
-        var machinesByTypeId = new Dictionary<string, IReadOnlyList<string>>();
+        var machinesByTypeId = new Dictionary<string, IReadOnlyList<RecipeMachine>>();
         foreach (var (typeId, icons) in dump.HandlerItemsByRecipeTypeId)
         {
             machinesByTypeId[typeId] = icons
                 .Where(dump.Items.ContainsKey)
                 .Select(unified.Canonical)
                 .Distinct()
+                .Select(id => new RecipeMachine(id, Multiblock: false, Tier: null))
                 .ToList();
+        }
+        // GregTech maps name their real machines, which the NEI handler icons only approximate.
+        foreach (var (typeId, map) in dump.RecipeMapByTypeId)
+        {
+            var machines = map.Machines
+                .Where(m => dump.Items.ContainsKey(m.ItemId))
+                .GroupBy(m => unified.Canonical(m.ItemId))
+                .Select(g => new RecipeMachine(g.Key, g.Any(m => m.Multiblock), g.Min(m => m.Tier)))
+                .ToList();
+            if (machines.Count > 0)
+            {
+                machinesByTypeId[typeId] = machines;
+            }
         }
 
         var ungatedTypeIds = new HashSet<string>(
@@ -39,10 +51,6 @@ public sealed partial class RecipeTransformService(BuilderConfig config) : IReci
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
             var tier = gt is null || gt.Voltage <= 0 ? 0 : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage);
-            if (tier > 0 && IsMultiAmp(recipe, machine))
-            {
-                tier = Math.Max(1, tier - 1);
-            }
 
             var inputs = new Dictionary<string, long>();
             var slots = new List<IReadOnlyList<string>>();
@@ -156,20 +164,6 @@ public sealed partial class RecipeTransformService(BuilderConfig config) : IReci
                 Math.Max(tier, threshold),
                 unlocked);
         }
-    }
-
-    /// <summary>Two 2A hatches run recipes one tier above themselves on any multiblock.</summary>
-    private bool IsMultiAmp(DumpRecipe recipe, string machine)
-    {
-        if (config.ForceSingleAmp.Contains(machine))
-        {
-            return false;
-        }
-        if (config.ForceMultiAmp.Contains(machine))
-        {
-            return true;
-        }
-        return recipe.Category == "gregtech" && recipe.HandlerIcons <= config.MultiblockMaxHandlers;
     }
 
     private string NormalizeMachine(string type) =>

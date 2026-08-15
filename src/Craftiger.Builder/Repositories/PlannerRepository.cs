@@ -54,7 +54,10 @@ public sealed class PlannerRepository : IPlannerRepository
                 .Select(alias => new { Id = id, Alias = alias })), tx);
 
         db.Execute("INSERT INTO recipes VALUES (@Id, @Machine, @Tier, @Heat, @DurationTicks, @EuT)",
-            data.Recipes.Select(r => new { r.Id, r.Machine, r.Tier, r.Heat, r.DurationTicks, r.EuT }), tx);
+            data.Recipes.Select(r => new
+            {
+                r.Id, r.Machine, Tier = r.BestCaseTier, r.Heat, r.DurationTicks, r.EuT
+            }), tx);
 
         db.Execute("INSERT INTO recipe_inputs VALUES (@RecipeId, @ItemId, @Amount)",
             data.Recipes.SelectMany(r =>

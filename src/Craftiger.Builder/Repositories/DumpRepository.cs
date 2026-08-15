@@ -44,7 +44,7 @@ public sealed partial class DumpRepository : IDumpRepository
             FROM RECIPE r JOIN RECIPE_TYPE rt ON rt.ID = r.RECIPE_TYPE_ID
             """))
         {
-            recipes.Add(new DumpRecipe(id, type, category, handlerItems.GetValueOrDefault(typeId)?.Count ?? 0, typeId));
+            recipes.Add(new DumpRecipe(id, type, category, typeId));
         }
 
         // coil_heat metadata is authoritative; RECIPE_SPECIAL_VALUE holds the same number for EBF maps.
