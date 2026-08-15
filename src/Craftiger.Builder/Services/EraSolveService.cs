@@ -4,8 +4,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Craftiger.Builder.Services;
 
-// TODO: research if MinableBlockOredicts, FarmableOredictPrefixes can be replaced with the info from the dump
-
 public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveService> logger) : IEraSolveService
 {
     private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log"];

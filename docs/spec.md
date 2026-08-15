@@ -132,7 +132,11 @@ Builder responsibilities, in order:
    minable-block list names blocks by oredict or, where the dump gives a block
    none at all (clay), by item id, and matches every oredict of the unified
    item, not only its primary, since unification prefers `block*` names
-   (`blockObsidian` would otherwise hide `obsidian`).
+   (`blockObsidian` would otherwise hide `obsidian`). This list stays builder
+   config because the dump cannot supply it: it names the dimension each stone
+   type belongs to, but nothing ties a stone type to the block item it places,
+   and no `stone<Dimension>` oredicts exist. A block left off the list gets no
+   era at all, so off-world stone stays unreachable rather than free.
 6. **Ingot tiering** — an ingot's tier is its production era, computed as a
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
