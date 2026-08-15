@@ -35,6 +35,12 @@ public sealed class LeafTaggingService(BuilderConfig config) : ILeafTaggingServi
                 continue;
             }
 
+            if (config.MinableBlockItemIds.Contains(id))
+            {
+                classes[id] = "minable_block";
+                continue;
+            }
+
             var oredict = unified.PrimaryOredictByCanonical.GetValueOrDefault(id);
             if (oredict is null)
             {

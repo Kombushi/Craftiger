@@ -52,6 +52,8 @@ public static class FixtureDump
     public const string DearStack = "i~gregtech~gt.blockmachines~799";
     public const string MixIngot = "i~gregtech~gt.metaitem.01~11040";
     public const string DearIngot = "i~gregtech~gt.metaitem.01~11041";
+    public const string ClayBlock = "i~minecraft~clay~0";
+    public const string ClayBall = "i~minecraft~clay_ball~0";
     public const string DryIngot = "i~gregtech~gt.metaitem.01~11777";
     public const string ByDust = "i~gregtech~gt.metaitem.01~2778";
     public const string ByIngot = "i~gregtech~gt.metaitem.01~11778";
@@ -177,6 +179,8 @@ public static class FixtureDump
         Item(db, DearStack, "Dear Mixer Array", "gregtech");
         Item(db, MixIngot, "Mixium Ingot", "gregtech");
         Item(db, DearIngot, "Dearium Ingot", "gregtech");
+        Item(db, ClayBlock, "Clay", "minecraft");
+        Item(db, ClayBall, "Clay Ball", "minecraft");
         Item(db, DryIngot, "Dryium Ingot", "gregtech");
         Item(db, ByDust, "Byprodium Dust", "gregtech");
         Item(db, ByIngot, "Byprodium Ingot", "gregtech");
@@ -198,6 +202,7 @@ public static class FixtureDump
         Group(db, "g_dear_ingot", (DearIngot, 1));
         Oredict(db, "ingotMixium", "g_mix_ingot");
         Oredict(db, "ingotDearium", "g_dear_ingot");
+        Group(db, "g_clay_ball", (ClayBall, 1));
         db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_water', 1000, '{Water}')");
 
         Oredict(db, "ingotBronze", "g_bronze_ingot");
@@ -281,6 +286,9 @@ public static class FixtureDump
         RecipeType(db, "rt~gregtech~gt.recipe.mixer~HV", "gregtech", "Mixer (HV)", handlerIcons: 0);
         RecipeType(db, "rt~gregtech~gt.recipe.dearmixer~HV", "gregtech", "Dear Mixer (HV)", handlerIcons: 0);
 
+        BlockDrop(db, "minecraft:clay", ClayBlock, ClayBall, 4);
+        BlockDrop(db, "minecraft:obsidian", ObsidianBlock, ObsidianBlock, 1);
+
         RecipeMap(db, "gt.recipe.blastfurnace", "Blast Furnace", [(EbfController, true, null)]);
         RecipeMap(db, "gt.recipe.macerator", "Macerator", [(MaceratorLv, false, 1)]);
         RecipeMap(db, "gt.recipe.mixer", "Mixer", [(MixerLv, false, 1), (MixerStack, true, null)]);
@@ -320,6 +328,7 @@ public static class FixtureDump
 
         // The dryer is buildable at era 0 but runs on MV voltage.
         Recipe(db, "r_dryer_craft", "t_shaped", inputs: [("g_log", 0)], outputs: [(Dryer, 1, 1.0)]);
+        Recipe(db, "r_brick", "t_furnace", inputs: [("g_clay_ball", 0)], outputs: [(IronIngot, 1, 1.0)]);
         Recipe(db, "r_ebf_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(EbfController, 1, 1.0)]);
         Recipe(db, "r_macerator_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MaceratorLv, 1, 1.0)]);
         Recipe(db, "r_mixer_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MixerLv, 1, 1.0)]);
@@ -408,6 +417,11 @@ public static class FixtureDump
 
     private static void Oredict(SqliteConnection db, string name, string groupId) =>
         db.Execute("INSERT INTO ORE_DICTIONARY VALUES (@id, @name, @groupId)", new { id = $"od_{name}", name, groupId });
+
+    private static void BlockDrop(SqliteConnection db, string blockName, string blockItemId, string dropId, int quantity) =>
+        db.Execute(
+            "INSERT INTO BLOCK_DROP(ID, BLOCK_META, BLOCK_NAME, QUANTITY, BLOCK_ITEM_ID, DROP_ID) VALUES (@id, 0, @blockName, @quantity, @blockItemId, @dropId)",
+            new { id = $"bd~{blockName}~0", blockName, quantity, blockItemId, dropId });
 
     /// <summary>A recipe map and the machines serving it; only a multiblock earns the tier allowance.</summary>
     private static void RecipeMap(

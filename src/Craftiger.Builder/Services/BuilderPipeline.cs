@@ -10,6 +10,7 @@ public sealed class BuilderPipeline(
     IDumpRepository dumpRepository,
     IUnificationService unification,
     IRecipeTransformService recipeTransform,
+    IBlockBreakRecipeService blockBreak,
     ILeafTaggingService leafTagging,
     IWorldgenErasService worldgenEras,
     IEraSolveService eraSolveService,
@@ -29,6 +30,7 @@ public sealed class BuilderPipeline(
         logger.LogInformation("  {Oredicted:N0} oredicted items in {Classes:N0} classes", unified.CanonicalByRawId.Count, unified.AliasesByCanonical.Count);
 
         var recipes = Stage("transform recipes", () => recipeTransform.Run(dump, unified));
+        recipes.AddRange(Stage("break blocks", () => blockBreak.Run(dump, unified)));
         var solverRecipes = recipes.Where(r => !r.EraOnly).ToList();
         logger.LogInformation("  kept {Kept:N0} recipes ({EraOnly:N0} era-only)", solverRecipes.Count, recipes.Count - solverRecipes.Count);
 

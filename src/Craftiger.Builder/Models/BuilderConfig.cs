@@ -50,14 +50,17 @@ public sealed record BuilderConfig
     /// <summary>Oredict names of world-minable leaf blocks.</summary>
     public required IReadOnlyList<string> MinableBlockOredicts { get; init; }
 
-    /// <summary>Items dropped by mining blocks (no recipe edge exists), seeded at era 0.</summary>
-    public required IReadOnlyList<string> WorldDropItemIds { get; init; }
+    /// <summary>Minable blocks the dump gives no oredict, by item id.</summary>
+    public required IReadOnlyList<string> MinableBlockItemIds { get; init; }
 
     /// <summary>World-pumped fluids by internal name, seeded at the era of reaching them.</summary>
     public required IReadOnlyDictionary<string, int> WorldFluidEras { get; init; }
 
     /// <summary>Oredict prefixes of farmable leaves.</summary>
     public required IReadOnlyList<string> FarmableOredictPrefixes { get; init; }
+
+    /// <summary>Machine name for breaking a block by hand, owned from the start.</summary>
+    public string BlockBreakMachine { get; init; } = "Mining";
 
     /// <summary>Fluid internal names priced at zero.</summary>
     public required IReadOnlyList<string> FreeFluids { get; init; }
@@ -94,6 +97,7 @@ public sealed record BuilderConfig
         GroupingOredictPrefixes = ["listAll", "crafting"],
         GroupingOredictInfixes = ["Any"],
         GroupingOredictNames = ["glowstone", "stoneGlowstone"],
+        MinableBlockItemIds = ["i~minecraft~clay~0"],
         MinableBlockOredicts =
         [
             "stone", "cobblestone", "sand", "gravel", "dirt", "netherrack",
@@ -106,7 +110,6 @@ public sealed record BuilderConfig
             "treeLeaves", "reed"
         ],
         FreeFluids = ["water"],
-        WorldDropItemIds = ["i~minecraft~clay_ball~0"],
         WorldFluidEras = new Dictionary<string, int>
         {
             ["lava"] = 0,

@@ -6,7 +6,6 @@ namespace Craftiger.Builder.Services;
 
 // TODO: remove FreeFluids and unify everything under WorldFluidEras
 // TODO: what about minable blocks from higher eras? For example, end stone (HV era)
-// TODO: refactor WorldDropItemIds workaround
 // TODO: bind gems to their corresponding eras
 // TODO: research if MinableBlockOredicts, FarmableOredictPrefixes can be replaced with the info from the dump
 
@@ -56,10 +55,6 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
         foreach (var (id, blockEra) in worldgen.OreBlocks)
         {
             era.TryAdd(id, blockEra);
-        }
-        foreach (var id in config.WorldDropItemIds)
-        {
-            era.TryAdd(unified.Canonical(id), 0);
         }
         foreach (var fluid in dump.Fluids.Values)
         {
@@ -133,6 +128,7 @@ public sealed class EraSolveService(BuilderConfig config, ILogger<EraSolveServic
             }
         }
 
+        logger.LogInformation("  {Reachable:N0} items reachable", era.Count);
         return best;
     }
 

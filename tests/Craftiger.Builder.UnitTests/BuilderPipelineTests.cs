@@ -51,6 +51,25 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.AluIngot}'"));
 
     [Fact]
+    public void ClayBallPricesFromBreakingItsBlock()
+    {
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT amount FROM recipe_inputs WHERE recipe_id = 'bd~minecraft:clay~0' AND item_id = '{FixtureDump.ClayBlock}'"));
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT amount FROM recipe_outputs WHERE recipe_id = 'bd~minecraft:clay~0' AND item_id = '{FixtureDump.ClayBall}'"));
+    }
+
+    [Fact]
+    public void OredictlessMinableBlocksStillSeedTheirDrops() =>
+        Assert.Equal("minable_block", _fixture.Scalar<string>(
+            $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.ClayBlock}'"));
+
+    [Fact]
+    public void BlocksDroppingThemselvesMakeNoRecipe() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipes WHERE id = 'bd~minecraft:obsidian~0'"));
+
+    [Fact]
     public void MixedMapsDiscountOnceTheirMultiblockIsReachable() =>
         Assert.Equal(2, _fixture.Scalar<int>(
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.MixIngot}'"));

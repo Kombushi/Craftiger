@@ -369,6 +369,12 @@ All "does not / never" rules live here; other sections only reference this one.
   every cost to zero. Mining maps that output ore blocks from real equipment
   (Space Mining) are *era-only*: they gate progression in the era fixpoint
   (§3 step 6) but never reach `planner.sqlite`, so they can never price.
+  Breaking a block is the one exception that does price. The dump records what
+  each block drops without silk touch or fortune, and the builder turns those
+  into ordinary recipes on the always-owned `Mining` machine — a clay ball
+  costs a quarter of a clay block. This conjures nothing: the block is
+  consumed, and a block no route can reach simply never prices. Drops equal to
+  the block itself are not recipes at all, just picking the block back up.
 - **Overclocking, parallelism, and multiblock efficiency bonuses** — they
   affect time, energy, or machine-specific discounts; recipes price at their
   listed amounts.
@@ -414,3 +420,4 @@ All "does not / never" rules live here; other sections only reference this one.
     costs after container normalization.
 12. An empty cell consumed as a genuine component (no matching output) stays
     in the raw totals; balanced cells never appear in them.
+13. A clay ball costs a quarter of a clay block, from breaking the block (§9).
