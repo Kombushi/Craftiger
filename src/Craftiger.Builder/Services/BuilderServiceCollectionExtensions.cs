@@ -31,6 +31,7 @@ public static class BuilderServiceCollectionExtensions
             .AddSingleton<ICropHarvestRecipeService, CropHarvestRecipeService>()
             .AddSingleton<IWorldgenErasService, WorldgenErasService>()
             .AddSingleton<IEraSolveService, EraSolveService>()
+            .AddSingleton<IPriceCheckService, PriceCheckService>()
             .AddSingleton<IAtlasBuilder, AtlasBuilder>()
             .AddSingleton<IBuilderPipeline, BuilderPipeline>();
 }

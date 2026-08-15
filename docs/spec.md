@@ -217,6 +217,16 @@ Builder responsibilities, in order:
    furnace / bricked blast furnace, aluminium at its EBF tier. Ingots with
    no bootstrappable route fall back to the cheapest direct recipe tier.
 
+7. **Price check** — the builder prices its own output once, at the default
+   weights, and reports every leaf that comes out below a millionth of its own
+   weight. A leaf weight is only the price when no route exists, so a cheap
+   route beating it is ordinary; beating it by orders of magnitude is a recipe
+   loop handing back more material than it consumed, and every price downstream
+   of one is fiction. The counts land in `meta` as `price_leaks`,
+   `price_free_items` and `price_converged`, so the artifacts carry their own
+   verdict. This is a build-time sanity check, not the shipped cost engine (§5),
+   which prices against the user's own garage and weights.
+
 ### Slim schema (`planner.sqlite`)
 
 - `items(id, name_en, oredict, is_fluid, leaf_class NULL, atlas_idx)`
@@ -230,7 +240,8 @@ Builder responsibilities, in order:
 - `item_tiers(item_id, tier)` — tiered materials: ingots, gems and dusts (§4)
 - `item_weights(item_id, weight)` — weights overriding the item's leaf class,
   where one class covers items worth different amounts (§4)
-- `meta(key, value)` — pack version, dump date, atlas dimensions, coil list
+- `meta(key, value)` — pack version, dump date, atlas dimensions, coil list, and
+  the price check's verdict (§3 step 7)
 
 ## 4. Cost model
 
@@ -522,5 +533,6 @@ All "does not / never" rules live here; other sections only reference this one.
     and changing the weights table can change which one that is.
 19. A recipe on a mixed map is illegal at a garage tier below `tier` until the
     map's multiblock is marked built, then legal at `multi_tier`.
-20. No recipe from a `*recycling` category ships, and no item prices below a
-    small fraction of its own leaf weight.
+20. No recipe from a `*recycling` category ships, and the build reports no leaf
+    priced below a millionth of its own weight — the gap between a genuinely
+    cheap route and a loop that creates matter.

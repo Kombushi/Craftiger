@@ -9,25 +9,32 @@ using Xunit;
 
 namespace Craftiger.Builder.UnitTests;
 
-public sealed class BuilderPipelineFixture : IDisposable
+/// <summary>One builder run over the fixture dump, against the settings the builder ships.</summary>
+public sealed class FixtureRun : IDisposable
 {
     public string PlannerPath { get; }
     private readonly string _directory;
 
-    public BuilderPipelineFixture()
+    public FixtureRun(params KeyValuePair<string, string?>[] overrides)
     {
         _directory = Directory.CreateTempSubdirectory("craftiger-tests").FullName;
         var dumpPath = FixtureDump.Create(_directory);
 
+        var settings = new Dictionary<string, string?>
+        {
+            ["BuilderOptions:DumpPath"] = dumpPath,
+            ["BuilderOptions:OutputDir"] = _directory,
+            ["BuilderOptions:PackVersion"] = "fixture-pack",
+            ["BuilderOptions:ImagesPath"] = Path.Combine(_directory, "image.zip")
+        };
+        foreach (var (key, value) in overrides)
+        {
+            settings[key] = value;
+        }
+
         var configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json")
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["BuilderOptions:DumpPath"] = dumpPath,
-                ["BuilderOptions:OutputDir"] = _directory,
-                ["BuilderOptions:PackVersion"] = "fixture-pack",
-                ["BuilderOptions:ImagesPath"] = Path.Combine(_directory, "image.zip")
-            })
+            .AddInMemoryCollection(settings)
             .Build();
 
         using var services = new ServiceCollection()
@@ -44,6 +51,38 @@ public sealed class BuilderPipelineFixture : IDisposable
     {
         using var db = new SqliteConnection($"Data Source={PlannerPath};Mode=ReadOnly");
         return db.ExecuteScalar<T>(sql)!;
+    }
+}
+
+public sealed class BuilderPipelineFixture : IDisposable
+{
+    private readonly FixtureRun _run = new();
+
+    public string PlannerPath => _run.PlannerPath;
+    public void Dispose() => _run.Dispose();
+    public T Scalar<T>(string sql) => _run.Scalar<T>(sql);
+}
+
+/// <summary>The same pack with the recycling exclusion switched off, so the arc-furnace loop
+/// the fixture carries actually ships. Proves the price check reports a leak when there is one,
+/// rather than reporting none because it never looks.</summary>
+public sealed class LeakyPipelineFixture : IDisposable
+{
+    private readonly FixtureRun _run =
+        new(new KeyValuePair<string, string?>(
+            "BuilderConfig:ExcludedRecipeCategorySuffixes:0", "matches-no-category"));
+
+    public void Dispose() => _run.Dispose();
+    public T Scalar<T>(string sql) => _run.Scalar<T>(sql);
+}
+
+public sealed class PriceCheckTests(LeakyPipelineFixture fixture) : IClassFixture<LeakyPipelineFixture>
+{
+    [Fact]
+    public void ADuplicationLoopIsReported()
+    {
+        Assert.Equal(1, fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_recycle'"));
+        Assert.True(fixture.Scalar<int>("SELECT value FROM meta WHERE key = 'price_leaks'") > 0);
     }
 }
 
@@ -184,6 +223,14 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     [Fact]
     public void RecyclingCategoriesNeverReachTheArtifact() =>
         Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_recycle'"));
+
+    [Fact]
+    public void NoLeafPricesFarBelowItsOwnWeight()
+    {
+        Assert.Equal(0, _fixture.Scalar<int>("SELECT value FROM meta WHERE key = 'price_leaks'"));
+        Assert.Equal(0, _fixture.Scalar<int>("SELECT value FROM meta WHERE key = 'price_free_items'"));
+        Assert.Equal(1, _fixture.Scalar<int>("SELECT value FROM meta WHERE key = 'price_converged'"));
+    }
 
     [Fact]
     public void EbfRecipeKeepsHeat() =>

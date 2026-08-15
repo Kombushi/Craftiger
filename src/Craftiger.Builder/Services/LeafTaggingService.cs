@@ -10,16 +10,6 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
 {
     private readonly BuilderConfig _config = options.Value;
 
-    /// <summary>Leaves priced as a fraction of another item, by own oredict prefix and the
-    /// prefixes their parent can carry.</summary>
-    private static readonly Dictionary<string, (string Prefix, string[] ParentPrefixes)> DerivedClasses =
-        new()
-        {
-            ["dust_small"] = ("dustSmall", ["dust"]),
-            ["dust_tiny"] = ("dustTiny", ["dust"]),
-            ["nugget"] = ("nugget", ["ingot", "gem"])
-        };
-
     public Dictionary<string, string> Run(
         IEnumerable<string> canonicalIds, IReadOnlySet<string> produced, Dump dump, UnifiedItems unified)
     {
@@ -80,7 +70,7 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
             .Select(c => c.Key)
             .ToList();
         var parentless = classes
-            .Where(c => DerivedClasses.ContainsKey(c.Value) && !HasPricedParent(c.Key, c.Value, unified, tiers))
+            .Where(c => DerivedLeaf.ByClass.ContainsKey(c.Value) && !HasPricedParent(c.Key, c.Value, unified, tiers))
             .Select(c => c.Key)
             .ToList();
 
@@ -101,20 +91,8 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
             .ToDictionary(f => f.Id, f => _config.WorldFluids[f.InternalName].Weight);
 
     private static bool HasPricedParent(
-        string id, string leafClass, UnifiedItems unified, IReadOnlyDictionary<string, int> tiers)
-    {
-        var oredict = unified.PrimaryOredictByCanonical.GetValueOrDefault(id);
-        var (prefix, parentPrefixes) = DerivedClasses[leafClass];
-        if (oredict is null || !oredict.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        var material = oredict[prefix.Length..];
-        return parentPrefixes.Any(parentPrefix =>
-            unified.CanonicalByOredict.TryGetValue(parentPrefix + material, out var parentId) &&
-            tiers.ContainsKey(parentId));
-    }
+        string id, string leafClass, UnifiedItems unified, IReadOnlyDictionary<string, int> tiers) =>
+        DerivedLeaf.ParentsOf(id, leafClass, unified).Any(tiers.ContainsKey);
 
     private bool IsIntermediate(string oredict) =>
         _config.IntermediateOredictPrefixes.Any(p => oredict.StartsWith(p, StringComparison.Ordinal));

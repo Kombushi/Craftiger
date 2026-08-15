@@ -17,6 +17,7 @@ public sealed class BuilderPipeline(
     ILeafTaggingService leafTagging,
     IWorldgenErasService worldgenEras,
     IEraSolveService eraSolveService,
+    IPriceCheckService priceCheck,
     IAtlasBuilder atlasBuilder,
     IPlannerRepository plannerRepository,
     IOptions<BuilderOptions> options,
@@ -70,6 +71,10 @@ public sealed class BuilderPipeline(
             return 0;
         }
 
+        var leafWeights = leafTagging.Overrides(dump);
+        var prices = Stage("check prices", () => priceCheck.Run(
+            solverRecipes, leafClasses, eraSolve.Tiers, leafWeights, unified, dump));
+
         // The items table's atlas_idx and the atlas builder must agree on this order.
         var orderedItemIds = itemIds.Order(StringComparer.Ordinal).ToList();
 
@@ -80,7 +85,10 @@ public sealed class BuilderPipeline(
             ["exporter_version"] = dump.ExporterVersion,
             ["dump_date"] = dump.ExportedAt.ToString("O"),
             ["tier_names"] = JsonSerializer.Serialize(TierLadder.Names.Take(Math.Min(maxTier + 1, TierLadder.Names.Count))),
-            ["coils"] = JsonSerializer.Serialize(_config.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier }))
+            ["coils"] = JsonSerializer.Serialize(_config.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier })),
+            ["price_leaks"] = prices.Undercut.ToString(),
+            ["price_free_items"] = prices.Free.ToString(),
+            ["price_converged"] = prices.Converged ? "1" : "0"
         };
 
         if (File.Exists(_options.ImagesPath))
@@ -105,7 +113,7 @@ public sealed class BuilderPipeline(
         {
             plannerRepository.Write(plannerPath, new PlannerData(
                 dump, unified, solverRecipes, orderedItemIds, leafClasses, eraSolve.Tiers,
-                leafTagging.Overrides(dump), meta));
+                leafWeights, meta));
             return 0;
         });
 
