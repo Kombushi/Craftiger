@@ -74,7 +74,7 @@ public sealed class CostSolverService(
             }
         }
 
-        PreferSolidForms(graph, producers, cost, best);
+        PreferForms(graph, producers, cost, best);
         return new CostTable(cost, best, Converged: true);
     }
 
@@ -121,25 +121,29 @@ public sealed class CostSolverService(
         return total;
     }
 
-    /// <summary>Reroutes ties toward solid forms (§5): where an item's chosen recipe consumes
-    /// a deprioritized leaf and another legal producer offers the same price without one, the
-    /// pointer moves — unless the new recipe's inputs can reach the item over chosen edges,
-    /// which would hand the BOM walk a cycle. Costs never change here, only pointers.</summary>
-    private void PreferSolidForms(
+    /// <summary>Reroutes ties toward better forms (§5): where another legal producer offers
+    /// the same price consuming better-ranked forms, the pointer moves — unless the new
+    /// recipe's inputs can reach the item over chosen edges, which would hand the BOM walk
+    /// a cycle. Costs never change here, only pointers.</summary>
+    private void PreferForms(
         SolverGraph graph, Dictionary<string, List<SolverRecipe>> producers,
         Dictionary<string, double> cost, Dictionary<string, SolverRecipe> best)
     {
         foreach (var (itemId, current) in best.ToList())
         {
-            if (!ConsumesDeprioritized(graph, current, cost))
+            var currentScore = Score(graph, current, cost);
+            if (currentScore == 0)
             {
                 continue;
             }
-            foreach (var candidate in producers.GetValueOrDefault(itemId) ?? [])
+            var candidates = (producers.GetValueOrDefault(itemId) ?? [])
+                .Where(candidate => !ReferenceEquals(candidate, current))
+                .Select(candidate => (Recipe: candidate, Score: Score(graph, candidate, cost)))
+                .Where(candidate => candidate.Score < currentScore)
+                .OrderBy(candidate => candidate.Score);
+            foreach (var (candidate, _) in candidates)
             {
-                if (ReferenceEquals(candidate, current)
-                    || ConsumesDeprioritized(graph, candidate, cost)
-                    || Candidate(candidate, itemId, cost) > cost[itemId] + Epsilon
+                if (Candidate(candidate, itemId, cost) > cost[itemId] + Epsilon
                     || Reaches(graph, cost, best, candidate, itemId))
                 {
                     continue;
@@ -150,10 +154,13 @@ public sealed class CostSolverService(
         }
     }
 
-    private bool ConsumesDeprioritized(
+    /// <summary>The worst-ranked form among the recipe's chosen inputs.</summary>
+    private int Score(
         SolverGraph graph, SolverRecipe recipe, IReadOnlyDictionary<string, double> costs) =>
-        recipe.Slots.Any(slot => preferences.Deprioritizes(
-            graph.Items.GetValueOrDefault(SlotChoice.Cheapest(slot, costs).ItemId)?.LeafClass));
+        recipe.Slots.Count == 0
+            ? 0
+            : recipe.Slots.Max(slot => preferences.Rank(
+                graph.Items.GetValueOrDefault(SlotChoice.Cheapest(slot, costs).ItemId)?.LeafClass));
 
     /// <summary>Whether the item is reachable from the recipe's chosen inputs over the same
     /// chosen edges the BOM walks — leaves and unpriced items are terminal there too.</summary>

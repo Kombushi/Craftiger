@@ -190,6 +190,19 @@ public sealed class CostSolverTests
     }
 
     [Fact]
+    public void TheFormRankingPrefersDustOverNugget()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("chip", tier: 0, leafClass: "nugget"), Fx.Leaf("raw", tier: 0, leafClass: "dust")],
+            Fx.Recipe("fromChip", inputs: [("chip", 9)], outputs: ("molten", 9, 1.0)),
+            Fx.Recipe("fromDust", inputs: [("raw", 9)], outputs: ("molten", 9, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal("fromDust", table.BestRecipes["molten"].Id);
+    }
+
+    [Fact]
     public void AFormRerouteNeverClosesACycle()
     {
         // "viaMid" ties with the dust route but its input chain leads back through the metal,

@@ -12,7 +12,7 @@ internal static class Fx
         HeatBonusMachines: new HashSet<string> { "Blast Furnace" });
 
     public static readonly SolverPreferences Preferences = new(
-        DeprioritizedLeafClasses: new HashSet<string> { "dust", "dust_small", "dust_tiny" });
+        LeafClassPriority: ["ingot", "gem", "dust", "nugget", "dust_small", "dust_tiny"]);
 
     public static SolverItem Leaf(
         string id, int? tier = null, double? weight = null, string? parent = null,
