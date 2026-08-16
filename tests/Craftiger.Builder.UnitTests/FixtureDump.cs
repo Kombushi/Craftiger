@@ -53,6 +53,11 @@ public static class FixtureDump
     public const string MixIngot = "i~gregtech~gt.metaitem.01~11040";
     public const string DearIngot = "i~gregtech~gt.metaitem.01~11041";
     public const string BerryIngot = "i~gregtech~gt.metaitem.01~11044";
+    public const string ChoiceBrick = "i~miscutils~choiceBrick~0";
+    public const string DualOreOw = "i~gregtech~gt.blockores~555";
+    public const string DualOreMars = "i~gregtech~gt.blockores3~555";
+    public const string DualDust = "i~gregtech~gt.metaitem.01~2555";
+    public const string DualIngot = "i~gregtech~gt.metaitem.01~11555";
     public const string InertDust = "i~miscutils~dustInertium~0";
     public const string InertSmall = "i~miscutils~dustSmallInertium~0";
     public const string VoidShard = "i~miscutils~voidShard~0";
@@ -116,6 +121,7 @@ public static class FixtureDump
             CREATE TABLE FLUID_CONTAINER(ID TEXT, FLUID_STACK_AMOUNT INTEGER, CONTAINER_ID TEXT,
                 EMPTY_CONTAINER_ID TEXT, FLUID_STACK_FLUID_ID TEXT);
             CREATE TABLE GREG_TECH_DIMENSION(ID TEXT, ABBREVIATION TEXT, FULL_NAME TEXT, INTERNAL_NAME TEXT, ROCKET_TIER INTEGER);
+            CREATE TABLE GREG_TECH_DIMENSION_STONE_TYPES(GREG_TECH_DIMENSION_ID TEXT, STONE_TYPES TEXT);
             CREATE TABLE GREG_TECH_ORE_VEIN(ID TEXT, DENSITY INTEGER, ENABLED_BY_DEFAULT INTEGER, LOCALIZED_NAME TEXT,
                 MAXY INTEGER, MINY INTEGER, SIZE INTEGER, VEIN_NAME TEXT, WEIGHT INTEGER);
             CREATE TABLE GREG_TECH_ORE_VEIN_DIMENSIONS(GREG_TECH_ORE_VEIN_ID TEXT,
@@ -182,6 +188,11 @@ public static class FixtureDump
         Item(db, AnnealedDust, "Annealed Copper Dust", "gregtech");
         Fluid(db, Oxygen, "oxygen", "Oxygen");
         Item(db, SpaceMiner, "Space Mining Module", "gregtech");
+        Item(db, ChoiceBrick, "Choice Brick", "miscutils");
+        Item(db, DualOreOw, "Dualium Ore", "gregtech");
+        Item(db, DualOreMars, "Dualium Ore", "gregtech");
+        Item(db, DualDust, "Dualium Dust", "gregtech");
+        Item(db, DualIngot, "Dualium Ingot", "gregtech");
         Item(db, InertDust, "Inertium Dust", "miscutils");
         Item(db, InertSmall, "Small Pile of Inertium Dust", "miscutils");
         Item(db, VoidShard, "Void Shard", "miscutils");
@@ -309,6 +320,11 @@ public static class FixtureDump
         Group(db, "g_annealed_ingot", (AnnealedIngot, 1));
         Group(db, "g_annealed_dust", (AnnealedDust, 1));
         db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_oxygen', 63, '{Oxygen}')");
+        Group(db, "g_dual_ore_ma", (DualOreMars, 1));
+        Group(db, "g_dual_dust", (DualDust, 1));
+        Group(db, "g_dual_ingot", (DualIngot, 1));
+        Oredict(db, "dustDualium", "g_dual_dust");
+        Oredict(db, "ingotDualium", "g_dual_ingot");
         Group(db, "g_inert_dust", (InertDust, 1));
         Group(db, "g_inert_small", (InertSmall, 1));
         Group(db, "g_inert_small4", (InertSmall, 4));
@@ -495,6 +511,8 @@ public static class FixtureDump
         // variant; the disabled Overworld vein must not drag it to era 0.
         db.Execute("INSERT INTO GREG_TECH_DIMENSION VALUES ('gtdim~Ow', 'Ow', 'Overworld', 'overworld', 0)");
         db.Execute("INSERT INTO GREG_TECH_DIMENSION VALUES ('gtdim~Ma', 'Ma', 'GalacticraftMars_Mars', 'mars', 2)");
+        db.Execute("INSERT INTO GREG_TECH_DIMENSION_STONE_TYPES VALUES ('gtdim~Ow', 'Stone')");
+        db.Execute("INSERT INTO GREG_TECH_DIMENSION_STONE_TYPES VALUES ('gtdim~Ma', 'Mars')");
         db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.naq', 5, 1, 'Naquadah', 60, 10, 24, 'ore.mix.naq', 40)");
         db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.naq', 'Ma', 60, 10, 1.0)");
         db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.naq', '{NaqOreMars}', 'Naquadah', 'Mars', 'PRIMARY')");
@@ -539,6 +557,23 @@ public static class FixtureDump
         Recipe(db, "r_com_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_com_ore", 0)], outputs: [(ComDust, 2, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_com_smelt", "t_furnace", inputs: [("g_com_dust", 0)], outputs: [(ComIngot, 1, 1.0)]);
         Recipe(db, "r_obs_use", "t_shaped", inputs: [("g_obsidian", 0)], outputs: [(Plank, 1, 1.0)]);
+
+        // A fluid slot with alternatives at unequal amounts: 144 mB of water or 1000 mB of
+        // oxygen, whichever is cheaper.
+        db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_either_fluid', 144, '{Water}')");
+        db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_either_fluid', 1000, '{Oxygen}')");
+        Recipe(db, "r_fluid_choice", "rt~gregtech~gt.recipe.mixer~HV", inputs: [("g_copper_dust", 0)],
+            outputs: [(ChoiceBrick, 1, 1.0)], voltage: 512, duration: 100, fluidInputs: [("g_either_fluid", 0)]);
+
+        // A vein in both worlds, processed only through its Mars-stone block: the block must
+        // seed at Mars's era, not at the vein's cheapest world.
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.dual', 5, 1, 'Dualium', 60, 10, 24, 'ore.mix.dual', 40)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.dual', 'Ow', 60, 10, 1.0)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.dual', 'Ma', 60, 10, 1.0)");
+        db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.dual', '{DualOreOw}', 'Dualium', 'Stone', 'PRIMARY')");
+        db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.dual', '{DualOreMars}', 'Dualium', 'Mars', 'PRIMARY')");
+        Recipe(db, "r_dual_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_dual_ore_ma", 0)], outputs: [(DualDust, 2, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_dual_smelt", "t_furnace", inputs: [("g_dual_dust", 0)], outputs: [(DualIngot, 1, 1.0)]);
 
         // Inertium never bootstraps: its pile loop starves and its one real recipe eats an
         // unreachable shard. The fallback tier must come from that recipe, not the pile packing.

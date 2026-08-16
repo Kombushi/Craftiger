@@ -62,12 +62,7 @@ public sealed class WorldgenErasService(IOptions<BuilderConfig> options) : IWorl
             }
         }
 
-        var materials = materialEras
-            .Select(m => (m.Key, (int?)m.Value))
-            .Concat(_config.NonSpawningOres.Select(m => (m, (int?)null)))
-            .OrderByDescending(m => m.Item1.Length)
-            .ToList();
-        return new WorldgenEras(oreBlocks, drops, materials, fluids);
+        return new WorldgenEras(oreBlocks, drops, materialEras, fluids);
     }
 
     private static void Credit(Dictionary<string, int> target, string id, int era)

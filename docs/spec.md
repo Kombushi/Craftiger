@@ -168,18 +168,23 @@ Builder responsibilities, in order:
    T2 = EV, …) and per-dimension eras for tier-0 worlds reached without a
    rocket (Nether = Steam, End = HV, Everglades = ZPM, …). Veins disabled in the
    default worldgen config are ignored, and a dimension in neither map
-   contributes nothing. GT also oredicts every stone variant of an ore
-   (`oreSethIceCallistoIce`), including variants no vein places; those resolve
-   to their material by longest name suffix, so `MeteoricIron` wins over
-   `Iron`. A material that resolves to nothing — no vein and no small ore places
-   it anywhere — seeds nothing at all. GregTech oredicts a stone variant of
-   every material whether the world puts one down or not, and dating those from
-   the Steam age hands out endgame matter for free: an Ichorium ore block that
+   contributes nothing. A vein's stone-variant blocks pair only with the
+   dimensions made of their stone: the Pluto-stone block of a vein that also
+   spawns in the Overworld dates from Pluto, not from the Overworld — else
+   macerating it would hand out its planet's byproducts (Pluto Ice, and
+   through it Black Plutonium) at era 0. GT also oredicts every stone variant of an ore
+   (`oreSethIceCallistoIce`), including variants no vein places. The worldgen
+   tables name their placed blocks by item, and the material's plain `ore*`
+   oredict is credited directly beside them, so an ore oredict otherwise seeds
+   only on an exact material-name match. A name that merely ends in a spawning
+   material matches nothing: `oreCosmicNeutronium` is not a stone variant of
+   Neutronium but a material of its own, and a suffix match would date Cosmic
+   Neutronium from Neutronium's small ores. Dating unplaced ores from the
+   Steam age hands out endgame matter for free: an Ichorium ore block that
    generates in no dimension would otherwise macerate into a Barnarda E stone
-   byproduct at era 0. Ore blocks that exist as items but never world-generate (a
-   builder-config list: the GT++ leftovers plus the Space Mining ores) get no
-   seed at all — their era comes from recipes, or for Space Mining ores from
-   the era-only mining maps (§9). Mined small-ore drops and `rawOre*` chunks
+   byproduct at era 0. Ore blocks that exist as items but never world-generate
+   get no seed at all — their era comes from recipes, or for Space Mining ores
+   from the era-only mining maps (§9). Mined small-ore drops and `rawOre*` chunks
    (dropped by mining GT++ ore blocks) also start at their dimension era, but
    as soft seeds that recipes may still lower — mining is one more route, not
    a floor. Dusts

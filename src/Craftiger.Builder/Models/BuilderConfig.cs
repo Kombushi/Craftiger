@@ -59,9 +59,6 @@ public sealed record BuilderConfig
     /// <summary>Era by dimension abbreviation for tier-0 worlds reached without a rocket.</summary>
     public required IReadOnlyDictionary<string, int> DimensionEraOverrides { get; init; }
 
-    /// <summary>Ore materials whose blocks exist as items but never world-generate; they get no era seed.</summary>
-    public required IReadOnlyList<string> NonSpawningOres { get; init; }
-
     /// <summary>World-minable leaf blocks by oredict name or, where the dump gives none,
     /// by item id — each at the era of the cheapest world it can be mined in.</summary>
     public required IReadOnlyDictionary<string, int> MinableBlockEras { get; init; }

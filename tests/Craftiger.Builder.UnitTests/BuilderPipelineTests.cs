@@ -353,7 +353,12 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.RuniteIngot}'"));
 
     [Fact]
-    public void NonSpawningOresContributeNoEra() =>
+    public void StoneVariantsSeedOnlyInTheirOwnDimensions() =>
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.DualIngot}'"));
+
+    [Fact]
+    public void OresWithoutWorldgenNeverSeedAnEra() =>
         Assert.Equal(0, _fixture.Scalar<int>(
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.ComIngot}'"));
 
@@ -443,6 +448,21 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             "SELECT amount FROM recipe_inputs WHERE recipe_id = 'r_electrolyze'"));
         Assert.Equal(FixtureDump.Hydrogen, _fixture.Scalar<string>(
             "SELECT item_id FROM recipe_outputs WHERE recipe_id = 'r_electrolyze'"));
+    }
+
+    [Fact]
+    public void AFluidSlotWithAlternativesShipsEachAtItsOwnAmount()
+    {
+        Assert.Equal(144, _fixture.Scalar<int>(
+            $"SELECT amount FROM recipe_inputs WHERE recipe_id = 'r_fluid_choice' AND item_id = '{FixtureDump.Water}'"));
+        Assert.Equal(1000, _fixture.Scalar<int>(
+            $"SELECT amount FROM recipe_inputs WHERE recipe_id = 'r_fluid_choice' AND item_id = '{FixtureDump.Oxygen}'"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"""
+             SELECT COUNT(DISTINCT slot) FROM recipe_inputs
+             WHERE recipe_id = 'r_fluid_choice'
+               AND item_id IN ('{FixtureDump.Water}', '{FixtureDump.Oxygen}')
+             """));
     }
 
     [Fact]

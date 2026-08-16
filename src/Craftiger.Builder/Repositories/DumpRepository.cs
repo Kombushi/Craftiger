@@ -147,6 +147,10 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             JOIN GREG_TECH_ORE_VEIN V ON V.ID = O.GREG_TECH_ORE_VEIN_ID AND V.ENABLED_BY_DEFAULT != 0
             JOIN GREG_TECH_ORE_VEIN_DIMENSIONS VD ON VD.GREG_TECH_ORE_VEIN_ID = V.ID
             JOIN GREG_TECH_DIMENSION D ON D.ABBREVIATION = VD.DIMENSIONS_DIMENSION_ABBREVIATION
+            -- A stone variant only generates in dimensions made of its stone: the Pluto-stone
+            -- block of an Overworld gold vein must not inherit the Overworld's era.
+            JOIN GREG_TECH_DIMENSION_STONE_TYPES ST
+              ON ST.GREG_TECH_DIMENSION_ID = D.ID AND ST.STONE_TYPES = O.ORES_STONE_TYPE
             """))
         {
             worldgenOres.Add(new DumpWorldgenOre(r.ItemId, r.MaterialName, r.Dimension, r.Tier, IsDrop: false));
@@ -157,6 +161,8 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             JOIN GREG_TECH_SMALL_ORE S ON S.ID = B.GREG_TECH_SMALL_ORE_ID AND S.ENABLED_BY_DEFAULT != 0
             JOIN GREG_TECH_SMALL_ORE_DIMENSIONS SD ON SD.GREG_TECH_SMALL_ORE_ID = S.ID
             JOIN GREG_TECH_DIMENSION D ON D.ABBREVIATION = SD.DIMENSIONS_DIMENSION_ABBREVIATION
+            JOIN GREG_TECH_DIMENSION_STONE_TYPES ST
+              ON ST.GREG_TECH_DIMENSION_ID = D.ID AND ST.STONE_TYPES = B.BLOCKS_STONE_TYPE
             """))
         {
             worldgenOres.Add(new DumpWorldgenOre(r.ItemId, r.MaterialName, r.Dimension, r.Tier, IsDrop: false));
