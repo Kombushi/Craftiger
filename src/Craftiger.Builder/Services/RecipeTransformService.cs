@@ -70,13 +70,13 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                     continue;
                 }
 
-                var alternatives = members.Select(member => member.ItemId).Distinct().ToList();
+                var alternatives = members.DistinctBy(member => member.ItemId).ToList();
                 if (alternatives.Count > 1)
                 {
-                    // A real choice of ingredient: ship every option so the solver can
-                    // take the cheapest, rather than freezing one at build time.
-                    choices.Add(new PlannerChoice(alternatives, members[0].Amount));
-                    slots.Add(alternatives);
+                    // A real choice of ingredient: ship every option at its own amount so
+                    // the solver can take the cheapest, rather than freezing one at build time.
+                    choices.Add(new PlannerChoice(alternatives));
+                    slots.Add(alternatives.Select(member => member.ItemId).ToList());
                     continue;
                 }
 
@@ -97,17 +97,28 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                 }
                 else
                 {
-                    slots.Add(alternatives);
+                    slots.Add(alternatives.Select(member => member.ItemId).ToList());
                 }
             }
             foreach (var fluid in dump.FluidInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
             {
-                if (fluid.Amount <= 0)
+                var members = fluid.Members
+                    .Where(member => member.Amount > 0)
+                    .DistinctBy(member => member.FluidId)
+                    .ToList();
+                if (members.Count == 0)
                 {
                     continue;
                 }
-                inputs[fluid.FluidId] = inputs.GetValueOrDefault(fluid.FluidId) + fluid.Amount;
-                slots.Add([fluid.FluidId]);
+                if (members.Count > 1)
+                {
+                    choices.Add(new PlannerChoice(
+                        members.Select(member => (member.FluidId, member.Amount)).ToList()));
+                    slots.Add(members.Select(member => member.FluidId).ToList());
+                    continue;
+                }
+                inputs[members[0].FluidId] = inputs.GetValueOrDefault(members[0].FluidId) + members[0].Amount;
+                slots.Add([members[0].FluidId]);
             }
 
             var outputs = new List<(PlannerOutput Output, long Slot)>();
@@ -131,7 +142,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                 outputs.Add((new PlannerOutput(o.FluidId, o.Amount, Math.Min(o.Chance, 1.0)), 0));
             }
             var ingredients = inputs.Keys
-                .Concat(choices.SelectMany(choice => choice.Alternatives))
+                .Concat(choices.SelectMany(choice => choice.Alternatives.Select(a => a.ItemId)))
                 .ToList();
             if (ingredients.Any(id => _config.ExcludedInputItems.Contains(dump.NameOf(id))))
             {

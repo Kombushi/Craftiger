@@ -92,9 +92,9 @@ public sealed class PlannerRepository : IPlannerRepository
             data.Recipes.SelectMany(r =>
                 r.Inputs
                     .Select((i, slot) => new { RecipeId = r.Id, ItemId = i.Key, Amount = i.Value, Slot = slot })
-                    .Concat(r.Choices.SelectMany((choice, index) => choice.Alternatives.Select(id => new
+                    .Concat(r.Choices.SelectMany((choice, index) => choice.Alternatives.Select(a => new
                     {
-                        RecipeId = r.Id, ItemId = id, Amount = choice.Amount, Slot = r.Inputs.Count + index
+                        RecipeId = r.Id, a.ItemId, a.Amount, Slot = r.Inputs.Count + index
                     })))), tx);
 
         db.Execute("INSERT INTO recipe_outputs VALUES (@RecipeId, @ItemId, @Amount, @Chance)",

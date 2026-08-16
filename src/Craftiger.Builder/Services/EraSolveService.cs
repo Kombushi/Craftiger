@@ -329,7 +329,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
         var material = oredict[prefix.Length..];
         var found = false;
         var ingredients = recipe.Inputs.Keys.Concat(
-            recipe.Choices.SelectMany(choice => choice.Alternatives));
+            recipe.Choices.SelectMany(choice => choice.Alternatives.Select(a => a.ItemId)));
         foreach (var id in ingredients)
         {
             if (!IsShapeOf(id, material, unified))

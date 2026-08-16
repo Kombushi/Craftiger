@@ -179,14 +179,13 @@ public sealed class PriceCheckService(IOptions<BuilderConfig> options, ILogger<P
     private static IEnumerable<(string ItemId, long Amount)> Ingredients(PlannerRecipe recipe) =>
         recipe.Inputs
             .Select(input => (input.Key, input.Value))
-            .Concat(recipe.Choices.SelectMany(
-                choice => choice.Alternatives.Select(id => (id, choice.Amount))));
+            .Concat(recipe.Choices.SelectMany(choice => choice.Alternatives));
 
     private static IEnumerable<IEnumerable<(string ItemId, long Amount)>> Slots(PlannerRecipe recipe) =>
         recipe.Inputs
             .Select(input => (IEnumerable<(string, long)>)[(input.Key, input.Value)])
             .Concat(recipe.Choices.Select(
-                choice => choice.Alternatives.Select(id => (id, choice.Amount))));
+                choice => choice.Alternatives.Select(a => (a.ItemId, a.Amount))));
 
     private const double Epsilon = 1e-9;
 

@@ -1,3 +1,4 @@
 namespace Craftiger.Builder.Models;
 
-public sealed record DumpFluidInput(string RecipeId, string FluidId, long Amount);
+/// <summary>One fluid input slot; a group with several stacks accepts any one of them.</summary>
+public sealed record DumpFluidInput(string RecipeId, IReadOnlyList<(string FluidId, long Amount)> Members);

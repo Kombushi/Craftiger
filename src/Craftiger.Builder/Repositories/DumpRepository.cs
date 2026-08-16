@@ -93,21 +93,20 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             Add(itemOutputs, r.RecipeId, new DumpItemOutput(r.RecipeId, r.ItemId, r.Size, r.Chance ?? 1.0, r.Slot ?? 0));
         }
 
-        // Fluid input groups are single-stack in practice; excess stacks would be alternatives and are ignored.
-        var fluidGroupStack = new Dictionary<string, (string FluidId, long Amount)>();
+        var fluidGroupStacks = new Dictionary<string, List<(string FluidId, long Amount)>>();
         foreach (var (groupId, fluidId, amount) in db.Query<(string, string, long)>(
             """SELECT FLUID_GROUP_ID, FLUID_STACKS_FLUID_ID, FLUID_STACKS_AMOUNT FROM FLUID_GROUP_FLUID_STACKS"""))
         {
-            fluidGroupStack.TryAdd(groupId, (fluidId, amount));
+            Add(fluidGroupStacks, groupId, (fluidId, amount));
         }
 
         var fluidInputs = new Dictionary<string, List<DumpFluidInput>>();
         foreach (var (recipeId, groupId) in db.Query<(string, string)>(
             """SELECT RECIPE_ID, FLUID_INPUTS_ID FROM RECIPE_FLUID_GROUP"""))
         {
-            if (fluidGroupStack.TryGetValue(groupId, out var s))
+            if (fluidGroupStacks.TryGetValue(groupId, out var members))
             {
-                Add(fluidInputs, recipeId, new DumpFluidInput(recipeId, s.FluidId, s.Amount));
+                Add(fluidInputs, recipeId, new DumpFluidInput(recipeId, members));
             }
         }
 
