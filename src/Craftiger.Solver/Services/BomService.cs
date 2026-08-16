@@ -61,7 +61,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             var runs = demanded / ExpectedYield(recipe, itemId);
             foreach (var slot in recipe.Slots)
             {
-                var alternative = Cheapest(slot, costs.Costs);
+                var alternative = SlotChoice.Cheapest(slot, costs.Costs);
                 demand[alternative.ItemId] =
                     demand.GetValueOrDefault(alternative.ItemId) + runs * alternative.Amount;
             }
@@ -160,7 +160,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         {
             return [];
         }
-        return recipe.Slots.Select(slot => Cheapest(slot, costs.Costs).ItemId).ToList();
+        return recipe.Slots.Select(slot => SlotChoice.Cheapest(slot, costs.Costs).ItemId).ToList();
     }
 
     private static SolverRecipe? Chosen(
@@ -175,26 +175,6 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             .Where(output => output.ItemId == itemId)
             .Sum(output => output.Amount * output.Chance);
 
-    /// <summary>The slot's cheapest alternative, first on ties, first again when every
-    /// alternative is unreachable — the walk then surfaces that child as unreachable.</summary>
-    private static SolverStack Cheapest(SolverSlot slot, IReadOnlyDictionary<string, double> costs)
-    {
-        SolverStack? best = null;
-        var bestCost = double.PositiveInfinity;
-        foreach (var alternative in slot.Alternatives)
-        {
-            var total = costs.TryGetValue(alternative.ItemId, out var unit)
-                ? unit * alternative.Amount
-                : double.PositiveInfinity;
-            if (best is null || total < bestCost)
-            {
-                best = alternative;
-                bestCost = total;
-            }
-        }
-        return best!;
-    }
-
     private BomTargetResult TargetResult(
         SolverGraph graph, CostTable costs, Dictionary<string, SolverRecipe> pins, BomTarget target)
     {
@@ -208,7 +188,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         var inputs = new Dictionary<string, double>();
         foreach (var slot in recipe.Slots)
         {
-            var alternative = Cheapest(slot, costs.Costs);
+            var alternative = SlotChoice.Cheapest(slot, costs.Costs);
             inputs[alternative.ItemId] = inputs.GetValueOrDefault(alternative.ItemId) + runs * alternative.Amount;
         }
         return new BomTargetResult(

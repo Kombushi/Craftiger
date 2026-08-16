@@ -50,7 +50,7 @@ public sealed class PlannerArtifactRepository(
         var leaves = items.Values
             .Where(item => item.LeafClass is not null)
             .Select(item => new SolverItem(
-                item.Id, IsLeaf: true,
+                item.Id, item.LeafClass,
                 tiers.TryGetValue(item.Id, out var tier) ? tier : null,
                 weights.TryGetValue(item.Id, out var weight) ? weight : null,
                 parents.GetValueOrDefault(item.Id)))

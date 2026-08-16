@@ -13,6 +13,9 @@ builder.Services.Configure<ApiOptions>(builder.Configuration.GetSection("ApiOpti
 builder.Services.AddSingleton(
     builder.Configuration.GetSection("GarageRules").Get<GarageRulesOptions>()?.ToRules()
     ?? new GarageRulesOptions().ToRules());
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection("SolverPreferences").Get<SolverPreferencesOptions>()?.ToPreferences()
+    ?? new SolverPreferencesOptions().ToPreferences());
 builder.Services.AddSingleton<IPlannerArtifactRepository, PlannerArtifactRepository>();
 builder.Services.AddSingleton(provider => provider
     .GetRequiredService<IPlannerArtifactRepository>()

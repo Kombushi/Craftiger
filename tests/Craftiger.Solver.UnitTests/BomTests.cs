@@ -191,6 +191,21 @@ public sealed class BomTests
     }
 
     [Fact]
+    public void ARerouteLandsTheBomOnTheSolidLeaf()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("steelDust", tier: 0, leafClass: "dust"), Fx.Leaf("steelIngot", tier: 0)],
+            Fx.Recipe("fromDust", inputs: [("steelDust", 1)], outputs: ("molten", 144, 1.0)),
+            Fx.Recipe("fromIngot", inputs: [("steelIngot", 1)], outputs: ("molten", 144, 1.0)),
+            Fx.Recipe("cast", inputs: [("molten", 144)], outputs: ("gear", 1, 1.0)));
+
+        var result = Compute(graph, [new BomTarget("gear", 1)]);
+
+        Assert.Equal(1, Leaf(result, "steelIngot"));
+        Assert.DoesNotContain(result.Leaves, leaf => leaf.ItemId == "steelDust");
+    }
+
+    [Fact]
     public void LeavesNeverExpandEvenWhenUndercut()
     {
         // The block leaf is deliberately dearer than packing it from ingots, so the solver

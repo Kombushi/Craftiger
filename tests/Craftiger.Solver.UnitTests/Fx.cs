@@ -11,9 +11,13 @@ internal static class Fx
         HeatExemptMachines: new HashSet<string> { "Helioflux Melting Core" },
         HeatBonusMachines: new HashSet<string> { "Blast Furnace" });
 
+    public static readonly SolverPreferences Preferences = new(
+        DeprioritizedLeafClasses: new HashSet<string> { "dust", "dust_small", "dust_tiny" });
+
     public static SolverItem Leaf(
-        string id, int? tier = null, double? weight = null, string? parent = null, double divisor = 1) =>
-        new(id, IsLeaf: true, tier, weight, parent is null ? null : new ItemParentLink(parent, divisor));
+        string id, int? tier = null, double? weight = null, string? parent = null,
+        double divisor = 1, string leafClass = "ingot") =>
+        new(id, leafClass, tier, weight, parent is null ? null : new ItemParentLink(parent, divisor));
 
     public static SolverRecipe Recipe(
         string id, string machine = "Crafting Table", int tier = 0, int? multiTier = null,
@@ -52,7 +56,7 @@ internal static class Fx
 
     public static GarageLegalityService Legality() => new(Rules);
 
-    public static CostSolverService Solver() => new(new LeafWeightService(), Legality());
+    public static CostSolverService Solver() => new(new LeafWeightService(), Legality(), Preferences);
 
     public static BomService Bom() => new(Legality());
 }

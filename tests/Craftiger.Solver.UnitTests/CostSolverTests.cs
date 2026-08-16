@@ -161,4 +161,48 @@ public sealed class CostSolverTests
 
         Assert.True(double.IsPositiveInfinity(Fx.Solver().Candidate(recipe, "thing", table.Costs)));
     }
+
+    [Fact]
+    public void DustsLoseExactTiesToSolidForms()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("steelDust", tier: 0, leafClass: "dust"), Fx.Leaf("steelIngot", tier: 0)],
+            Fx.Recipe("fromDust", inputs: [("steelDust", 1)], outputs: ("molten", 144, 1.0)),
+            Fx.Recipe("fromIngot", inputs: [("steelIngot", 1)], outputs: ("molten", 144, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal("fromIngot", table.BestRecipes["molten"].Id);
+        Assert.Equal(4.0 / 144, table.Costs["molten"], 6);
+    }
+
+    [Fact]
+    public void ARealPriceGapStillBeatsTheFormPreference()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("cheapDust", tier: 0, leafClass: "dust"), Fx.Leaf("dearIngot", tier: 1)],
+            Fx.Recipe("fromDust", inputs: [("cheapDust", 1)], outputs: ("molten", 144, 1.0)),
+            Fx.Recipe("fromIngot", inputs: [("dearIngot", 1)], outputs: ("molten", 144, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal("fromDust", table.BestRecipes["molten"].Id);
+    }
+
+    [Fact]
+    public void AFormRerouteNeverClosesACycle()
+    {
+        // "viaMid" ties with the dust route but its input chain leads back through the metal,
+        // so the reroute must be refused and the dust route kept.
+        var graph = Fx.Graph(
+            [Fx.Leaf("dust", tier: 0, leafClass: "dust")],
+            Fx.Recipe("fromDust", inputs: [("dust", 1)], outputs: ("metal", 1, 1.0)),
+            Fx.Recipe("mid", inputs: [("metal", 1)], outputs: ("midItem", 1, 1.0)),
+            Fx.Recipe("viaMid", inputs: [("midItem", 1)], outputs: ("metal", 1, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal("fromDust", table.BestRecipes["metal"].Id);
+        Assert.Equal(4, table.Costs["metal"]);
+    }
 }

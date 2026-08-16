@@ -360,6 +360,20 @@ Why this shape:
 - A cycle can never strictly undercut itself (ingot → block → ingot re-offers the
   same price), so loops starve instead of oscillating, and `bestRecipe` stays acyclic.
 - Costs only decrease and are bounded below by 0, so termination is guaranteed.
+- **Solid forms win exact ties.** Recycling shape-shuffles equalize every form
+  of a material at one price, with dust as the entry form (maceration outputs
+  dust; the ingot smelts from it 1:1), so dust and solid routes tie constantly
+  and the winner would fall to fixpoint race order. A cost surcharge cannot
+  separate a 1:1-derived pair — the ingot inherits its dust's price, penalty
+  included — so the preference runs after the solve instead: where an item's
+  chosen recipe consumes a dust-class leaf (dust, small, tiny — a configured
+  list) and another garage-legal producer offers the same price within ε
+  without one, `bestRecipe` moves to it, unless that recipe's chosen inputs
+  can reach the item over the walk's own chosen edges — rerouting there would
+  hand the BOM a cycle, so the dust route is kept. Costs never change in this
+  pass, ties still lose during the solve, and the walk then ends on the solid
+  leaf. A route where dust is genuinely cheaper is a real gap, not a tie, and
+  keeps winning.
 - Full-pack scale (a few hundred thousand recipes) converges in well under a
   second in memory.
 
@@ -632,3 +646,6 @@ All "does not / never" rules live here; other sections only reference this one.
     one hatch tier later; on the other coil maps it never does.
 22. A pin that would make the BOM walk loop is ignored with a warning, and the
     result matches the unpinned plan.
+23. Where a dust-consuming and a solid-consuming recipe tie for an item, the
+    plan lands on the solid form — unless the reroute would close a loop, and
+    a real price gap in the dust's favor still wins.

@@ -4,7 +4,8 @@ using Craftiger.Solver.Models;
 namespace Craftiger.Solver.Services;
 
 public sealed class CostSolverService(
-    ILeafWeightService leafWeights, IGarageLegalityService legality) : ICostSolverService
+    ILeafWeightService leafWeights, IGarageLegalityService legality,
+    SolverPreferences preferences) : ICostSolverService
 {
     private const double Epsilon = 1e-9;
 
@@ -19,6 +20,7 @@ public sealed class CostSolverService(
         var legal = graph.Recipes.Where(recipe => legality.IsLegal(recipe, garage)).ToList();
 
         var consumers = new Dictionary<string, List<SolverRecipe>>();
+        var producers = new Dictionary<string, List<SolverRecipe>>();
         foreach (var recipe in legal)
         {
             foreach (var itemId in recipe.Slots
@@ -26,11 +28,11 @@ public sealed class CostSolverService(
                 .Select(a => a.ItemId)
                 .Distinct())
             {
-                if (!consumers.TryGetValue(itemId, out var list))
-                {
-                    consumers[itemId] = list = [];
-                }
-                list.Add(recipe);
+                Index(consumers, itemId, recipe);
+            }
+            foreach (var itemId in recipe.Outputs.Select(output => output.ItemId).Distinct())
+            {
+                Index(producers, itemId, recipe);
             }
         }
 
@@ -71,6 +73,8 @@ public sealed class CostSolverService(
                 }
             }
         }
+
+        PreferSolidForms(graph, producers, cost, best);
         return new CostTable(cost, best, Converged: true);
     }
 
@@ -115,5 +119,76 @@ public sealed class CostSolverService(
             total += cheapest;
         }
         return total;
+    }
+
+    /// <summary>Reroutes ties toward solid forms (§5): where an item's chosen recipe consumes
+    /// a deprioritized leaf and another legal producer offers the same price without one, the
+    /// pointer moves — unless the new recipe's inputs can reach the item over chosen edges,
+    /// which would hand the BOM walk a cycle. Costs never change here, only pointers.</summary>
+    private void PreferSolidForms(
+        SolverGraph graph, Dictionary<string, List<SolverRecipe>> producers,
+        Dictionary<string, double> cost, Dictionary<string, SolverRecipe> best)
+    {
+        foreach (var (itemId, current) in best.ToList())
+        {
+            if (!ConsumesDeprioritized(graph, current, cost))
+            {
+                continue;
+            }
+            foreach (var candidate in producers.GetValueOrDefault(itemId) ?? [])
+            {
+                if (ReferenceEquals(candidate, current)
+                    || ConsumesDeprioritized(graph, candidate, cost)
+                    || Candidate(candidate, itemId, cost) > cost[itemId] + Epsilon
+                    || Reaches(graph, cost, best, candidate, itemId))
+                {
+                    continue;
+                }
+                best[itemId] = candidate;
+                break;
+            }
+        }
+    }
+
+    private bool ConsumesDeprioritized(
+        SolverGraph graph, SolverRecipe recipe, IReadOnlyDictionary<string, double> costs) =>
+        recipe.Slots.Any(slot => preferences.Deprioritizes(
+            graph.Items.GetValueOrDefault(SlotChoice.Cheapest(slot, costs).ItemId)?.LeafClass));
+
+    /// <summary>Whether the item is reachable from the recipe's chosen inputs over the same
+    /// chosen edges the BOM walks — leaves and unpriced items are terminal there too.</summary>
+    private static bool Reaches(
+        SolverGraph graph, IReadOnlyDictionary<string, double> cost,
+        Dictionary<string, SolverRecipe> best, SolverRecipe from, string target)
+    {
+        var pending = new Stack<string>(
+            from.Slots.Select(slot => SlotChoice.Cheapest(slot, cost).ItemId));
+        var seen = new HashSet<string>();
+        while (pending.TryPop(out var itemId))
+        {
+            if (itemId == target)
+            {
+                return true;
+            }
+            if (!seen.Add(itemId) || graph.IsLeaf(itemId) || !best.TryGetValue(itemId, out var recipe))
+            {
+                continue;
+            }
+            foreach (var slot in recipe.Slots)
+            {
+                pending.Push(SlotChoice.Cheapest(slot, cost).ItemId);
+            }
+        }
+        return false;
+    }
+
+    private static void Index(
+        Dictionary<string, List<SolverRecipe>> index, string itemId, SolverRecipe recipe)
+    {
+        if (!index.TryGetValue(itemId, out var list))
+        {
+            index[itemId] = list = [];
+        }
+        list.Add(recipe);
     }
 }
