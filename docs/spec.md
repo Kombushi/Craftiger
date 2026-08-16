@@ -459,6 +459,12 @@ All "does not / never" rules live here; other sections only reference this one.
   every cost to zero. Mining maps that output ore blocks from real equipment
   (Space Mining) are *era-only*: they gate progression in the era fixpoint
   (§3 step 6) but never reach `planner.sqlite`, so they can never price. The
+  Heliofusion Exoticizer is era-only for the same reason the Replicator is
+  excluded: a star turning plasma into magmatter is priced in EU this model
+  refuses to count, and its matter cost alone (1.83 per magmatter ingot
+  against a tier-13 leaf weight) is fiction — so magmatter and quark gluon
+  plasma gate at the Godforge's era while magmatter's ingots and dusts price
+  as tier-13 leaves. The
   same holds for pumping a fluid out of the ground: the rig gates when the
   fluid becomes available, but the fluid itself prices as a world fluid.
   Harvesting a CropsNH crop is era-only for the same reason: growing a crop is
