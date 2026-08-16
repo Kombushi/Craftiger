@@ -338,6 +338,7 @@ public static class FixtureDump
         RecipeType(db, "rt~gregtech~gt.recipe.largeboilerfakefuels~ULV", "gregtech", "Large Boiler Fuels (ULV)");
         RecipeType(db, "rt~gregtech~gt.recipe.electrolyzer~MV", "gregtech", "Electrolyzer (MV)");
         RecipeType(db, "rt~gregtech~gt.recipe.arcfurnace~LV", "gregtech", "Arc Furnace (LV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.fluidextractor~LV", "gregtech", "Fluid Extractor (LV)");
         RecipeType(db, "rt~gregtech~gt.recipe.alloysmelter~ULV", "gregtech", "Alloy Smelter (ULV)");
         RecipeType(db, "rt~gregtech~gt.recipe.vacuumfreezer~MV", "gregtech", "Vacuum Freezer (MV)", handlerIcons: 0, handlerItem: FreezerItem);
         RecipeType(db, "rt~gregtech~gt.recipe.spacemining~HV", "gregtech", "Space Mining (HV)", handlerIcons: 0, handlerItem: SpaceMiner);
@@ -427,9 +428,15 @@ public static class FixtureDump
         Recipe(db, "r_lost_use", "t_furnace", inputs: [("g_lost_ingot", 0)], outputs: [(IronIngot, 1, 1.0)]);
         // Clay balls are also farmed, but breaking the block already prices them.
         Crop(db, "clayCrop", "Clay Crop", BerrySeed, hidden: false, drops: [ClayBall], underBlocks: []);
-        // Melting a crafted item back down is not how it is made.
+        // Melting a manufactured item down gives back more than crafting it cost. The rod
+        // carries no material-shape oredict, so it stands in for a door or a piston.
         Recipe(db, "r_recycle", "rt~gregtech~gt.recipe.arcfurnace~LV", inputs: [("g_alu_rod", 0)],
             outputs: [(AluIngot, 6, 1.0)], voltage: 30, duration: 100, category: "arcFurnaceRecycling");
+        // Melting one shape of a material into another gives back exactly what went in, and is
+        // often the only route to the molten form, so it survives the same category.
+        Recipe(db, "r_melt", "rt~gregtech~gt.recipe.fluidextractor~LV", inputs: [("g_alu_dust", 0)],
+            outputs: [(AluRod, 1, 1.0)], voltage: 30, duration: 100,
+            category: "fluidExtractorRecycling");
         Recipe(db, "r_brick", "t_furnace", inputs: [("g_clay_ball", 0)], outputs: [(IronIngot, 1, 1.0)]);
         Recipe(db, "r_ebf_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(EbfController, 1, 1.0)]);
         Recipe(db, "r_macerator_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MaceratorLv, 1, 1.0)]);

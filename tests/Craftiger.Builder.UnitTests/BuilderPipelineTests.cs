@@ -70,7 +70,7 @@ public sealed class LeakyPipelineFixture : IDisposable
 {
     private readonly FixtureRun _run =
         new(new KeyValuePair<string, string?>(
-            "BuilderConfig:ExcludedRecipeCategorySuffixes:0", "matches-no-category"));
+            "BuilderConfig:RecyclingCategorySuffixes:0", "matches-no-category"));
 
     public void Dispose() => _run.Dispose();
     public T Scalar<T>(string sql) => _run.Scalar<T>(sql);
@@ -221,8 +221,12 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             "SELECT COUNT(multi_tier) FROM recipes WHERE id = 'r_macerate'"));
 
     [Fact]
-    public void RecyclingCategoriesNeverReachTheArtifact() =>
+    public void RecyclingAManufacturedItemNeverReachesTheArtifact() =>
         Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_recycle'"));
+
+    [Fact]
+    public void RecyclingOneShapeOfAMaterialIntoAnotherSurvives() =>
+        Assert.Equal(1, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_melt'"));
 
     [Fact]
     public void NoLeafPricesFarBelowItsOwnWeight()

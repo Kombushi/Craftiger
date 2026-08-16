@@ -53,11 +53,6 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             }
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
-            if (gt is not null && IsExcludedCategory(gt.Category))
-            {
-                continue;
-            }
-
             var tier = gt is null || gt.Voltage <= 0 ? 0 : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage);
 
             var inputs = new Dictionary<string, long>();
@@ -131,8 +126,14 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                 }
                 outputs.Add((new PlannerOutput(o.FluidId, o.Amount, Math.Min(o.Chance, 1.0)), 0));
             }
-            if (inputs.Keys.Concat(choices.SelectMany(choice => choice.Alternatives))
-                .Any(id => _config.ExcludedInputItems.Contains(dump.NameOf(id))))
+            var ingredients = inputs.Keys
+                .Concat(choices.SelectMany(choice => choice.Alternatives))
+                .ToList();
+            if (ingredients.Any(id => _config.ExcludedInputItems.Contains(dump.NameOf(id))))
+            {
+                continue;
+            }
+            if (gt is not null && IsRecycling(gt.Category) && !ingredients.All(id => IsMaterialShape(id, dump, unified)))
             {
                 continue;
             }
@@ -190,9 +191,23 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
     private string NormalizeMachine(string type) =>
         _config.MachineRenames.TryGetValue(type, out var renamed) ? renamed : TierSuffix().Replace(type, "");
 
-    private bool IsExcludedCategory(string category) =>
-        _config.ExcludedRecipeCategorySuffixes.Any(
-            suffix => category.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+    private bool IsRecycling(string category) =>
+        _config.RecyclingCategorySuffixes.Any(suffix => category.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Whether an ingredient is one shape of a single material rather than something
+    /// manufactured. Fluids qualify: a molten metal is already just its material.</summary>
+    private bool IsMaterialShape(string id, Dump dump, UnifiedItems unified)
+    {
+        if (dump.Fluids.ContainsKey(id))
+        {
+            return true;
+        }
+
+        var oredicts = unified.OredictsByCanonical.GetValueOrDefault(id);
+        return oredicts is not null && oredicts
+            .Any(oredict => _config.MaterialShapeOredictPrefixes
+                .Any(prefix => oredict.StartsWith(prefix, StringComparison.Ordinal)));
+    }
 
     private bool IsExcluded(string machine) =>
         _config.ExcludedMachines.Contains(machine) ||

@@ -13,11 +13,16 @@ public sealed record BuilderConfig
     /// <summary>Exact machine names dropped as pseudo-recipe sources.</summary>
     public required IReadOnlyList<string> ExcludedMachines { get; init; }
 
-    /// <summary>GregTech recipe-category suffixes dropped outright, matched case-insensitively.
-    /// Reverse-crafting files under its own categories, and melting a crafted item down is not
-    /// how it is made — routes that recover more material than the crafting recipe used would
-    /// otherwise drive every price toward zero.</summary>
-    public required IReadOnlyList<string> ExcludedRecipeCategorySuffixes { get; init; }
+    /// <summary>GregTech recipe-category suffixes marking reverse-crafting, matched
+    /// case-insensitively. The tag alone does not condemn a recipe: GregTech applies it to
+    /// melting a rod down as readily as to melting a door down.</summary>
+    public required IReadOnlyList<string> RecyclingCategorySuffixes { get; init; }
+
+    /// <summary>Oredict prefixes naming a shape of one material. A reverse-crafting recipe that
+    /// consumes only these gives back exactly what went into them, so it prices honestly and
+    /// stays. Anything else it consumes is a manufactured item, whose material value can exceed
+    /// what crafting it cost — melt those and the loop drives every price to nothing.</summary>
+    public required IReadOnlyList<string> MaterialShapeOredictPrefixes { get; init; }
 
     /// <summary>Machines whose recipes gate eras but never price: real mechanics that would amplify matter.</summary>
     public required IReadOnlyList<string> EraOnlyMachines { get; init; }

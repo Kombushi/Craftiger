@@ -450,17 +450,20 @@ All "does not / never" rules live here; other sections only reference this one.
   costs a quarter of a clay block. This conjures nothing: the block is
   consumed, and a block no route can reach simply never prices. Drops equal to
   the block itself are not recipes at all, just picking the block back up.
-- **Recycling** — GregTech files reverse-crafting under its own recipe
-  categories (`arcFurnaceRecycling`, `maceratorRecycling`,
-  `fluidExtractorRecycling`, `alloySmelterRecycling`, `forgeHammerRecycling`),
-  and every category whose name ends in `recycling` is dropped. Melting a
-  crafted item down is not how it is made, and GregTech decides what comes back
-  from the item's material composition rather than from the recipe that built
-  it — so wherever the pack also sells a cheaper crafting recipe, the round trip
-  returns more than it consumed. An iron door costs four plates and arc-furnaces
-  into six ingots; left in, that loop alone drives iron, and everything built
-  from iron, toward zero. Storage-block cycles are safe by contrast: nine ingots
-  in, nine ingots back.
+- **Recycling a manufactured item** — GregTech decides what reverse-crafting
+  gives back from an item's material composition, not from the recipe that built
+  it. Where the pack also sells a cheaper crafting recipe, the round trip returns
+  more than it consumed: an iron door costs four plates and arc-furnaces into six
+  ingots, and that loop alone drives iron, and everything built from iron, toward
+  zero. GregTech tags such recipes with a category ending in `recycling`, but the
+  tag alone condemns nothing — it applies just as readily to melting a rod back
+  into molten metal, which is exactly conservative and is often the only route to
+  a material's molten form. The two are told apart by what is consumed: a tagged
+  recipe survives when every ingredient is one shape of a single material
+  (`ingot*`, `plate*`, `stick*`, `gear*`, `nugget*`, `dust*`, `block*`, …, or a
+  fluid), and is dropped when anything else goes in — a `doorIron`, a `signWood`,
+  an Electric Piston with no oredict at all. Storage-block cycles are safe either
+  way: nine ingots in, nine ingots back.
 - **Matter fabrication** — the Replicator, Matter Fabricator, Matter Amplifier
   and Mass Fabrication turn scrap and EU into any element. Their real price is
   energy, which this model refuses to count, so it can only ever undercount
@@ -533,6 +536,7 @@ All "does not / never" rules live here; other sections only reference this one.
     and changing the weights table can change which one that is.
 19. A recipe on a mixed map is illegal at a garage tier below `tier` until the
     map's multiblock is marked built, then legal at `multi_tier`.
-20. No recipe from a `*recycling` category ships, and the build reports no leaf
-    priced below a millionth of its own weight — the gap between a genuinely
-    cheap route and a loop that creates matter.
+20. Reverse-crafting a manufactured item never ships, while melting one shape of
+    a material into another does, and the build reports no leaf priced below a
+    millionth of its own weight — the gap between a genuinely cheap route and a
+    loop that creates matter.
