@@ -92,6 +92,15 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task SearchWorksBeforeAnySolve()
+    {
+        var results = await Client.GetFromJsonAsync<List<ItemSummaryDto>>("/api/search?q=Ferrum");
+
+        Assert.Equal("ing", results!.Single().ItemId);
+        Assert.Null(results[0].Cost);
+    }
+
+    [Fact]
     public async Task ItemDetailShowsLegalRecipesWithCandidates()
     {
         var solveId = await SolveAsync();
@@ -106,6 +115,8 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Equal("Wiremill", recipe.Machine);
         Assert.Equal(2, recipe.CandidateCost);
         Assert.Equal(4, Assert.Single(Assert.Single(recipe.Slots)).Cost);
+        Assert.Equal(4, detail.Items["ing"].Cost);
+        Assert.False(detail.Items["ing"].IsFluid);
     }
 
     [Fact]
@@ -159,12 +170,20 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
             pins = new Dictionary<string, string> { ["hot"] = "bogus" }
         });
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<BomResult>();
+        var result = await response.Content.ReadFromJsonAsync<BomResponse>();
 
         Assert.Equal(1.5, Assert.Single(result!.Leaves).Amount);
         Assert.Equal("ing", result.Leaves[0].ItemId);
         Assert.Equal("r_wire", result.Targets.Single().RecipeId);
         Assert.Contains(result.Warnings, warning => warning is { Kind: "pin_unknown", ItemId: "hot" });
+
+        var node = Assert.Single(result.Nodes);
+        Assert.Equal("wire", node.ItemId);
+        Assert.Equal("Wiremill", node.Machine);
+        Assert.Equal(1.5, node.Runs);
+        Assert.Equal("ing", Assert.Single(node.InputsPerRun).ItemId);
+        Assert.Equal(4, result.Items["ing"].Cost);
+        Assert.Equal(2, result.Items["wire"].Cost);
     }
 
     [Fact]

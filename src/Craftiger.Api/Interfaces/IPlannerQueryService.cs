@@ -10,11 +10,11 @@ public interface IPlannerQueryService
 
     ListResponse List(SolveEntry entry, int page, int pageSize, bool hideUnreachable);
 
-    IReadOnlyList<ItemSummaryDto> Search(SolveEntry entry, string query);
+    IReadOnlyList<ItemSummaryDto> Search(SolveEntry? entry, string query);
 
     ItemDetailResponse? ItemDetail(SolveEntry entry, string itemId);
 
     IReadOnlyList<string> Machines(IEnumerable<string> targetIds);
 
-    BomResult Bom(SolveEntry entry, BomRequest request);
+    BomResponse Bom(SolveEntry entry, BomRequest request);
 }

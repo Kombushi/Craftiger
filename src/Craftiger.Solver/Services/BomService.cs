@@ -38,6 +38,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
 
         var rootSet = roots.ToHashSet();
         var leaves = new Dictionary<string, double>();
+        var nodes = new List<BomNode>();
         foreach (var itemId in order)
         {
             var demanded = demand.GetValueOrDefault(itemId);
@@ -59,18 +60,22 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             }
 
             var runs = demanded / ExpectedYield(recipe, itemId);
-            foreach (var slot in recipe.Slots)
+            var inputs = recipe.Slots
+                .Select(slot => SlotChoice.Cheapest(slot, costs.Costs))
+                .Select(alternative => new BomStack(alternative.ItemId, alternative.Amount))
+                .ToList();
+            nodes.Add(new BomNode(itemId, demanded, runs, recipe.Id, inputs));
+            foreach (var input in inputs)
             {
-                var alternative = SlotChoice.Cheapest(slot, costs.Costs);
-                demand[alternative.ItemId] =
-                    demand.GetValueOrDefault(alternative.ItemId) + runs * alternative.Amount;
+                demand[input.ItemId] = demand.GetValueOrDefault(input.ItemId) + runs * input.Amount;
             }
         }
 
         return new BomResult(
             targets.Select(target => TargetResult(graph, costs, activePins, target)).ToList(),
             leaves.Select(leaf => new BomStack(leaf.Key, leaf.Value)).ToList(),
-            warnings);
+            warnings,
+            nodes);
     }
 
     private Dictionary<string, SolverRecipe> ValidatePins(

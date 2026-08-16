@@ -5,4 +5,5 @@ namespace Craftiger.Api.Models;
 /// unreachable items.</summary>
 public sealed record ItemDetailResponse(
     string ItemId, string Name, long AtlasIdx, string? LeafClass, double? Cost,
-    string? BestRecipeId, IReadOnlyList<RecipeDto> Recipes);
+    string? BestRecipeId, IReadOnlyList<RecipeDto> Recipes,
+    IReadOnlyDictionary<string, ItemRefDto> Items);

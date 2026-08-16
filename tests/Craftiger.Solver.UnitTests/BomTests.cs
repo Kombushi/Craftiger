@@ -206,6 +206,58 @@ public sealed class BomTests
     }
 
     [Fact]
+    public void NodesListEveryExpandedStepTargetsFirst()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("copper", tier: 0)],
+            Fx.Recipe("wire", inputs: [("copper", 1)], outputs: ("cable", 2, 1.0)),
+            Fx.Recipe("motor", inputs: [("cable", 2)], outputs: ("motorItem", 1, 1.0)));
+
+        var result = Compute(graph, [new BomTarget("motorItem", 3)]);
+
+        Assert.Equal(new[] { "motorItem", "cable" }, result.Nodes.Select(node => node.ItemId));
+        var motor = result.Nodes[0];
+        Assert.Equal(3, motor.Amount);
+        Assert.Equal(3, motor.Runs);
+        Assert.Equal("motor", motor.RecipeId);
+        Assert.Equal(2, motor.InputsPerRun.Single().Amount);
+        var cable = result.Nodes[1];
+        Assert.Equal(6, cable.Amount);
+        Assert.Equal(3, cable.Runs);
+        Assert.Equal("copper", cable.InputsPerRun.Single().ItemId);
+    }
+
+    [Fact]
+    public void LeavesAndUnreachableItemsGetNoNode()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("copper", tier: 0)],
+            Fx.Recipe("r", machine: "Extruder", inputs: [("copper", 1)], outputs: ("rod", 1, 1.0)));
+        var garage = Fx.Garage(defaultTier: 3, tiers: new() { ["Extruder"] = null });
+
+        var result = Compute(
+            graph, [new BomTarget("copper", 5), new BomTarget("rod", 1)], garage: garage);
+
+        Assert.Empty(result.Nodes);
+    }
+
+    [Fact]
+    public void APinShowsUpInItsNode()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("copper", tier: 0), Fx.Leaf("silver", tier: 1)],
+            Fx.Recipe("cheap", inputs: [("copper", 1)], outputs: ("wire", 1, 1.0)),
+            Fx.Recipe("dear", inputs: [("silver", 1)], outputs: ("wire", 1, 1.0)));
+
+        var result = Compute(graph, [new BomTarget("wire", 1)],
+            new Dictionary<string, string> { ["wire"] = "dear" });
+
+        var node = result.Nodes.Single();
+        Assert.Equal("dear", node.RecipeId);
+        Assert.Equal("silver", node.InputsPerRun.Single().ItemId);
+    }
+
+    [Fact]
     public void LeavesNeverExpandEvenWhenUndercut()
     {
         // The block leaf is deliberately dearer than packing it from ingots, so the solver

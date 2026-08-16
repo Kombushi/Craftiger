@@ -60,9 +60,12 @@ app.MapGet("/api/list", (
             hideUnreachable ?? false))
         : Results.NotFound());
 
+// Search works before the first solve; without a solveId every cost is null.
 app.MapGet("/api/search", (
-    string q, string solveId, ISolveCacheService cache, IPlannerQueryService query) =>
-    cache.Get(solveId) is { } entry ? Results.Ok(query.Search(entry, q)) : Results.NotFound());
+    string q, string? solveId, ISolveCacheService cache, IPlannerQueryService query) =>
+    solveId is null
+        ? Results.Ok(query.Search(null, q))
+        : cache.Get(solveId) is { } entry ? Results.Ok(query.Search(entry, q)) : Results.NotFound());
 
 app.MapGet("/api/item/{id}", (
     string id, string solveId, ISolveCacheService cache, IPlannerQueryService query) =>

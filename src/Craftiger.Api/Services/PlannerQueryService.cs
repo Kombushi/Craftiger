@@ -39,7 +39,7 @@ public sealed class PlannerQueryService(
 
     /// <summary>Type-ahead over names and aliases straight off the artifact database; name
     /// prefix matches rank first, then the cheaper item wins.</summary>
-    public IReadOnlyList<ItemSummaryDto> Search(SolveEntry entry, string query)
+    public IReadOnlyList<ItemSummaryDto> Search(SolveEntry? entry, string query)
     {
         using var db = new SqliteConnection($"Data Source={artifact.DbPath};Mode=ReadOnly");
         var pattern = $"%{query.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%";
@@ -56,7 +56,9 @@ public sealed class PlannerQueryService(
             .Select(id => artifact.Items[id])
             .Select(item => new ItemSummaryDto(
                 item.Id, item.Name, item.AtlasIdx,
-                entry.Table.Costs.TryGetValue(item.Id, out var cost) ? cost : null))
+                entry is not null && entry.Table.Costs.TryGetValue(item.Id, out var cost)
+                    ? cost
+                    : null))
             .OrderBy(item => item.Name.StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
             .ThenBy(item => item.Cost ?? double.PositiveInfinity)
             .ThenBy(item => item.Name, StringComparer.Ordinal)
@@ -78,17 +80,25 @@ public sealed class PlannerQueryService(
             .ThenBy(recipe => recipe.RecipeId, StringComparer.Ordinal)
             .ToList();
 
+        var ids = new HashSet<string> { itemId };
+        foreach (var recipe in recipes)
+        {
+            ids.UnionWith(recipe.Slots.SelectMany(slot => slot).Select(alternative => alternative.ItemId));
+            ids.UnionWith(recipe.Outputs.Select(output => output.ItemId));
+        }
+
         return new ItemDetailResponse(
             item.Id, item.Name, item.AtlasIdx, item.LeafClass,
             entry.Table.Costs.TryGetValue(itemId, out var cost) ? cost : null,
             entry.Table.BestRecipes.GetValueOrDefault(itemId)?.Id,
-            recipes);
+            recipes,
+            Refs(entry, ids));
     }
 
     public IReadOnlyList<string> Machines(IEnumerable<string> targetIds) =>
         closure.MachinesFor(artifact.Graph, targetIds);
 
-    public BomResult Bom(SolveEntry entry, BomRequest request)
+    public BomResponse Bom(SolveEntry entry, BomRequest request)
     {
         foreach (var target in request.Targets)
         {
@@ -97,11 +107,48 @@ public sealed class PlannerQueryService(
                 throw new ValidationException($"the count of '{target.ItemId}' must be positive");
             }
         }
-        return bom.Compute(
+        var result = bom.Compute(
             artifact.Graph, entry.Table, entry.Garage,
             request.Targets.Select(target => new BomTarget(target.ItemId, target.Count)).ToList(),
             request.Pins ?? []);
+
+        var nodes = result.Nodes.Select(ToDto).ToList();
+        var ids = new HashSet<string>();
+        ids.UnionWith(result.Targets.Select(target => target.ItemId));
+        ids.UnionWith(result.Targets.SelectMany(target => target.Inputs).Select(input => input.ItemId));
+        ids.UnionWith(result.Leaves.Select(leaf => leaf.ItemId));
+        ids.UnionWith(result.Warnings.Select(warning => warning.ItemId));
+        foreach (var node in nodes)
+        {
+            ids.Add(node.ItemId);
+            ids.UnionWith(node.InputsPerRun.Select(input => input.ItemId));
+            ids.UnionWith(node.Outputs.Select(output => output.ItemId));
+        }
+        return new BomResponse(result.Targets, result.Leaves, result.Warnings, nodes, Refs(entry, ids));
     }
+
+    private BomNodeDto ToDto(BomNode node)
+    {
+        var info = artifact.Recipes[node.RecipeId];
+        var outputs = artifact.Graph.RecipesById[node.RecipeId].Outputs
+            .Select(output => new OutputDto(output.ItemId, output.Amount, output.Chance))
+            .ToList();
+        return new BomNodeDto(
+            node.ItemId, node.Amount, node.Runs, node.RecipeId,
+            info.Machine, info.Tier, info.MultiTier, info.Heat, info.DurationTicks, info.EuT,
+            node.InputsPerRun, outputs);
+    }
+
+    private IReadOnlyDictionary<string, ItemRefDto> Refs(SolveEntry entry, IEnumerable<string> ids) =>
+        ids.Where(artifact.Items.ContainsKey).ToDictionary(
+            id => id,
+            id =>
+            {
+                var item = artifact.Items[id];
+                return new ItemRefDto(
+                    item.Name, item.AtlasIdx, item.IsFluid, item.LeafClass,
+                    entry.Table.Costs.TryGetValue(id, out var cost) ? cost : null);
+            });
 
     private RecipeDto ToDto(SolveEntry entry, SolverRecipe recipe, string itemId)
     {

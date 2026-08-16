@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.9
+# GTNH Crafting Planner — Specification v1.10
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -407,7 +407,12 @@ is a projection of that result.**
    where a recipe undercut their weight; fluid amounts stay in mB.
 
 Output per request: per-target direct inputs (chosen recipe, `runs × amount`
-per input), merged leaf totals, and warnings (ignored pins, unreachable targets).
+per input), merged leaf totals, warnings (ignored pins, unreachable targets),
+and the chain nodes — one entry per expanded item, in topological order with
+targets first, carrying total demand, fractional runs, the chosen recipe with
+its display data, the chosen input stack per slot for a single run, and the
+recipe's full output rows. The nodes are the walk itself made visible: a chain
+renderer draws them without re-deriving any choice the walk already made.
 
 ## 7. UI
 
@@ -478,16 +483,24 @@ Single-page app, English item names (dump locale). Screens:
   solve; the id is a content hash, so identical settings share an entry. A
   `404` on any later call means the cache entry was evicted — the client
   re-posts.
-- `GET /api/search?q=&solveId=` → `[{itemId, name, atlasIdx, cost}]`
+- `GET /api/search?q=&solveId=` → `[{itemId, name, atlasIdx, cost}]`; `solveId`
+  is optional so the cart can be built before the first solve — without it
+  every cost is null.
 - `GET /api/list?solveId=&page=&hideUnreachable=` → cost-sorted page
-- `GET /api/item/{id}?solveId=` → producing recipes with candidate costs and
-  the solver's current pick (`bestRecipeId`), so the detail view can highlight
-  what the BOM will expand
+- `GET /api/item/{id}?solveId=` → producing recipes with candidate costs, the
+  solver's current pick (`bestRecipeId`) so the detail view can highlight what
+  the BOM will expand, and an `items` display lookup (name, atlas index,
+  fluid flag, leaf class, cost) for every item id the recipes reference.
 - `GET /api/machines?targets=` — upstream-closure machine list for the given
   item ids; drives the relevance-filtered garage.
 - `POST /api/bom` — body `{solveId, targets: [{itemId, count}],
   pins: {itemId: recipeId}}` → `{targets: [{itemId, count, recipeId,
-  inputs: [{itemId, amount}]}], leaves: [{itemId, amount}], warnings}`
+  inputs: [{itemId, amount}]}], leaves: [{itemId, amount}], warnings,
+  nodes: [{itemId, amount, runs, recipeId, machine, tier, multiTier, heat,
+  durationTicks, euT, inputsPerRun: [{itemId, amount}], outputs: [{itemId,
+  amount, chance}]}], items: {itemId: {name, atlasIdx, isFluid, leafClass,
+  cost}}}` — the chain nodes of §6 plus the same display lookup, so one
+  request feeds a whole chain view.
 - `GET /api/meta` → tier ladder, machine list, coil list, pack version, atlas
   dimensions
 - Static: `/atlas.webp`, `/atlas-offsets.json`
