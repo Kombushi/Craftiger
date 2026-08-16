@@ -474,6 +474,13 @@ All "does not / never" rules live here; other sections only reference this one.
   fluid), and is dropped when anything else goes in — a `doorIron`, a `signWood`,
   an Electric Piston with no oredict at all. Storage-block cycles are safe either
   way: nine ingots in, nine ingots back.
+- **Phantom registrations** — a recipe the game registers but the machine never
+  performs is excluded by its dump id in `PhantomRecipeIds`, each entry carrying
+  the in-game observation that condemned it. The one known case: the canner
+  empties the BartWorks Iodine Cell into Iodine, yet the registration says
+  Molten Iodine — a fluid seven times as dense in matter, which would mint
+  seven dusts from one on every round trip. In-game verification is the bar
+  for this list: a recipe merely looking wrong is not enough.
 - **Taking assembled items apart** — the Unpackager reverses packing and
   assembly, which is not how the parts are made and hands them out a tier early:
   unpackaging a T4 fluid cell yields the Neutronium frame inside it, which

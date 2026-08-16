@@ -76,6 +76,25 @@ public sealed class LeakyPipelineFixture : IDisposable
     public T Scalar<T>(string sql) => _run.Scalar<T>(sql);
 }
 
+/// <summary>The same pack with one recipe condemned as a phantom registration, proving the
+/// exclusion reaches the artifact.</summary>
+public sealed class PhantomRecipeFixture : IDisposable
+{
+    private readonly FixtureRun _run =
+        new(new KeyValuePair<string, string?>(
+            "BuilderConfig:PhantomRecipeIds:r_melt", "fixture-only condemnation"));
+
+    public void Dispose() => _run.Dispose();
+    public T Scalar<T>(string sql) => _run.Scalar<T>(sql);
+}
+
+public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFixture<PhantomRecipeFixture>
+{
+    [Fact]
+    public void APhantomRegistrationNeverReachesTheArtifact() =>
+        Assert.Equal(0, fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_melt'"));
+}
+
 public sealed class PriceCheckTests(LeakyPipelineFixture fixture) : IClassFixture<LeakyPipelineFixture>
 {
     [Fact]

@@ -51,6 +51,10 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             {
                 continue;
             }
+            if (_config.PhantomRecipeIds.ContainsKey(recipe.Id))
+            {
+                continue;
+            }
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
             var tier = gt is null || gt.Voltage <= 0 ? 0 : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage);
