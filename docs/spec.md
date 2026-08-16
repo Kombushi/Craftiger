@@ -56,13 +56,21 @@ total raw-material bill as a flat grid of item-icon squares.
   best energy hatch installed. A map served by both kinds of machine carries a
   second switch, whether its multiblock is built, because the hatch allowance
   is worth a tier and belongs to whoever built the multiblock. The EBF is
-  configured by two values: voltage tier and installed coil — it is the only
-  heat-gated map. Crafting table and furnace are always owned at tier 0.
+  configured by two values: voltage tier and installed coil. Five maps carry
+  heat requirements: Blast Furnace, DTPF, Digester, and Vacuum Furnace take a
+  coil each — per map, since each multiblock is built with its own — while the
+  Helioflux Melting Core has no coils and skips the heat check when owned (§9).
+  The Blast Furnace alone additionally gains 100 heat per garage tier above MV,
+  the energy-hatch bonus; the other coil maps have none (both facts verified
+  against GT5-Unofficial source). Crafting table, furnace, and Mining are
+  always owned at tier 0.
 - **Garage-legal recipe**: `required ≤ effectiveTier(recipe.machine)`, where
   `required` is `recipe.tier`, or `recipe.multi_tier` when the map has one and
-  the garage says the multiblock is built. EBF recipes additionally require
-  `recipe.heat ≤ maxHeat(installed coil)`. Recipes of `None` machines are
-  never legal.
+  the garage says the multiblock is built. Heat-gated recipes additionally
+  require `recipe.heat ≤ maxHeat(their map's installed coil)`, plus the Blast
+  Furnace's hatch bonus of 100 per garage tier above MV; Helioflux Melting
+  Core recipes skip the heat check entirely (§9). Recipes of `None` machines
+  are never legal.
 - **Upstream closure** of a set of items: every recipe (and its machine) that
   could take part in any production route of those items, found by walking
   "producible-by" edges tier-agnostically from the targets down to leaves.
@@ -300,7 +308,12 @@ Ore-washing and blast-furnace intermediates (`crushed*`, `dustImpure*`,
 All rules and weights live in **one editable weights table** (config UI, §7).
 An `item_weights` row overrides its item's class, for a class whose members are
 not worth the same. The defaults are deliberately crude; the table is the
-tuning surface.
+tuning surface. Runtime edits are per item in v1: a user's item weight beats
+the artifact's `item_weights` row, which beats the class rule — the class
+rules themselves are fixed, and leaf membership is baked at build time. A
+fraction has no rule of its own to override: it follows its parent's resolved
+weight — overrides included, the two being the same material — through the
+shipped `item_parents` link, unless the fraction itself is overridden.
 
 ### Ingot pricing
 
@@ -359,6 +372,8 @@ Caching and pins:
   the BOM walk. v1 simplification: a pin changes recipe *choice*, not the listed price.
 - A pin whose recipe the garage cannot run is ignored with a visible red
   warning, falling back to auto-cheapest. Pins cannot bypass the garage filter.
+  A pin that would close a cycle in the BOM walk is likewise ignored with a
+  warning (§9).
 
 ## 6. BOM computation
 
@@ -368,9 +383,13 @@ is a projection of that result.**
 1. Seed `demand[target] += count` for every cart entry — multiple targets merge
    automatically.
 2. Walk items in reverse topological order of the DAG. For a non-leaf item:
-   `runs = demand / (output_amount × chance)` of its chosen recipe, then add
-   `runs × amount` to each input's demand.
-3. Leaves accumulate into the final `item → amount` map; fluid amounts stay in mB.
+   `runs = demand / (output_amount × chance)` of its chosen recipe — summed
+   over the recipe's output rows for that item where chanced twins repeat it —
+   then add `runs × amount` to each input's demand, taking a choice slot's
+   cheapest alternative. Runs and amounts are fractional expected values
+   throughout; display rounding belongs to the UI.
+3. Leaves accumulate into the final `item → amount` map and never expand, even
+   where a recipe undercut their weight; fluid amounts stay in mB.
 
 Output per request: per-target direct inputs (chosen recipe, `runs × amount`
 per input), merged leaf totals, and warnings (ignored pins, unreachable targets).
@@ -398,10 +417,12 @@ Single-page app, English item names (dump locale). Screens:
   closure (§2) get a picker; a "show all machines" toggle reveals every machine
   that has recipes. Hidden machines inherit the global default. With an empty
   cart, the list starts empty apart from the toggle. One picker per shown
-  machine (`inherit / None / Steam / LV / …`); the EBF row has a voltage picker
-  and a coil dropdown; crafting table and furnace are shown as always-owned.
-- **Config** — `B` slider, editable leaf-weights table, minable-block and
-  world-fluid lists.
+  machine (`inherit / None / Steam / LV / …`); each coil-gated map's row (§2)
+  has a coil dropdown beside its tier picker; crafting table, furnace, and
+  Mining are shown as always-owned.
+- **Config** — `B` slider and the editable per-item leaf-weights table (§4).
+  Leaf membership — which blocks are minable, which fluids are world fluids —
+  is baked into the artifact and only changes with a rebuild.
 
 ## 8. Architecture
 
@@ -509,6 +530,15 @@ All "does not / never" rules live here; other sections only reference this one.
   Molten Iodine — a fluid seven times as dense in matter, which would mint
   seven dusts from one on every round trip. In-game verification is the bar
   for this list: a recipe merely looking wrong is not enough.
+- **Coil checks on the Godforge** — the Helioflux Melting Core smelts with the
+  star's heat, not coils, so its recipes never check heat: owning the module is
+  the only gate. Its recipes carry the map's heat values all the same, and its
+  hottest smelts (the 100,000-heat Stargate crystals) are exactly the ones no
+  coil ladder could ever reach.
+- **Pins that close loops** — a pin may point an item at a recipe whose chain
+  leads back to the item itself (pack the block, then break the block). The
+  BOM walk needs a DAG, so such a pin is ignored with a warning, exactly like
+  a pin the garage cannot run.
 - **Taking assembled items apart** — the Unpackager reverses packing and
   assembly, which is not how the parts are made and hands them out a tier early:
   unpackaging a T4 fluid cell yields the Neutronium frame inside it, which
@@ -589,3 +619,7 @@ All "does not / never" rules live here; other sections only reference this one.
     a material into another does, and the build reports no leaf priced below a
     millionth of its own weight — the gap between a genuinely cheap route and a
     loop that creates matter.
+21. A Blast Furnace recipe just above the installed coil's heat becomes legal
+    one hatch tier later; on the other coil maps it never does.
+22. A pin that would make the BOM walk loop is ignored with a warning, and the
+    result matches the unpinned plan.
