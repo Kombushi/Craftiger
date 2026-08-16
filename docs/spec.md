@@ -419,18 +419,29 @@ renderer draws them without re-deriving any choice the walk already made.
 Single-page app, English item names (dump locale). Screens:
 
 - **Search** — type-ahead over canonical names and oredict aliases; results show
-  icon, name, current cost.
+  icon, name, and cost. Search works before the first solve — costs are simply
+  blank until one exists.
 - **Craft list** — cost-ascending; grayed `∞` section at bottom; "hide
   unreachable" toggle; tapping opens item detail.
 - **Item detail** — all garage-legal producing recipes with their candidate
-  costs, current pick highlighted, pin/unpin button per recipe.
-- **Cart** — targets with count inputs; "compute" produces the result grid.
-- **Result** — two sections built from the same square component (CSS offsets
-  into `atlas.webp`, count badge per square, `1.2k`-style formatting; fluids
-  render as their cell/bucket icon with an mB badge):
-  1. *Immediate* — one row per cart target: the target square with its count,
-     then the direct inputs of its chosen recipe, scaled by runs.
-  2. *Raw materials* — the merged leaf totals for the whole cart.
+  costs, current pick highlighted, pin/unpin button per recipe, and an
+  add-to-cart button.
+- **Cart** — targets with count inputs. Nothing recomputes while settings
+  change: an explicit **Calculate** button applies cart, garage, `B`, and
+  weights in one go, and a banner marks the shown results stale once those
+  drift from what was applied. Pins are the exception — they overlay recipe
+  choice only (§5), so a pin re-walks the BOMs on the live solve immediately.
+- **Result** — built from one square component (CSS offsets into `atlas.webp`,
+  count badge per square, `1.2k`-style formatting; fluids render as their cell
+  icon with mB amounts):
+  1. *Raw materials* — the merged leaf totals for the whole cart, with the
+     cart's total cost.
+  2. *Crafting chain* — one flow graph per cart target on a pan/zoom canvas,
+     rendered straight from the BOM chain nodes (§6): every expanded item is a
+     recipe card (machine, tier, heat, fractional runs, chosen input stacks,
+     output rows, duration, EU/t) laid out in topological layers, edges
+     running from each producer to the slots that consume it; leaves close
+     the left edge as material cards. Cards link into item detail for pinning.
   Tapping any square opens that item's detail.
 - **Garage** — global default tier (Steam…max) plus a machine list
   **filtered to relevance**: only machines in the current cart's upstream
@@ -440,9 +451,10 @@ Single-page app, English item names (dump locale). Screens:
   machine (`inherit / None / Steam / LV / …`); each coil-gated map's row (§2)
   has a coil dropdown beside its tier picker; crafting table, furnace, and
   Mining are shown as always-owned.
-- **Config** — `B` slider and the editable per-item leaf-weights table (§4).
-  Leaf membership — which blocks are minable, which fluids are world fluids —
-  is baked into the artifact and only changes with a rebuild.
+- **Config** — the `B` input and the editable per-item leaf-weights table (§4)
+  live in a separate weights window; both apply on the next Calculate. Leaf
+  membership — which blocks are minable, which fluids are world fluids — is
+  baked into the artifact and only changes with a rebuild.
 
 ## 8. Architecture
 
@@ -508,7 +520,9 @@ Single-page app, English item names (dump locale). Screens:
 ### localStorage keys
 
 `gtnhp.cart`, `gtnhp.pins`, `gtnhp.weights`, `gtnhp.machines` (default tier,
-overrides, EBF coil), `gtnhp.config` (B), `gtnhp.ui`.
+overrides, per-map coils, built multiblocks), `gtnhp.config` (B), `gtnhp.ui`
+(display caches plus the applied solve, so an unchanged reload resumes on the
+cached solve instead of asking for a recalculation).
 
 ## 9. Exclusions, non-goals, and risks
 
