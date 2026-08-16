@@ -444,8 +444,11 @@ Single-page app, English item names (dump locale). Screens:
 ### Runtime
 
 - **Backend**: the minimal API, stateless, deployed on the `ryokutek` k8s
-  cluster. Loads `planner.sqlite` read-only; holds the solver and its cost-table
-  cache in memory.
+  cluster. Loads `planner.sqlite` read-only into memory at startup — refusing
+  an artifact whose `schema_version` it does not know before serving anything —
+  and holds the solver and its cost-table cache in memory. The artifacts
+  directory and the garage rules of §2/§9 (always-owned machines, heat-exempt
+  and heat-bonus maps) are configuration.
 - **Frontend**: React SPA served statically alongside `atlas.webp` and
   `atlas-offsets.json`.
 - **Client state**: everything user-specific lives in browser `localStorage` and
@@ -453,9 +456,13 @@ Single-page app, English item names (dump locale). Screens:
 
 ### Endpoints
 
-- `POST /api/solve` — body `{garage, b, weights}` → `{solveId}`; runs or reuses
-  a cached cost solve. A `404` on any later call means the cache entry was
-  evicted — the client re-posts.
+- `POST /api/solve` — body `{garage, b, weights}` →
+  `{solveId, pricedItems, converged}`; garage is `{defaultTier, machines:
+  {name: tier | null}, builtMultiblocks: [name], coils: {map: coilName}}` and
+  weights is the per-item override map (§4). Runs or reuses a cached cost
+  solve; the id is a content hash, so identical settings share an entry. A
+  `404` on any later call means the cache entry was evicted — the client
+  re-posts.
 - `GET /api/search?q=&solveId=` → `[{itemId, name, atlasIdx, cost}]`
 - `GET /api/list?solveId=&page=&hideUnreachable=` → cost-sorted page
 - `GET /api/item/{id}?solveId=` → producing recipes with candidate costs

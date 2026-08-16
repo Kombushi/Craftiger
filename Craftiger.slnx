@@ -5,6 +5,7 @@
     <Project Path="src/Craftiger.Solver/Craftiger.Solver.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Craftiger.Api.UnitTests/Craftiger.Api.UnitTests.csproj" />
     <Project Path="tests/Craftiger.Builder.UnitTests/Craftiger.Builder.UnitTests.csproj" />
     <Project Path="tests/Craftiger.Solver.UnitTests/Craftiger.Solver.UnitTests.csproj" />
   </Folder>

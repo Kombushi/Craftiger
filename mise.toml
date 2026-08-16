@@ -18,6 +18,8 @@ run = "dotnet run --project src/Craftiger.Builder"
 [tasks.api]
 description = "Run the API"
 run = "dotnet run --project src/Craftiger.Api"
+# dotnet run starts the app in the project directory, so point it back at the repo's artifacts.
+env = { ApiOptions__ArtifactsDir = "{{config_root}}/artifacts" }
 
 [tasks.web]
 description = "Run the web dev server"
