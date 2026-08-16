@@ -74,6 +74,8 @@ public static class FixtureDump
     public const string NugNugget = "i~gregtech~gt.metaitem.01~9045";
     public const string NugImpure = "i~gregtech~gt.metaitem.01~2945";
     public const string LostIngot = "i~gregtech~gt.metaitem.01~11046";
+    public const string PhantomOre = "i~gregtech~gt.blockores~501";
+    public const string PhantomIngot = "i~gregtech~gt.metaitem.01~11047";
     public const string Oxygen = "f~oxygen";
     public const string Water = "f~water";
     public const string Lava = "f~lava";
@@ -211,6 +213,8 @@ public static class FixtureDump
         Item(db, GemDust, "Gemium Dust", "gregtech");
         Item(db, ClayBlock, "Clay", "minecraft");
         Item(db, ClayBall, "Clay Ball", "minecraft");
+        Item(db, PhantomOre, "Phantomium Ore", "gregtech");
+        Item(db, PhantomIngot, "Phantomium Ingot", "gregtech");
         Item(db, NugIngot, "Nugium Ingot", "gregtech");
         Item(db, NugNugget, "Nugium Nugget", "gregtech");
         Item(db, NugImpure, "Impure Pile of Nugium Dust", "gregtech");
@@ -242,6 +246,10 @@ public static class FixtureDump
         Group(db, "g_berry_ingot", (BerryIngot, 1));
         Oredict(db, "ingotBerrium", "g_berry_ingot");
         Oredict(db, "ingotOilium", "g_oil_ingot");
+        Group(db, "g_phantom_ore", (PhantomOre, 1));
+        Group(db, "g_phantom_ingot", (PhantomIngot, 1));
+        Oredict(db, "oreStonePhantomium", "g_phantom_ore");
+        Oredict(db, "ingotPhantomium", "g_phantom_ingot");
         Group(db, "g_alu_rod", (AluRod, 1));
         Group(db, "g_nug_ingot", (NugIngot, 1));
         Group(db, "g_nug_nugget", (NugNugget, 9));
@@ -487,6 +495,23 @@ public static class FixtureDump
         db.Execute($"INSERT INTO GREG_TECH_SMALL_ORE_DROPS VALUES ('gtso~ore.small.cu', '{CopperDust}')");
 
         // Runite's placed block is un-oredicted; its mined rawOre* chunk carries the vein era.
+        // GregTech oredicts a stone variant for every material, placed or not; this one is not,
+        // so the cheap smelt is a dead end and the MV route decides the era.
+        Recipe(db, "r_phantom_smelt", "t_furnace", inputs: [("g_phantom_ore", 0)],
+            outputs: [(PhantomIngot, 1, 1.0)]);
+        Recipe(db, "r_phantom_alt", "rt~gregtech~gt.recipe.extruder~MV", inputs: [("g_copper_ingot", 0)],
+            outputs: [(PhantomIngot, 1, 1.0)], voltage: 96, duration: 200);
+
+        // Ordinary Overworld veins: without one, a material the world never places gets no era.
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.alu', 5, 1, 'Bauxite', 60, 10, 24, 'ore.mix.alu', 40)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.alu', 'Ow', 60, 10, 1.0)");
+        db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.alu', '{AluOre}', 'Aluminium', 'Stone', 'PRIMARY')");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.cu', 5, 1, 'Copper', 60, 10, 24, 'ore.mix.cu', 40)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.cu', 'Ow', 60, 10, 1.0)");
+        db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.cu', '{CopperOre}', 'Copper', 'Stone', 'PRIMARY')");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.gem', 5, 1, 'Gemium', 60, 10, 24, 'ore.mix.gem', 40)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.gem', 'Ow', 60, 10, 1.0)");
+        db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.gem', '{GemOre}', 'Gemium', 'Stone', 'PRIMARY')");
         db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.runite', 3, 1, 'Runite', 50, 10, 16, 'ore.mix.runite', 20)");
         db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.runite', 'Ma', 50, 10, 1.0)");
         db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.runite', '{RuniteBlock}', 'Runite', 'Mars', 'PRIMARY')");

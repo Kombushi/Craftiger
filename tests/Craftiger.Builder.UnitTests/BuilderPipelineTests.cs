@@ -221,6 +221,11 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             "SELECT COUNT(multi_tier) FROM recipes WHERE id = 'r_macerate'"));
 
     [Fact]
+    public void OresTheWorldNeverPlacesSeedNothing() =>
+        Assert.Equal(2, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.PhantomIngot}'"));
+
+    [Fact]
     public void RecyclingAManufacturedItemNeverReachesTheArtifact() =>
         Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_recycle'"));
 

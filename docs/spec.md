@@ -171,7 +171,12 @@ Builder responsibilities, in order:
    contributes nothing. GT also oredicts every stone variant of an ore
    (`oreSethIceCallistoIce`), including variants no vein places; those resolve
    to their material by longest name suffix, so `MeteoricIron` wins over
-   `Iron`. Ore blocks that exist as items but never world-generate (a
+   `Iron`. A material that resolves to nothing — no vein and no small ore places
+   it anywhere — seeds nothing at all. GregTech oredicts a stone variant of
+   every material whether the world puts one down or not, and dating those from
+   the Steam age hands out endgame matter for free: an Ichorium ore block that
+   generates in no dimension would otherwise macerate into a Barnarda E stone
+   byproduct at era 0. Ore blocks that exist as items but never world-generate (a
    builder-config list: the GT++ leftovers plus the Space Mining ores) get no
    seed at all — their era comes from recipes, or for Space Mining ores from
    the era-only mining maps (§9). Mined small-ore drops and `rawOre*` chunks
@@ -464,6 +469,10 @@ All "does not / never" rules live here; other sections only reference this one.
   fluid), and is dropped when anything else goes in — a `doorIron`, a `signWood`,
   an Electric Piston with no oredict at all. Storage-block cycles are safe either
   way: nine ingots in, nine ingots back.
+- **Taking assembled items apart** — the Unpackager reverses packing and
+  assembly, which is not how the parts are made and hands them out a tier early:
+  unpackaging a T4 fluid cell yields the Neutronium frame inside it, which
+  arc-furnaces into ingots long before neutronium is otherwise reachable.
 - **Matter fabrication** — the Replicator, Matter Fabricator, Matter Amplifier
   and Mass Fabrication turn scrap and EU into any element. Their real price is
   energy, which this model refuses to count, so it can only ever undercount
