@@ -250,8 +250,15 @@ Builder responsibilities, in order:
 - `item_tiers(item_id, tier)` — tiered materials: ingots, gems and dusts (§4)
 - `item_weights(item_id, weight)` — weights overriding the item's leaf class,
   where one class covers items worth different amounts (§4)
-- `meta(key, value)` — pack version, dump date, atlas dimensions, coil list, and
-  the price check's verdict (§3 step 7)
+- `meta(key, value)` — `schema_version` first of all: the version of this
+  contract, bumped on any schema change, so a reader can refuse an artifact
+  written for a contract it does not know. Beside it the pack version, dump
+  date, atlas dimensions, coil list, and the price check's verdict (§3 step 7).
+
+The artifact is written once and shipped read-only. Journal sidecars left by
+an interrupted run are cleared before writing, alternatives, aliases, and
+atlas cells are unique by constraint rather than by convention, and the file
+ships `ANALYZE`d so a reader's query planner sees real row counts.
 
 ## 4. Cost model
 

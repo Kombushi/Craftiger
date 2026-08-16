@@ -258,6 +258,15 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.InertDust}'"));
 
     [Fact]
+    public void ArtifactStampsItsSchemaVersion() =>
+        Assert.Equal(Craftiger.Builder.Repositories.PlannerRepository.SchemaVersion.ToString(),
+            _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));
+
+    [Fact]
+    public void ArtifactCarriesQueryStatistics() =>
+        Assert.True(_fixture.Scalar<int>("SELECT COUNT(*) FROM sqlite_stat1") > 0);
+
+    [Fact]
     public void NoLeafPricesFarBelowItsOwnWeight()
     {
         Assert.Equal(0, _fixture.Scalar<int>("SELECT value FROM meta WHERE key = 'price_leaks'"));

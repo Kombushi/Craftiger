@@ -7,11 +7,27 @@ namespace Craftiger.Builder.Repositories;
 
 public sealed class PlannerRepository : IPlannerRepository
 {
+    /// <summary>Version of the artifact contract, bumped on any schema change so a reader
+    /// can refuse an artifact written for a contract it does not know.</summary>
+    public const int SchemaVersion = 1;
+
     public void Write(string path, PlannerData data)
     {
-        File.Delete(path);
+        // An interrupted earlier run can leave journal sidecars that would replay into the
+        // fresh file the moment it is opened.
+        foreach (var stale in new[] { path, path + "-journal", path + "-wal", path + "-shm" })
+        {
+            File.Delete(stale);
+        }
         using var db = new SqliteConnection($"Data Source={path}");
         db.Open();
+
+        // Written once and shipped read-only; a crash mid-build costs a rebuild, nothing more.
+        db.Execute("""
+            PRAGMA page_size = 8192;
+            PRAGMA journal_mode = OFF;
+            PRAGMA synchronous = OFF;
+            """);
 
         db.Execute("""
             CREATE TABLE items(
@@ -20,8 +36,11 @@ public sealed class PlannerRepository : IPlannerRepository
                 oredict TEXT,
                 is_fluid INTEGER NOT NULL,
                 leaf_class TEXT,
-                atlas_idx INTEGER NOT NULL);
-            CREATE TABLE item_aliases(item_id TEXT NOT NULL, alias TEXT NOT NULL);
+                atlas_idx INTEGER NOT NULL UNIQUE);
+            CREATE TABLE item_aliases(
+                item_id TEXT NOT NULL,
+                alias TEXT NOT NULL,
+                UNIQUE(item_id, alias));
             CREATE TABLE recipes(
                 id TEXT PRIMARY KEY,
                 machine TEXT NOT NULL,
@@ -30,7 +49,12 @@ public sealed class PlannerRepository : IPlannerRepository
                 heat INTEGER,
                 duration_ticks INTEGER NOT NULL,
                 eu_t INTEGER NOT NULL);
-            CREATE TABLE recipe_inputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, slot INTEGER NOT NULL);
+            CREATE TABLE recipe_inputs(
+                recipe_id TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                slot INTEGER NOT NULL,
+                UNIQUE(recipe_id, slot, item_id));
             CREATE TABLE recipe_outputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, chance REAL NOT NULL);
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
@@ -87,6 +111,8 @@ public sealed class PlannerRepository : IPlannerRepository
 
         db.Execute("INSERT INTO meta VALUES (@Key, @Value)",
             data.Meta.Select(m => new { m.Key, m.Value }), tx);
+        db.Execute("INSERT INTO meta VALUES ('schema_version', @Version)",
+            new { Version = SchemaVersion.ToString() }, tx);
 
         db.Execute("""
             CREATE INDEX idx_recipe_inputs_recipe ON recipe_inputs(recipe_id);
@@ -98,5 +124,8 @@ public sealed class PlannerRepository : IPlannerRepository
             """, transaction: tx);
 
         tx.Commit();
+
+        // Statistics let a reader's query planner see the real row counts.
+        db.Execute("ANALYZE main");
     }
 }
