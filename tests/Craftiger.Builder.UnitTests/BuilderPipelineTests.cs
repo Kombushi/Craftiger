@@ -95,6 +95,25 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
         Assert.Equal(0, fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_melt'"));
 }
 
+/// <summary>The same pack with an era floor under the mixer, proving a quest-anchored gate
+/// outranks everything the recipe graph derives.</summary>
+public sealed class EraFloorFixture : IDisposable
+{
+    private readonly FixtureRun _run =
+        new(new KeyValuePair<string, string?>("BuilderConfig:MachineEraFloors:Mixer", "5"));
+
+    public void Dispose() => _run.Dispose();
+    public T Scalar<T>(string sql) => _run.Scalar<T>(sql);
+}
+
+public sealed class EraFloorTests(EraFloorFixture fixture) : IClassFixture<EraFloorFixture>
+{
+    [Fact]
+    public void MachineEraFloorsRaiseTheGate() =>
+        Assert.Equal(5, fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.WirelessIngot}'"));
+}
+
 public sealed class PriceCheckTests(LeakyPipelineFixture fixture) : IClassFixture<LeakyPipelineFixture>
 {
     [Fact]
@@ -351,6 +370,11 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     public void RawChunksSeedAtTheirVeinEra() =>
         Assert.Equal(4, _fixture.Scalar<int>(
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.RuniteIngot}'"));
+
+    [Fact]
+    public void WirelessRecipesTakeNoVoltageTier() =>
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM item_tiers WHERE item_id = '{FixtureDump.WirelessIngot}' AND tier = 0"));
 
     [Fact]
     public void StoneVariantsSeedOnlyInTheirOwnDimensions() =>

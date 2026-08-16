@@ -57,7 +57,9 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             }
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
-            var tier = gt is null || gt.Voltage <= 0 ? 0 : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage);
+            var tier = gt is null || gt.Voltage <= 0 || gt.Voltage == _config.WirelessSentinelVoltage
+                ? 0
+                : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage);
 
             var inputs = new Dictionary<string, long>();
             var choices = new List<PlannerChoice>();

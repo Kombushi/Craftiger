@@ -54,6 +54,7 @@ public static class FixtureDump
     public const string DearIngot = "i~gregtech~gt.metaitem.01~11041";
     public const string BerryIngot = "i~gregtech~gt.metaitem.01~11044";
     public const string ChoiceBrick = "i~miscutils~choiceBrick~0";
+    public const string WirelessIngot = "i~gregtech~gt.metaitem.01~11666";
     public const string DualOreOw = "i~gregtech~gt.blockores~555";
     public const string DualOreMars = "i~gregtech~gt.blockores3~555";
     public const string DualDust = "i~gregtech~gt.metaitem.01~2555";
@@ -189,6 +190,7 @@ public static class FixtureDump
         Fluid(db, Oxygen, "oxygen", "Oxygen");
         Item(db, SpaceMiner, "Space Mining Module", "gregtech");
         Item(db, ChoiceBrick, "Choice Brick", "miscutils");
+        Item(db, WirelessIngot, "Wirelessium Ingot", "gregtech");
         Item(db, DualOreOw, "Dualium Ore", "gregtech");
         Item(db, DualOreMars, "Dualium Ore", "gregtech");
         Item(db, DualDust, "Dualium Dust", "gregtech");
@@ -320,6 +322,8 @@ public static class FixtureDump
         Group(db, "g_annealed_ingot", (AnnealedIngot, 1));
         Group(db, "g_annealed_dust", (AnnealedDust, 1));
         db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_oxygen', 63, '{Oxygen}')");
+        Group(db, "g_wireless_ingot", (WirelessIngot, 1));
+        Oredict(db, "ingotWirelessium", "g_wireless_ingot");
         Group(db, "g_dual_ore_ma", (DualOreMars, 1));
         Group(db, "g_dual_dust", (DualDust, 1));
         Group(db, "g_dual_ingot", (DualIngot, 1));
@@ -382,6 +386,7 @@ public static class FixtureDump
         RecipeType(db, "rt~gregtech~gt.recipe.mixer~HV", "gregtech", "Mixer (HV)", handlerIcons: 0);
         RecipeType(db, "rt~gregtech~gt.recipe.dearmixer~HV", "gregtech", "Dear Mixer (HV)", handlerIcons: 0);
         RecipeType(db, "rt~gregtech~gt.recipe.packager~ULV", "gregtech", "Packager (ULV)", handlerIcons: 0);
+        RecipeType(db, "rt~gregtech~gt.recipe.mixer~MAX", "gregtech", "Mixer (MAX)", handlerIcons: 0);
 
         BlockDrop(db, "minecraft:clay", ClayBlock, ClayBall, 4);
         BlockDrop(db, "minecraft:obsidian", ObsidianBlock, ObsidianBlock, 1);
@@ -565,6 +570,11 @@ public static class FixtureDump
         Recipe(db, "r_fluid_choice", "rt~gregtech~gt.recipe.mixer~HV", inputs: [("g_copper_dust", 0)],
             outputs: [(ChoiceBrick, 1, 1.0)], voltage: 512, duration: 100, fluidInputs: [("g_either_fluid", 0)]);
 
+        // A wirelessly powered recipe: the sentinel voltage means no hatch requirement, so
+        // the era must come from the machine and inputs, not from the MAX label.
+        Recipe(db, "r_wireless", "rt~gregtech~gt.recipe.mixer~MAX", inputs: [("g_copper_ingot", 0)],
+            outputs: [(WirelessIngot, 1, 1.0)], voltage: 2013265912, duration: 100, label: "MAX");
+
         // A vein in both worlds, processed only through its Mars-stone block: the block must
         // seed at Mars's era, not at the vein's cheapest world.
         db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.dual', 5, 1, 'Dualium', 60, 10, 24, 'ore.mix.dual', 40)");
@@ -681,7 +691,7 @@ public static class FixtureDump
         long? voltage = null, long duration = 0, int? heat = null,
         (string GroupId, int Slot)[]? fluidInputs = null,
         (string ItemId, long Amount, double Chance, int Slot)[]? byproducts = null,
-        string category = "")
+        string category = "", string? label = null)
     {
         db.Execute("INSERT INTO RECIPE VALUES (@id, @typeId)", new { id, typeId });
         foreach (var (groupId, slot) in inputs)
@@ -706,7 +716,7 @@ public static class FixtureDump
         }
         if (voltage is not null)
         {
-            var label = voltage <= 32 ? "LV" : voltage <= 128 ? "MV" : "HV";
+            label ??= voltage <= 32 ? "LV" : voltage <= 128 ? "MV" : "HV";
             db.Execute(
                 "INSERT INTO GREG_TECH_RECIPE VALUES (@gtId, 1, @duration, @voltage, @label, @category, 0, @id)",
                 new { gtId = $"gtr~{id}", duration, voltage, label, category, id });

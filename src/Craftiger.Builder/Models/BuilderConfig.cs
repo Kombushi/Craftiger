@@ -31,6 +31,14 @@ public sealed record BuilderConfig
     /// <summary>Machines whose recipes gate eras but never price: real mechanics that would amplify matter.</summary>
     public required IReadOnlyList<string> EraOnlyMachines { get; init; }
 
+    /// <summary>The voltage TecTech stamps on wirelessly star-powered recipes; it marks the
+    /// absence of a hatch requirement, not a hatch requirement of everything.</summary>
+    public required long WirelessSentinelVoltage { get; init; }
+
+    /// <summary>Era floors for machines whose real gate lives outside the recipe graph,
+    /// like the Godforge upgrade tree; anchored to the quest book.</summary>
+    public required IReadOnlyDictionary<string, int> MachineEraFloors { get; init; }
+
     /// <summary>Machines whose output slots 2+ open by tier; the value lists the tier per byproduct slot.</summary>
     public required IReadOnlyDictionary<string, IReadOnlyList<int>> ByproductSlotTiers { get; init; }
 

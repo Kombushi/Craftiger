@@ -32,7 +32,10 @@ total raw-material bill as a flat grid of item-icon squares.
   (`ULV`/`LV` → 1, `MV` → 2, `HV` → 3, …), which already accounts for
   machine amperage quirks (3-amp arc furnaces, 2-amp thermal centrifuges).
   Fallback when the label is absent: smallest `n ≥ 1` with
-  `EU/t ≤ 32 × 4^(n−1)`. Multiblocks are fed by two 2-amp energy hatches and
+  `EU/t ≤ 32 × 4^(n−1)`. TecTech stamps its wirelessly star-powered recipes
+  (the Godforge modules) with the `RECIPE_MAX` sentinel voltage, which means
+  no hatch requirement at all and yields no tier; real MAX-tier recipes carry
+  computed voltages and keep theirs. Multiblocks are fed by two 2-amp energy hatches and
   run recipes one tier above the hatches, so a recipe run on one tiers a step
   lower — an LV-hatched EBF legally runs 120 EU/t recipes. The allowance is a
   property of the machine, not the map: the dump names every machine serving a
@@ -210,6 +213,9 @@ Builder responsibilities, in order:
    land below the era of building one. Cleanroom-flagged recipes additionally
    inherit the Cleanroom Controller's era, which is pinned at HV — the pack's
    circuit-line progression wall, a fact the recipe graph cannot derive.
+   A few machines carry a config era floor for the same reason: the Godforge
+   upgrade tree gates what the Heliofusion Exoticizer can make, upgrade
+   purchases are not recipes, and the quest book anchors magmatter at UMV.
    Steam-handled maps run their LV-and-below recipes in the steam era. Crop
    drops are not seeded: each non-hidden crop gets an era-only harvest recipe
    (§9) taking its seed and, when it needs one, the cheapest block it grows

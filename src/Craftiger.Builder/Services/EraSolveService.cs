@@ -187,6 +187,11 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
             candidate = Math.Max(candidate, slotEra);
         }
 
+        if (_config.MachineEraFloors.TryGetValue(recipe.Machine, out var floor))
+        {
+            candidate = Math.Max(candidate, floor);
+        }
+
         return candidate;
     }
 
