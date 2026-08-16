@@ -261,7 +261,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
             }
         }
 
-        var recycled = ApplyRecyclingFallback(tiers, recipes, leafClasses);
+        var recycled = ApplyRecyclingFallback(tiers, recipes, leafClasses, unified);
         InheritTwinTiers(tiers, leafClasses, unified);
 
         logger.LogInformation("  {Recycled:N0} materials tiered by recycling fallback", recycled);
@@ -270,9 +270,13 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
 
     /// <summary>Materials that never bootstrap (recycling-only) fall back to the cheapest direct recipe.</summary>
     private int ApplyRecyclingFallback(
-        Dictionary<string, int> tiers, List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses)
+        Dictionary<string, int> tiers, List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses,
+        UnifiedItems unified)
     {
+        // Pile packing and remelting exist for every material at ULV, so a recipe that only
+        // reshuffles the material's own shapes may speak only when nothing else does.
         var fallback = new Dictionary<string, int>();
+        var reshuffle = new Dictionary<string, int>();
         foreach (var recipe in recipes)
         {
             // Era-only recipes never price, so they cannot stand in for one that does.
@@ -291,17 +295,61 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
                 {
                     continue;
                 }
-                if (!fallback.TryGetValue(output.ItemId, out var current) || intrinsic < current)
+                var pool = ReshufflesOwnShapes(recipe, output.ItemId, leafClasses, unified)
+                    ? reshuffle
+                    : fallback;
+                if (!pool.TryGetValue(output.ItemId, out var current) || intrinsic < current)
                 {
-                    fallback[output.ItemId] = intrinsic;
+                    pool[output.ItemId] = intrinsic;
                 }
             }
+        }
+        foreach (var (id, tier) in reshuffle)
+        {
+            fallback.TryAdd(id, tier);
         }
         foreach (var (id, tier) in fallback)
         {
             tiers[id] = tier;
         }
         return fallback.Count;
+    }
+
+    /// <summary>True when every item ingredient is another shape of the output's own material,
+    /// as in pile packing or block cutting - conversions of the material, never sources of it.</summary>
+    private bool ReshufflesOwnShapes(
+        PlannerRecipe recipe, string outputId, Dictionary<string, string> leafClasses, UnifiedItems unified)
+    {
+        var oredict = unified.PrimaryOredictByCanonical.GetValueOrDefault(outputId);
+        var prefix = leafClasses[outputId];
+        if (oredict is null || !oredict.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+        var material = oredict[prefix.Length..];
+        var found = false;
+        var ingredients = recipe.Inputs.Keys.Concat(
+            recipe.Choices.SelectMany(choice => choice.Alternatives));
+        foreach (var id in ingredients)
+        {
+            if (!IsShapeOf(id, material, unified))
+            {
+                return false;
+            }
+            found = true;
+        }
+        return found;
+    }
+
+    /// <summary>A shape prefix with the material as suffix also covers pile and exotic variants
+    /// (dustSmall, dustTiny), which carry the base prefix plus a size infix.</summary>
+    private bool IsShapeOf(string id, string material, UnifiedItems unified)
+    {
+        var oredicts = unified.OredictsByCanonical.GetValueOrDefault(id);
+        return oredicts is not null && oredicts.Any(
+            oredict => oredict.EndsWith(material, StringComparison.Ordinal) &&
+                _config.MaterialShapeOredictPrefixes.Any(
+                    shape => oredict.StartsWith(shape, StringComparison.Ordinal)));
     }
 
     /// <summary>A dust is the same material as its ingot or gem; it inherits that tier.</summary>

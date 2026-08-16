@@ -94,8 +94,8 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
 
     [Fact]
     public void BronzeSmeltsAtTierZeroDespiteBlockCycle() =>
-        Assert.Equal(0, _fixture.Scalar<int>(
-            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.GtBronze}'"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM item_tiers WHERE item_id = '{FixtureDump.GtBronze}' AND tier = 0"));
 
     [Fact]
     public void AluminiumTiersFromMultiAmpEbfNotFromBlockCycle() =>
@@ -232,6 +232,11 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     [Fact]
     public void RecyclingOneShapeOfAMaterialIntoAnotherSurvives() =>
         Assert.Equal(1, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_melt'"));
+
+    [Fact]
+    public void FallbackTiersComeFromRealRecipesNotPilePacking() =>
+        Assert.Equal(2, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.InertDust}'"));
 
     [Fact]
     public void NoLeafPricesFarBelowItsOwnWeight()

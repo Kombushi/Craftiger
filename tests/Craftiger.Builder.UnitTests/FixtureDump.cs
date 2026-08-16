@@ -53,6 +53,9 @@ public static class FixtureDump
     public const string MixIngot = "i~gregtech~gt.metaitem.01~11040";
     public const string DearIngot = "i~gregtech~gt.metaitem.01~11041";
     public const string BerryIngot = "i~gregtech~gt.metaitem.01~11044";
+    public const string InertDust = "i~miscutils~dustInertium~0";
+    public const string InertSmall = "i~miscutils~dustSmallInertium~0";
+    public const string VoidShard = "i~miscutils~voidShard~0";
     public const string BerrySeed = "i~cropsnh~genericSeed~0";
     public const string Berry = "i~cropsnh~berry~0";
     public const string WeedSeed = "i~cropsnh~genericSeed~1";
@@ -179,6 +182,9 @@ public static class FixtureDump
         Item(db, AnnealedDust, "Annealed Copper Dust", "gregtech");
         Fluid(db, Oxygen, "oxygen", "Oxygen");
         Item(db, SpaceMiner, "Space Mining Module", "gregtech");
+        Item(db, InertDust, "Inertium Dust", "miscutils");
+        Item(db, InertSmall, "Small Pile of Inertium Dust", "miscutils");
+        Item(db, VoidShard, "Void Shard", "miscutils");
         Item(db, KobOre, "Koboldite Ore", "miscutils");
         Item(db, KobDust, "Koboldite Dust", "miscutils");
         Item(db, KobIngot, "Koboldite Ingot", "miscutils");
@@ -303,6 +309,12 @@ public static class FixtureDump
         Group(db, "g_annealed_ingot", (AnnealedIngot, 1));
         Group(db, "g_annealed_dust", (AnnealedDust, 1));
         db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_oxygen', 63, '{Oxygen}')");
+        Group(db, "g_inert_dust", (InertDust, 1));
+        Group(db, "g_inert_small", (InertSmall, 1));
+        Group(db, "g_inert_small4", (InertSmall, 4));
+        Group(db, "g_void", (VoidShard, 1));
+        Oredict(db, "dustInertium", "g_inert_dust");
+        Oredict(db, "dustSmallInertium", "g_inert_small");
         Group(db, "g_kob_ore", (KobOre, 1));
         Group(db, "g_kob_dust", (KobDust, 1));
         Group(db, "g_kob_ingot", (KobIngot, 1));
@@ -353,6 +365,7 @@ public static class FixtureDump
         RecipeType(db, "rt~gregtech~gt.recipe.dryer~LV", "gregtech", "Dryer (LV)", handlerIcons: 0, handlerItem: Dryer);
         RecipeType(db, "rt~gregtech~gt.recipe.mixer~HV", "gregtech", "Mixer (HV)", handlerIcons: 0);
         RecipeType(db, "rt~gregtech~gt.recipe.dearmixer~HV", "gregtech", "Dear Mixer (HV)", handlerIcons: 0);
+        RecipeType(db, "rt~gregtech~gt.recipe.packager~ULV", "gregtech", "Packager (ULV)", handlerIcons: 0);
 
         BlockDrop(db, "minecraft:clay", ClayBlock, ClayBall, 4);
         BlockDrop(db, "minecraft:obsidian", ObsidianBlock, ObsidianBlock, 1);
@@ -526,6 +539,12 @@ public static class FixtureDump
         Recipe(db, "r_com_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_com_ore", 0)], outputs: [(ComDust, 2, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_com_smelt", "t_furnace", inputs: [("g_com_dust", 0)], outputs: [(ComIngot, 1, 1.0)]);
         Recipe(db, "r_obs_use", "t_shaped", inputs: [("g_obsidian", 0)], outputs: [(Plank, 1, 1.0)]);
+
+        // Inertium never bootstraps: its pile loop starves and its one real recipe eats an
+        // unreachable shard. The fallback tier must come from that recipe, not the pile packing.
+        Recipe(db, "r_inert_pack", "rt~gregtech~gt.recipe.packager~ULV", inputs: [("g_inert_small4", 0)], outputs: [(InertDust, 1, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_inert_split", "rt~gregtech~gt.recipe.packager~ULV", inputs: [("g_inert_dust", 0)], outputs: [(InertSmall, 4, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_inert_real", "rt~gregtech~gt.recipe.mixer~HV", inputs: [("g_void", 0)], outputs: [(InertDust, 1, 1.0)], voltage: 512, duration: 100);
 
         db.Execute("INSERT INTO METADATA VALUES (0, 1754900000000, 'fixture')");
         return path;

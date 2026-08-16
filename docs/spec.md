@@ -221,6 +221,11 @@ Builder responsibilities, in order:
    Era is independent of the garage: bronze and steel land at 0 via
    furnace / bricked blast furnace, aluminium at its EBF tier. Ingots with
    no bootstrappable route fall back to the cheapest direct recipe tier.
+   A recipe whose item inputs are all shapes of the output's own material
+   (pile packing, remelting) converts the material rather than producing
+   it, so it supplies the fallback tier only when no other recipe exists —
+   otherwise the ULV pile packing every dust carries would undercut the
+   real route.
 
 7. **Price check** — the builder prices its own output once, at the default
    weights, and reports every leaf that comes out below a millionth of its own
