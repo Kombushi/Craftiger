@@ -465,7 +465,9 @@ Single-page app, English item names (dump locale). Screens:
   re-posts.
 - `GET /api/search?q=&solveId=` → `[{itemId, name, atlasIdx, cost}]`
 - `GET /api/list?solveId=&page=&hideUnreachable=` → cost-sorted page
-- `GET /api/item/{id}?solveId=` → producing recipes with candidate costs
+- `GET /api/item/{id}?solveId=` → producing recipes with candidate costs and
+  the solver's current pick (`bestRecipeId`), so the detail view can highlight
+  what the BOM will expand
 - `GET /api/machines?targets=` — upstream-closure machine list for the given
   item ids; drives the relevance-filtered garage.
 - `POST /api/bom` — body `{solveId, targets: [{itemId, count}],

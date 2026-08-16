@@ -100,6 +100,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
             $"/api/item/wire?solveId={solveId}");
 
         Assert.Equal(2, detail!.Cost);
+        Assert.Equal("r_wire", detail.BestRecipeId);
         var recipe = Assert.Single(detail.Recipes);
         Assert.Equal("r_wire", recipe.RecipeId);
         Assert.Equal("Wiremill", recipe.Machine);

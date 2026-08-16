@@ -81,6 +81,7 @@ public sealed class PlannerQueryService(
         return new ItemDetailResponse(
             item.Id, item.Name, item.AtlasIdx, item.LeafClass,
             entry.Table.Costs.TryGetValue(itemId, out var cost) ? cost : null,
+            entry.Table.BestRecipes.GetValueOrDefault(itemId)?.Id,
             recipes);
     }
 
