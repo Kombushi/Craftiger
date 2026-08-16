@@ -84,6 +84,29 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
             untiered.Count, parentless.Count);
     }
 
+    /// <summary>The parent each surviving fraction leaf divides its weight from, resolved the
+    /// same way pruning judged it, so a shipped fraction always names a priced parent.</summary>
+    public Dictionary<string, ItemParent> Parents(
+        IReadOnlyDictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers,
+        UnifiedItems unified)
+    {
+        var parents = new Dictionary<string, ItemParent>();
+        foreach (var (id, leafClass) in classes)
+        {
+            if (!DerivedLeaf.ByClass.TryGetValue(leafClass, out var derived))
+            {
+                continue;
+            }
+
+            var parent = DerivedLeaf.ParentsOf(id, leafClass, unified).FirstOrDefault(tiers.ContainsKey);
+            if (parent is not null)
+            {
+                parents[id] = new ItemParent(parent, derived.Divisor);
+            }
+        }
+        return parents;
+    }
+
     /// <summary>Weights that override the item's leaf class, by item id.</summary>
     public Dictionary<string, double> Overrides(Dump dump) =>
         dump.Fluids.Values

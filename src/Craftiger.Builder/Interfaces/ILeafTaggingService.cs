@@ -11,5 +11,9 @@ public interface ILeafTaggingService
     void Prune(
         Dictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers, UnifiedItems unified);
 
+    Dictionary<string, ItemParent> Parents(
+        IReadOnlyDictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers,
+        UnifiedItems unified);
+
     Dictionary<string, double> Overrides(Dump dump);
 }

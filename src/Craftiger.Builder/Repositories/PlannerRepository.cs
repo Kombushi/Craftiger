@@ -9,7 +9,7 @@ public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader
     /// can refuse an artifact written for a contract it does not know.</summary>
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     public void Write(string path, PlannerData data)
     {
@@ -57,6 +57,10 @@ public sealed class PlannerRepository : IPlannerRepository
                 UNIQUE(recipe_id, slot, item_id));
             CREATE TABLE recipe_outputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, chance REAL NOT NULL);
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
+            CREATE TABLE item_parents(
+                item_id TEXT PRIMARY KEY,
+                parent_item_id TEXT NOT NULL,
+                divisor REAL NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             """);
@@ -103,6 +107,9 @@ public sealed class PlannerRepository : IPlannerRepository
 
         db.Execute("INSERT INTO item_tiers VALUES (@Key, @Value)",
             data.MaterialTiers.Select(t => new { t.Key, t.Value }), tx);
+
+        db.Execute("INSERT INTO item_parents VALUES (@Id, @ParentItemId, @Divisor)",
+            data.ItemParents.Select(p => new { Id = p.Key, p.Value.ParentItemId, p.Value.Divisor }), tx);
 
         db.Execute("INSERT INTO item_weights VALUES (@Key, @Value)",
             data.LeafWeights

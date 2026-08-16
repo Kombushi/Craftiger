@@ -64,6 +64,7 @@ public sealed class BuilderPipeline(
         // Only now are tiers known, so only now can an unpriceable leaf be told apart.
         leafTagging.Prune(leafClasses, eraSolve.Tiers, unified);
         logger.LogInformation("  {Leaves:N0} leaves kept", leafClasses.Count);
+        var itemParents = leafTagging.Parents(leafClasses, eraSolve.Tiers, unified);
 
         if (_options.ExplainItem is { } query)
         {
@@ -113,7 +114,7 @@ public sealed class BuilderPipeline(
         {
             plannerRepository.Write(plannerPath, new PlannerData(
                 dump, unified, solverRecipes, orderedItemIds, leafClasses, eraSolve.Tiers,
-                leafWeights, meta));
+                itemParents, leafWeights, meta));
             return 0;
         });
 

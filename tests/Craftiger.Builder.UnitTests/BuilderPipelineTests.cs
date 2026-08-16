@@ -286,6 +286,23 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
         Assert.True(_fixture.Scalar<int>("SELECT COUNT(*) FROM sqlite_stat1") > 0);
 
     [Fact]
+    public void FractionLeavesShipTheirParentLink()
+    {
+        Assert.Equal(FixtureDump.NugIngot, _fixture.Scalar<string>(
+            $"SELECT parent_item_id FROM item_parents WHERE item_id = '{FixtureDump.NugNugget}'"));
+        Assert.Equal(9.0, _fixture.Scalar<double>(
+            $"SELECT divisor FROM item_parents WHERE item_id = '{FixtureDump.NugNugget}'"));
+        Assert.Equal(FixtureDump.InertDust, _fixture.Scalar<string>(
+            $"SELECT parent_item_id FROM item_parents WHERE item_id = '{FixtureDump.InertSmall}'"));
+    }
+
+    [Fact]
+    public void EveryShippedFractionHasAParentRow() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM items WHERE leaf_class IN ('dust_small', 'dust_tiny', 'nugget') " +
+            "AND id NOT IN (SELECT item_id FROM item_parents)"));
+
+    [Fact]
     public void NoLeafPricesFarBelowItsOwnWeight()
     {
         Assert.Equal(0, _fixture.Scalar<int>("SELECT value FROM meta WHERE key = 'price_leaks'"));

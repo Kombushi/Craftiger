@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.8
+# GTNH Crafting Planner — Specification v1.9
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -259,6 +259,10 @@ Builder responsibilities, in order:
   fluids; rows sharing a `slot` are alternatives the recipe accepts any one of
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
 - `item_tiers(item_id, tier)` — tiered materials: ingots, gems and dusts (§4)
+- `item_parents(item_id, parent_item_id, divisor)` — fraction leaves (small and
+  tiny dusts, nuggets) name the item their weight divides from (§4), resolved
+  by the same rule that pruned them, so a shipped fraction always has a priced
+  parent and the solver never re-derives the link from oredict names
 - `item_weights(item_id, weight)` — weights overriding the item's leaf class,
   where one class covers items worth different amounts (§4)
 - `meta(key, value)` — `schema_version` first of all: the version of this
