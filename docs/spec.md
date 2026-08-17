@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.12
+# GTNH Crafting Planner — Specification v1.13
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -52,7 +52,17 @@ total raw-material bill as a flat grid of item-icon squares.
   macerator / maceration stack) is one garage row.
 - **Garage**: the machines the user owns. A global default tier plus
   per-machine overrides; `effectiveTier(machine) = override ?? globalDefault`,
-  and `None` marks a machine as not owned. For multiblocks the tier means the
+  and `None` marks a machine as not owned. The default only reaches machines
+  whose cheapest block is craftable by then: the artifact ships each map's
+  availability era — the era solve's era of its cheapest serving machine
+  block (§3) — and a machine with no override whose era exceeds the default
+  tier counts as not owned. A recipe's voltage label says nothing about when
+  its machine exists; without this gate an HV default would run LV recipes on
+  endgame multiblocks (Circuit Assembly Line). A machine whose era the model
+  never resolved stays owned at the default — the era solve has reachability
+  gaps, and gating on ignorance would turn each one into a pricing hole. An
+  explicit per-machine tier always wins — the user saying they built it is
+  the authority. For multiblocks the tier means the
   best energy hatch installed. A map served by both kinds of machine carries a
   second switch, whether its multiblock is built, because the hatch allowance
   is worth a tier and belongs to whoever built the multiblock. The EBF is
@@ -273,6 +283,11 @@ Builder responsibilities, in order:
   parent and the solver never re-derives the link from oredict names
 - `item_weights(item_id, weight)` — weights overriding the item's leaf class,
   where one class covers items worth different amounts (§4)
+- `machine_eras(machine, era)` — per map, the era solve's era of its cheapest
+  serving machine block, floored by any configured gate; null where no block
+  ever becomes craftable, 0 for maps served without machine blocks (crafting
+  grid, synthesized world recipes). Drives the garage's default-ownership
+  gate (§2).
 - `meta(key, value)` — `schema_version` first of all: the version of this
   contract, bumped on any schema change, so a reader can refuse an artifact
   written for a contract it does not know. Beside it the pack version, dump
@@ -476,7 +491,9 @@ Single-page app, English item names (dump locale). Screens:
   cart, the list starts empty apart from the toggle. One picker per shown
   machine (`inherit / None / Steam / LV / …`); each coil-gated map's row (§2)
   has a coil dropdown beside its tier picker; crafting table, furnace, and
-  Mining are shown as always-owned.
+  Mining are shown as always-owned. A machine first craftable beyond the
+  default tier shows its inherit state as "Not built" (§2) — picking an
+  explicit tier claims it.
 - **Config** — the `B` input and the editable per-item leaf-weights table (§4)
   live in a separate weights window; both apply on the next Calculate. Leaf
   membership — which blocks are minable, which fluids are world fluids — is
@@ -540,8 +557,8 @@ Single-page app, English item names (dump locale). Screens:
   atlasIdx, isFluid, leafClass, cost}}}` — the chain nodes of §6 in both
   accountings plus the same display lookup, so one request feeds a whole
   chain view.
-- `GET /api/meta` → tier ladder, machine list, coil list, pack version, atlas
-  dimensions
+- `GET /api/meta` → tier ladder, machine list (each with its availability
+  era), coil list, pack version, atlas dimensions
 - Static: `/atlas.webp`, `/atlas-offsets.json`
 
 ### localStorage keys
@@ -712,3 +729,6 @@ All "does not / never" rules live here; other sections only reference this one.
     whole block broken (a quarter expected), an exactly-divisible demand adds
     no extra run, and two consumers of half a batch each share one whole
     batch.
+26. A default-tier garage does not run recipes on machines first craftable
+    beyond that tier — an HV default never plans the Circuit Assembly Line —
+    while an explicit per-machine tier brings them back.

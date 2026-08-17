@@ -9,6 +9,7 @@ export interface MachineDto {
   hasMultiblockSwitch: boolean
   heatGated: boolean
   alwaysOwned: boolean
+  era: number | null
 }
 
 export interface AtlasDto {

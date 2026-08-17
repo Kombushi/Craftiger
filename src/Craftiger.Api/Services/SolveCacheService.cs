@@ -127,10 +127,26 @@ public sealed class SolveCacheService(
             }
         }
 
+        // The default only covers machines whose block is craftable by then (§2): a recipe
+        // being LV says nothing about when its machine can be built. Explicit entries win,
+        // and a machine whose era the model never resolved stays lenient rather than
+        // turning a reachability gap into a pricing hole.
+        var machines = new Dictionary<string, int?>(request.Garage.Machines ?? []);
+        foreach (var machine in artifact.Machines)
+        {
+            if (!machine.AlwaysOwned
+                && !machines.ContainsKey(machine.Name)
+                && machine.Era is { } era
+                && era > request.Garage.DefaultTier)
+            {
+                machines[machine.Name] = null;
+            }
+        }
+
         return (
             new Garage(
                 request.Garage.DefaultTier,
-                request.Garage.Machines ?? [],
+                machines,
                 (request.Garage.BuiltMultiblocks ?? []).ToHashSet(),
                 coilHeat),
             new WeightSettings(request.B, weights));

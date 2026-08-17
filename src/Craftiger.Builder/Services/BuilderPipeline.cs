@@ -114,7 +114,7 @@ public sealed class BuilderPipeline(
         {
             plannerRepository.Write(plannerPath, new PlannerData(
                 dump, unified, solverRecipes, orderedItemIds, leafClasses, eraSolve.Tiers,
-                itemParents, leafWeights, meta));
+                itemParents, leafWeights, eraSolve.MachineEras, meta));
             return 0;
         });
 

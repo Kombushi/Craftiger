@@ -10,4 +10,5 @@ public sealed record PlannerData(
     Dictionary<string, int> MaterialTiers,
     IReadOnlyDictionary<string, ItemParent> ItemParents,
     IReadOnlyDictionary<string, double> LeafWeights,
+    IReadOnlyDictionary<string, int?> MachineEras,
     IReadOnlyDictionary<string, string> Meta);

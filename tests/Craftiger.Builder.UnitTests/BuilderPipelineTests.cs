@@ -277,6 +277,17 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.InertDust}'"));
 
     [Fact]
+    public void EveryMachineShipsItsAvailabilityEra()
+    {
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipes WHERE machine NOT IN (SELECT machine FROM machine_eras)"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT era FROM machine_eras WHERE machine = 'Crafting Table'"));
+        Assert.False(_fixture.Scalar<bool>(
+            "SELECT era IS NULL FROM machine_eras WHERE machine = 'Blast Furnace'"));
+    }
+
+    [Fact]
     public void ArtifactStampsItsSchemaVersion() =>
         Assert.Equal(Craftiger.Builder.Repositories.PlannerRepository.SchemaVersion.ToString(),
             _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));

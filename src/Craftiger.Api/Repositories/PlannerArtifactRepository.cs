@@ -11,7 +11,7 @@ public sealed class PlannerArtifactRepository(
     GarageRules rules, ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 2;
+    public const int SupportedSchemaVersion = 3;
 
     public PlannerArtifact Load(string artifactsDir)
     {
@@ -90,13 +90,18 @@ public sealed class PlannerArtifactRepository(
             outputsByRecipe.GetValueOrDefault(row.Id) ?? []));
         var graph = SolverGraph.Build(leaves, solverRecipes);
 
+        var machineEras = db.Query<(string Machine, long? Era)>(
+                "SELECT machine, era FROM machine_eras")
+            .ToDictionary(row => row.Machine, row => (int?)row.Era);
+
         var machines = recipeRows
             .GroupBy(row => row.Machine)
             .Select(byMachine => new MachineDto(
                 byMachine.Key,
                 byMachine.Any(row => row.MultiTier is not null),
                 byMachine.Any(row => row.Heat is not null),
-                rules.AlwaysOwnedMachines.Contains(byMachine.Key)))
+                rules.AlwaysOwnedMachines.Contains(byMachine.Key),
+                machineEras.GetValueOrDefault(byMachine.Key)))
             .OrderBy(machine => machine.Name, StringComparer.Ordinal)
             .ToList();
 

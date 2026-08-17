@@ -9,7 +9,7 @@ public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader
     /// can refuse an artifact written for a contract it does not know.</summary>
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
 
     public void Write(string path, PlannerData data)
     {
@@ -62,6 +62,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 parent_item_id TEXT NOT NULL,
                 divisor REAL NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
+            CREATE TABLE machine_eras(machine TEXT PRIMARY KEY, era INTEGER);
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             """);
 
@@ -115,6 +116,9 @@ public sealed class PlannerRepository : IPlannerRepository
             data.LeafWeights
                 .Where(w => data.LeafClasses.ContainsKey(w.Key))
                 .Select(w => new { w.Key, w.Value }), tx);
+
+        db.Execute("INSERT INTO machine_eras VALUES (@Key, @Value)",
+            data.MachineEras.Select(m => new { m.Key, m.Value }), tx);
 
         db.Execute("INSERT INTO meta VALUES (@Key, @Value)",
             data.Meta.Select(m => new { m.Key, m.Value }), tx);

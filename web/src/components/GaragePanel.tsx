@@ -119,6 +119,7 @@ export function GaragePanel() {
           <MachineRow
             key={machine.name}
             machine={machine}
+            defaultTier={garage.defaultTier}
             tierNames={meta.tierNames}
             coils={meta.coils}
             value={machine.name in garage.machines ? garage.machines[machine.name] : undefined}
@@ -144,6 +145,7 @@ export function GaragePanel() {
 
 interface RowProps {
   machine: MachineDto
+  defaultTier: number
   tierNames: string[]
   coils: { name: string; maxHeat: number }[]
   value: number | null | undefined
@@ -154,21 +156,30 @@ interface RowProps {
   onBuilt: (value: boolean) => void
 }
 
-function MachineRow({ machine, tierNames, coils, value, coil, built, onTier, onCoil, onBuilt }: RowProps) {
+function MachineRow({
+  machine, defaultTier, tierNames, coils, value, coil, built, onTier, onCoil, onBuilt,
+}: RowProps) {
+  const lateByDefault =
+    !machine.alwaysOwned && machine.era !== null && machine.era > defaultTier
+  const availability =
+    machine.era === null
+      ? 'Availability unknown — assumed owned at the default tier'
+      : `First craftable at ${tierNames[machine.era] ?? machine.era}`
   return (
     <li className="garage-row">
-      <span className="garage-name" title={machine.name}>
+      <span className="garage-name" title={`${machine.name} — ${availability}`}>
         {machine.name}
       </span>
       {machine.alwaysOwned ? (
         <span className="garage-owned">always owned</span>
       ) : (
         <select
-          className={value === null ? 'garage-none' : ''}
+          className={value === null || (value === undefined && lateByDefault) ? 'garage-none' : ''}
           value={value === undefined ? 'default' : value === null ? 'none' : String(value)}
           onChange={(event) => onTier(event.target.value)}
+          title={availability}
         >
-          <option value="default">Default</option>
+          <option value="default">{lateByDefault ? 'Not built' : 'Default'}</option>
           <option value="none">None</option>
           {tierNames.map((tier, index) => (
             <option key={tier} value={index}>

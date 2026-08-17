@@ -22,7 +22,42 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
         var (era, seeds) = Seed(leafClasses, unified, dump, worldgen);
         var best = Propagate(recipes, era, seeds, unified, dump);
         var tiers = ExtractTiers(recipes, leafClasses, unified, era);
-        return new EraSolve(tiers, era, best, seeds);
+        return new EraSolve(tiers, era, best, seeds, MachineAvailability(recipes, era));
+    }
+
+    /// <summary>When each map's machinery first exists: the era of its cheapest craftable
+    /// serving block, floored by any configured gate. A map served without machine blocks
+    /// (crafting grid, synthesized world recipes) is available from the start; a map whose
+    /// blocks never become craftable stays null.</summary>
+    private Dictionary<string, int?> MachineAvailability(
+        List<PlannerRecipe> recipes, Dictionary<string, int> era)
+    {
+        var availability = new Dictionary<string, int?>();
+        foreach (var recipe in recipes)
+        {
+            var cheapest = availability.GetValueOrDefault(recipe.Machine);
+            if (recipe.Machines.Count == 0)
+            {
+                cheapest = 0;
+            }
+            foreach (var machine in recipe.Machines)
+            {
+                if (era.TryGetValue(machine.ItemId, out var machineEra)
+                    && (cheapest is null || machineEra < cheapest))
+                {
+                    cheapest = machineEra;
+                }
+            }
+            availability[recipe.Machine] = cheapest;
+        }
+        foreach (var (machine, floor) in _config.MachineEraFloors)
+        {
+            if (availability.TryGetValue(machine, out var value) && value is { } known)
+            {
+                availability[machine] = Math.Max(known, floor);
+            }
+        }
+        return availability;
     }
 
     /// <summary>Seeds world-origin items. Order matters: the first seed of an item wins,

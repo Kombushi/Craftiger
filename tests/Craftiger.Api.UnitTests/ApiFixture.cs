@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Craftiger.Api.UnitTests;
 
-/// <summary>Boots the API once over a hand-written schema-v2 artifact.</summary>
+/// <summary>Boots the API once over a hand-written schema-v3 artifact.</summary>
 public sealed class ApiFixture : IDisposable
 {
     public string Dir { get; }
@@ -17,7 +17,7 @@ public sealed class ApiFixture : IDisposable
     {
         Dir = Path.Combine(Path.GetTempPath(), "craftiger-api-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Dir);
-        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 2);
+        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 3);
         File.WriteAllText(Path.Combine(Dir, "atlas-offsets.json"), "{}");
         _factory = Create(Dir);
         Client = _factory.CreateClient();
@@ -28,7 +28,8 @@ public sealed class ApiFixture : IDisposable
             builder.UseSetting("ApiOptions:ArtifactsDir", artifactsDir));
 
     /// <summary>The fixture graph: two tiered ingots, a nugget fraction, a wiremill recipe,
-    /// a heat-1900 EBF recipe, and an MV extruder recipe.</summary>
+    /// a heat-1900 EBF recipe, an MV extruder recipe, and an LV recipe on a late-era
+    /// machine.</summary>
     public static void WriteArtifact(string path, int schemaVersion)
     {
         using var db = new SqliteConnection($"Data Source={path}");
@@ -60,6 +61,7 @@ public sealed class ApiFixture : IDisposable
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
             CREATE TABLE item_parents(item_id TEXT PRIMARY KEY, parent_item_id TEXT NOT NULL, divisor REAL NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
+            CREATE TABLE machine_eras(machine TEXT PRIMARY KEY, era INTEGER);
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             """);
 
@@ -70,22 +72,31 @@ public sealed class ApiFixture : IDisposable
                 ('wire', 'Iron Wire', NULL, 0, NULL, 2),
                 ('hot', 'Hot Thing', NULL, 0, NULL, 3),
                 ('sil', 'Silver Ingot', 'ingotSilverium', 0, 'ingot', 4),
-                ('rod', 'Extruded Rod', NULL, 0, NULL, 5);
+                ('rod', 'Extruded Rod', NULL, 0, NULL, 5),
+                ('chip', 'Late Chip', NULL, 0, NULL, 6);
             INSERT INTO item_aliases VALUES ('ing', 'ingotIronium'), ('ing', 'Ferrum Ingot');
             INSERT INTO recipes VALUES
                 ('r_wire', 'Wiremill', 1, NULL, NULL, 100, 32),
                 ('r_ebf', 'Blast Furnace', 1, NULL, 1900, 200, 120),
-                ('r_rod', 'Extruder', 2, NULL, NULL, 100, 96);
+                ('r_rod', 'Extruder', 2, NULL, NULL, 100, 96),
+                ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32);
             INSERT INTO recipe_inputs VALUES
                 ('r_wire', 'ing', 1, 0),
                 ('r_ebf', 'ing', 1, 0),
-                ('r_rod', 'ing', 1, 0);
+                ('r_rod', 'ing', 1, 0),
+                ('r_chip', 'ing', 1, 0);
             INSERT INTO recipe_outputs VALUES
                 ('r_wire', 'wire', 2, 1.0),
                 ('r_ebf', 'hot', 1, 1.0),
-                ('r_rod', 'rod', 1, 1.0);
+                ('r_rod', 'rod', 1, 1.0),
+                ('r_chip', 'chip', 1, 1.0);
             INSERT INTO item_tiers VALUES ('ing', 0), ('sil', 1);
             INSERT INTO item_parents VALUES ('nug', 'ing', 9.0);
+            INSERT INTO machine_eras VALUES
+                ('Wiremill', 0),
+                ('Blast Furnace', 1),
+                ('Extruder', NULL),
+                ('Circuit Assembly Line', 3);
             """);
         db.Execute(
             "INSERT INTO meta VALUES ('schema_version', @Version), " +

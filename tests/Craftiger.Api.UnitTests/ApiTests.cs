@@ -51,7 +51,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         var list = await Client.GetFromJsonAsync<ListResponse>(
             $"/api/list?solveId={solveId}&pageSize=10");
 
-        Assert.Equal(6, list!.Total);
+        Assert.Equal(7, list!.Total);
         Assert.Equal("nug", list.Items[0].ItemId);
         Assert.Equal(4.0 / 9, list.Items[0].Cost!.Value, 9);
         Assert.Equal("wire", list.Items[1].ItemId);
@@ -72,11 +72,52 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         var reachable = await Client.GetFromJsonAsync<ListResponse>(
             $"/api/list?solveId={solveId}&pageSize=10&hideUnreachable=true");
 
-        Assert.Equal(6, full!.Total);
+        Assert.Equal(7, full!.Total);
         Assert.Equal("rod", full.Items[^1].ItemId);
         Assert.Null(full.Items[^1].Cost);
-        Assert.Equal(5, reachable!.Total);
+        Assert.Equal(6, reachable!.Total);
         Assert.DoesNotContain(reachable.Items, item => item.ItemId == "rod");
+    }
+
+    [Fact]
+    public async Task ALateMachineIsNotOwnedByDefault()
+    {
+        var mvDefault = await SolveAsync(new { defaultTier = 2 });
+        var explicitlyBuilt = await SolveAsync(new
+        {
+            defaultTier = 2,
+            machines = new Dictionary<string, int?> { ["Circuit Assembly Line"] = 2 }
+        });
+        var hvDefault = await SolveAsync(new { defaultTier = 3 });
+
+        var locked = await Client.GetFromJsonAsync<ItemDetailResponse>($"/api/item/chip?solveId={mvDefault}");
+        var built = await Client.GetFromJsonAsync<ItemDetailResponse>($"/api/item/chip?solveId={explicitlyBuilt}");
+        var reached = await Client.GetFromJsonAsync<ItemDetailResponse>($"/api/item/chip?solveId={hvDefault}");
+
+        Assert.Null(locked!.Cost);
+        Assert.Empty(locked.Recipes);
+        Assert.NotNull(built!.Cost);
+        Assert.NotNull(reached!.Cost);
+    }
+
+    [Fact]
+    public async Task MachinesCarryTheirEra()
+    {
+        var meta = await Client.GetFromJsonAsync<MetaResponse>("/api/meta");
+
+        Assert.Equal(3, meta!.Machines.Single(machine => machine.Name == "Circuit Assembly Line").Era);
+        Assert.Equal(0, meta.Machines.Single(machine => machine.Name == "Wiremill").Era);
+        Assert.Null(meta.Machines.Single(machine => machine.Name == "Extruder").Era);
+    }
+
+    [Fact]
+    public async Task AnUnknownEraStaysOwnedByDefault()
+    {
+        var solveId = await SolveAsync(new { defaultTier = 2 });
+
+        var rod = await Client.GetFromJsonAsync<ItemDetailResponse>($"/api/item/rod?solveId={solveId}");
+
+        Assert.NotNull(rod!.Cost);
     }
 
     [Fact]
