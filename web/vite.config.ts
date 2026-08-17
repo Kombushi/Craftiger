@@ -5,7 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    // A Windows-drive checkout under WSL2 delivers no inotify events; poll instead.
+    port: 5173,
+    host: true,
     watch: { usePolling: true, interval: 500 },
     proxy: {
       '/api': 'http://localhost:5111',
