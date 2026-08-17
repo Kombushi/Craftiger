@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.10
+# GTNH Crafting Planner — Specification v1.11
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -360,21 +360,33 @@ Why this shape:
 - A cycle can never strictly undercut itself (ingot → block → ingot re-offers the
   same price), so loops starve instead of oscillating, and `bestRecipe` stays acyclic.
 - Costs only decrease and are bounded below by 0, so termination is guaranteed.
-- **Better forms win exact ties.** Recycling shape-shuffles equalize every form
-  of a material at one price, with dust as the entry form (maceration outputs
-  dust; the ingot smelts from it 1:1), so material forms tie constantly and
-  the winner would fall to fixpoint race order. A cost surcharge cannot
-  separate a 1:1-derived pair — the ingot inherits its dust's price, penalty
-  included — so the preference runs after the solve instead. Leaf classes
-  carry a configured priority (ingot and gem first, then dust, then nugget,
-  then the piles; unlisted classes and non-leaf inputs rank best), a recipe
-  scores as the worst form it consumes, and `bestRecipe` moves to the
-  best-scoring garage-legal producer that offers the same price within ε —
-  unless that recipe's chosen inputs can reach the item over the walk's own
-  chosen edges, where rerouting would hand the BOM a cycle, so the incumbent
-  is kept. Costs never change in this pass, ties still lose during the solve,
-  and the walk then ends on the best form's leaf. A route where a worse form
-  is genuinely cheaper is a real gap, not a tie, and keeps winning.
+- **Better routes win exact ties.** Recycling shape-shuffles equalize every
+  form of a material at one price, with dust as the entry form (maceration
+  outputs dust; the ingot smelts from it 1:1), so material forms tie
+  constantly and the winner would fall to fixpoint race order. A cost
+  surcharge cannot separate a 1:1-derived pair — the ingot inherits its
+  dust's price, penalty included — so the preference runs after the solve
+  instead. Each garage-legal producer at the same price within ε scores a
+  composite key over its chosen inputs, compared lexicographically:
+  1. *Form rank* — leaf classes carry a configured priority (ingot and gem
+     first, then dust, then nugget, then the piles; unlisted classes and
+     non-leaf inputs rank best), and a recipe scores as the worst form it
+     consumes.
+  2. *Chain depth* — how many chosen-edge steps sit below the recipe's
+     deepest input, so consuming a leaf directly beats a mass-conserving
+     detour through intermediates (melting the ingot beats rodding it and
+     melting the rod).
+  3. *Leaf weight* — the heaviest chosen leaf's resolved weight (§4), so
+     among cost-tied leaves the lower-era material wins (plain steel beats
+     magnetic steel, whose polarizer chain equalized the price but not the
+     era ceiling).
+  `bestRecipe` moves to the best-scoring producer — unless that recipe's
+  chosen inputs can reach the item over the walk's own chosen edges, where
+  rerouting would hand the BOM a cycle, so the incumbent is kept. Depths are
+  measured on the DAG as the solve left it. Costs never change in this pass,
+  ties still lose during the solve, and the walk then ends on the best
+  form's leaf. A route where a worse form is genuinely cheaper is a real
+  gap, not a tie, and keeps winning.
 - Full-pack scale (a few hundred thousand recipes) converges in well under a
   second in memory.
 
@@ -678,3 +690,6 @@ All "does not / never" rules live here; other sections only reference this one.
     form — ingot before dust before nugget and piles — unless the reroute
     would close a loop, and a real price gap in a worse form's favor still
     wins.
+24. Where forms tie too, the shallower route wins — melting an ingot beats
+    melting a rod made from it — and among cost-tied leaves the lower-weight
+    material wins, so plain steel beats magnetic steel.

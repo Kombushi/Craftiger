@@ -203,6 +203,40 @@ public sealed class CostSolverTests
     }
 
     [Fact]
+    public void AMeltTieSkipsTheDetourThroughARod()
+    {
+        // Rodding is mass-conserving, so melting the rod ties melting the ingot exactly;
+        // the shallower route must win even though the detour set the cost first.
+        var graph = Fx.Graph(
+            [Fx.Leaf("steel", tier: 0)],
+            Fx.Recipe("rodding", inputs: [("steel", 1)], outputs: ("rod", 2, 1.0)),
+            Fx.Recipe("meltRod", inputs: [("rod", 2)], outputs: ("molten", 144, 1.0)),
+            Fx.Recipe("meltIngot", inputs: [("steel", 1)], outputs: ("molten", 144, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal("meltIngot", table.BestRecipes["molten"].Id);
+        Assert.Equal(4.0 / 144, table.Costs["molten"], 9);
+    }
+
+    [Fact]
+    public void ATieBetweenLeavesLandsOnTheLighterOne()
+    {
+        // The polarizer undercuts the magnetic leaf to the plain price, so both melts tie
+        // on cost; the leaf with the lower era weight is the more basic material and wins.
+        var graph = Fx.Graph(
+            [Fx.Leaf("steel", tier: 0), Fx.Leaf("magnetic", tier: 1)],
+            Fx.Recipe("polarize", inputs: [("steel", 1)], outputs: ("magnetic", 1, 1.0)),
+            Fx.Recipe("meltMagnetic", inputs: [("magnetic", 1)], outputs: ("molten", 144, 1.0)),
+            Fx.Recipe("meltPlain", inputs: [("steel", 1)], outputs: ("molten", 144, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal("meltPlain", table.BestRecipes["molten"].Id);
+        Assert.Equal(4.0 / 144, table.Costs["molten"], 9);
+    }
+
+    [Fact]
     public void AFormRerouteNeverClosesACycle()
     {
         // "viaMid" ties with the dust route but its input chain leads back through the metal,

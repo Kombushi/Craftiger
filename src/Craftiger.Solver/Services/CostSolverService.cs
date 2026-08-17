@@ -36,7 +36,8 @@ public sealed class CostSolverService(
             }
         }
 
-        var cost = new Dictionary<string, double>(leafWeights.Resolve(graph, weights));
+        var seeds = leafWeights.Resolve(graph, weights);
+        var cost = new Dictionary<string, double>(seeds);
         var best = new Dictionary<string, SolverRecipe>();
         var queue = new Queue<SolverRecipe>(legal);
         var queued = new HashSet<string>(legal.Select(recipe => recipe.Id));
@@ -74,7 +75,7 @@ public sealed class CostSolverService(
             }
         }
 
-        PreferForms(graph, producers, cost, best);
+        PreferForms(graph, producers, cost, best, seeds);
         return new CostTable(cost, best, Converged: true);
     }
 
@@ -121,25 +122,28 @@ public sealed class CostSolverService(
         return total;
     }
 
-    /// <summary>Reroutes ties toward better forms (§5): where another legal producer offers
-    /// the same price consuming better-ranked forms, the pointer moves — unless the new
-    /// recipe's inputs can reach the item over chosen edges, which would hand the BOM walk
-    /// a cycle. Costs never change here, only pointers.</summary>
+    /// <summary>Reroutes ties toward better routes (§5): where another legal producer offers
+    /// the same price, the pointer moves to the one with the better composite score — form
+    /// rank first, then chain depth of the chosen inputs (a leaf beats a detour through
+    /// intermediates), then the leaf weight of the chosen leaves (a lighter-era material
+    /// beats a heavier one) — unless the new recipe's inputs can reach the item over chosen
+    /// edges, which would hand the BOM walk a cycle. Costs never change here, only
+    /// pointers.</summary>
     private void PreferForms(
         SolverGraph graph, Dictionary<string, List<SolverRecipe>> producers,
-        Dictionary<string, double> cost, Dictionary<string, SolverRecipe> best)
+        Dictionary<string, double> cost, Dictionary<string, SolverRecipe> best,
+        IReadOnlyDictionary<string, double> weights)
     {
+        var depths = Depths(graph, cost, best);
         foreach (var (itemId, current) in best.ToList())
         {
-            var currentScore = Score(graph, current, cost);
-            if (currentScore == 0)
-            {
-                continue;
-            }
+            var currentScore = Score(graph, current, cost, depths, weights);
             var candidates = (producers.GetValueOrDefault(itemId) ?? [])
                 .Where(candidate => !ReferenceEquals(candidate, current))
-                .Select(candidate => (Recipe: candidate, Score: Score(graph, candidate, cost)))
-                .Where(candidate => candidate.Score < currentScore)
+                .Select(candidate => (
+                    Recipe: candidate,
+                    Score: Score(graph, candidate, cost, depths, weights)))
+                .Where(candidate => candidate.Score.CompareTo(currentScore) < 0)
                 .OrderBy(candidate => candidate.Score);
             foreach (var (candidate, _) in candidates)
             {
@@ -154,13 +158,78 @@ public sealed class CostSolverService(
         }
     }
 
-    /// <summary>The worst-ranked form among the recipe's chosen inputs.</summary>
-    private int Score(
-        SolverGraph graph, SolverRecipe recipe, IReadOnlyDictionary<string, double> costs) =>
-        recipe.Slots.Count == 0
-            ? 0
-            : recipe.Slots.Max(slot => preferences.Rank(
-                graph.Items.GetValueOrDefault(SlotChoice.Cheapest(slot, costs).ItemId)?.LeafClass));
+    /// <summary>The recipe's tie-break key over its chosen inputs: worst form rank, deepest
+    /// chain, heaviest chosen leaf. Lexicographically smaller is better.</summary>
+    private (int Rank, int Depth, double Weight) Score(
+        SolverGraph graph, SolverRecipe recipe, IReadOnlyDictionary<string, double> costs,
+        IReadOnlyDictionary<string, int> depths, IReadOnlyDictionary<string, double> weights)
+    {
+        var rank = 0;
+        var depth = 0;
+        var weight = 0.0;
+        foreach (var slot in recipe.Slots)
+        {
+            var chosen = SlotChoice.Cheapest(slot, costs).ItemId;
+            rank = Math.Max(rank, preferences.Rank(graph.Items.GetValueOrDefault(chosen)?.LeafClass));
+            depth = Math.Max(depth, depths.GetValueOrDefault(chosen));
+            if (graph.IsLeaf(chosen))
+            {
+                weight = Math.Max(weight, weights.GetValueOrDefault(chosen));
+            }
+        }
+        return (rank, depth, weight);
+    }
+
+    /// <summary>Chain depth per item over chosen edges: leaves and unproduced items sit at 0,
+    /// an expanded item one step past its deepest chosen input. The bestRecipe DAG is acyclic
+    /// (§5), so a post-order walk settles every item once.</summary>
+    private static Dictionary<string, int> Depths(
+        SolverGraph graph, IReadOnlyDictionary<string, double> cost,
+        Dictionary<string, SolverRecipe> best)
+    {
+        var depths = new Dictionary<string, int>();
+        var started = new HashSet<string>();
+        var stack = new List<(string Id, int Next)>();
+        foreach (var root in best.Keys)
+        {
+            if (!started.Add(root))
+            {
+                continue;
+            }
+            stack.Add((root, 0));
+            while (stack.Count > 0)
+            {
+                var (id, next) = stack[^1];
+                if (graph.IsLeaf(id) || !best.TryGetValue(id, out var recipe))
+                {
+                    depths[id] = 0;
+                    stack.RemoveAt(stack.Count - 1);
+                    continue;
+                }
+                if (next < recipe.Slots.Count)
+                {
+                    stack[^1] = (id, next + 1);
+                    var child = SlotChoice.Cheapest(recipe.Slots[next], cost).ItemId;
+                    if (!depths.ContainsKey(child) && started.Add(child))
+                    {
+                        stack.Add((child, 0));
+                    }
+                }
+                else
+                {
+                    var deepest = 0;
+                    foreach (var slot in recipe.Slots)
+                    {
+                        deepest = Math.Max(
+                            deepest, depths.GetValueOrDefault(SlotChoice.Cheapest(slot, cost).ItemId));
+                    }
+                    depths[id] = deepest + 1;
+                    stack.RemoveAt(stack.Count - 1);
+                }
+            }
+        }
+        return depths;
+    }
 
     /// <summary>Whether the item is reachable from the recipe's chosen inputs over the same
     /// chosen edges the BOM walks — leaves and unpriced items are terminal there too.</summary>
