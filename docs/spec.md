@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.11
+# GTNH Crafting Planner — Specification v1.12
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -417,14 +417,24 @@ is a projection of that result.**
    throughout; display rounding belongs to the UI.
 3. Leaves accumulate into the final `item → amount` map and never expand, even
    where a recipe undercut their weight; fluid amounts stay in mB.
+4. The same walk carries a second, whole-run accounting: demand seeded with
+   the integer target counts, each item's accumulated whole demand rounded up
+   once to `wholeRuns = ⌈demand / expected yield⌉`, and `wholeRuns × amount`
+   propagated to the inputs. A machine takes a full recipe or nothing, so a
+   plan a player can execute never contains a partial craft; because rounding
+   happens after the full demand accumulates, shared intermediates round once
+   for the whole request, not once per consumer. Chanced outputs still divide
+   by chance (§4), so whole runs cover their demand in expectation only. All
+   whole-run demands are integers by construction.
 
 Output per request: per-target direct inputs (chosen recipe, `runs × amount`
-per input), merged leaf totals, warnings (ignored pins, unreachable targets),
-and the chain nodes — one entry per expanded item, in topological order with
-targets first, carrying total demand, fractional runs, the chosen recipe with
-its display data, the chosen input stack per slot for a single run, and the
-recipe's full output rows. The nodes are the walk itself made visible: a chain
-renderer draws them without re-deriving any choice the walk already made.
+per input), merged leaf totals in both accountings, warnings (ignored pins,
+unreachable targets), and the chain nodes — one entry per expanded item, in
+topological order with targets first, carrying total demand and runs in both
+accountings, the chosen recipe with its display data, the chosen input stack
+per slot for a single run, and the recipe's full output rows. The nodes are
+the walk itself made visible: a chain renderer draws them without re-deriving
+any choice the walk already made.
 
 ## 7. UI
 
@@ -450,10 +460,14 @@ Single-page app, English item names (dump locale). Screens:
      cart's total cost.
   2. *Crafting chain* — one flow graph per cart target on a pan/zoom canvas,
      rendered straight from the BOM chain nodes (§6): every expanded item is a
-     recipe card (machine, tier, heat, fractional runs, chosen input stacks,
-     output rows, duration, EU/t) laid out in topological layers, edges
-     running from each producer to the slots that consume it; leaves close
-     the left edge as material cards. Cards link into item detail for pinning.
+     recipe card (machine, tier, heat, runs, chosen input stacks, output rows,
+     duration, EU/t) laid out in topological layers, edges running from each
+     producer to the slots that consume it; leaves close the left edge as
+     material cards. Cards link into item detail for pinning.
+  Displayed runs and amounts are the whole-run plan (§6) — a machine takes a
+  full recipe or nothing, so no card ever shows a partial craft; the
+  fractional expected values surface only in tooltips, alongside the surplus
+  a rounded-up batch leaves over.
   Tapping any square opens that item's detail.
 - **Garage** — global default tier (Steam…max) plus a machine list
   **filtered to relevance**: only machines in the current cart's upstream
@@ -519,12 +533,13 @@ Single-page app, English item names (dump locale). Screens:
   item ids; drives the relevance-filtered garage.
 - `POST /api/bom` — body `{solveId, targets: [{itemId, count}],
   pins: {itemId: recipeId}}` → `{targets: [{itemId, count, recipeId,
-  inputs: [{itemId, amount}]}], leaves: [{itemId, amount}], warnings,
-  nodes: [{itemId, amount, runs, recipeId, machine, tier, multiTier, heat,
-  durationTicks, euT, inputsPerRun: [{itemId, amount}], outputs: [{itemId,
-  amount, chance}]}], items: {itemId: {name, atlasIdx, isFluid, leafClass,
-  cost}}}` — the chain nodes of §6 plus the same display lookup, so one
-  request feeds a whole chain view.
+  inputs: [{itemId, amount}]}], leaves: [{itemId, amount, wholeAmount}],
+  warnings, nodes: [{itemId, amount, runs, wholeAmount, wholeRuns, recipeId,
+  machine, tier, multiTier, heat, durationTicks, euT, inputsPerRun: [{itemId,
+  amount}], outputs: [{itemId, amount, chance}]}], items: {itemId: {name,
+  atlasIdx, isFluid, leafClass, cost}}}` — the chain nodes of §6 in both
+  accountings plus the same display lookup, so one request feeds a whole
+  chain view.
 - `GET /api/meta` → tier ladder, machine list, coil list, pack version, atlas
   dimensions
 - Static: `/atlas.webp`, `/atlas-offsets.json`
@@ -693,3 +708,7 @@ All "does not / never" rules live here; other sections only reference this one.
 24. Where forms tie too, the shallower route wins — melting an ingot beats
     melting a rod made from it — and among cost-tied leaves the lower-weight
     material wins, so plain steel beats magnetic steel.
+25. The whole-run plan never contains a partial craft: one clay ball plans a
+    whole block broken (a quarter expected), an exactly-divisible demand adds
+    no extra run, and two consumers of half a batch each share one whole
+    batch.

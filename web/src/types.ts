@@ -58,6 +58,12 @@ export interface BomStack {
   amount: number
 }
 
+export interface BomLeaf {
+  itemId: string
+  amount: number
+  wholeAmount: number
+}
+
 export interface OutputRow {
   itemId: string
   amount: number
@@ -68,6 +74,8 @@ export interface BomNode {
   itemId: string
   amount: number
   runs: number
+  wholeAmount: number
+  wholeRuns: number
   recipeId: string
   machine: string
   tier: number
@@ -93,7 +101,7 @@ export interface BomTargetResult {
 
 export interface BomResponse {
   targets: BomTargetResult[]
-  leaves: BomStack[]
+  leaves: BomLeaf[]
   warnings: BomWarning[]
   nodes: BomNode[]
   items: Record<string, ItemRef>

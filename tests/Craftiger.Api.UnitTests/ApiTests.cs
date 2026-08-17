@@ -181,6 +181,8 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Equal("wire", node.ItemId);
         Assert.Equal("Wiremill", node.Machine);
         Assert.Equal(1.5, node.Runs);
+        Assert.Equal(2, node.WholeRuns);
+        Assert.Equal(2, result.Leaves[0].WholeAmount);
         Assert.Equal("ing", Assert.Single(node.InputsPerRun).ItemId);
         Assert.Equal(4, result.Items["ing"].Cost);
         Assert.Equal(2, result.Items["wire"].Cost);

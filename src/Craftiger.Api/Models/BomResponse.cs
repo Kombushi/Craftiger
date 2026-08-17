@@ -6,7 +6,7 @@ namespace Craftiger.Api.Models;
 /// topological order (targets first) and a display lookup for every referenced item.</summary>
 public sealed record BomResponse(
     IReadOnlyList<BomTargetResult> Targets,
-    IReadOnlyList<BomStack> Leaves,
+    IReadOnlyList<BomLeaf> Leaves,
     IReadOnlyList<BomWarning> Warnings,
     IReadOnlyList<BomNodeDto> Nodes,
     IReadOnlyDictionary<string, ItemRefDto> Items);

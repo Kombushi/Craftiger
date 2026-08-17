@@ -206,6 +206,70 @@ public sealed class BomTests
     }
 
     [Fact]
+    public void WholeRunsRoundUpOncePerItem()
+    {
+        // One clay ball needs a whole block broken, even though only a quarter is consumed.
+        var graph = Fx.Graph(
+            [Fx.Leaf("clayBlock", weight: 1)],
+            Fx.Recipe("break", machine: "Mining", inputs: [("clayBlock", 1)], outputs: ("clayBall", 4, 1.0)));
+
+        var result = Compute(graph, [new BomTarget("clayBall", 1)]);
+
+        var node = result.Nodes.Single();
+        Assert.Equal(0.25, node.Runs);
+        Assert.Equal(1, node.WholeRuns);
+        var leaf = result.Leaves.Single();
+        Assert.Equal(0.25, leaf.Amount);
+        Assert.Equal(1, leaf.WholeAmount);
+    }
+
+    [Fact]
+    public void SharedDemandMergesBeforeWholeRunsRound()
+    {
+        // Each consumer alone would round a batch of 16 up; merged they fill one batch.
+        var graph = Fx.Graph(
+            [Fx.Leaf("copper", tier: 0)],
+            Fx.Recipe("batch", inputs: [("copper", 16)], outputs: ("wire", 16, 1.0)),
+            Fx.Recipe("a", inputs: [("wire", 8)], outputs: ("gadgetA", 1, 1.0)),
+            Fx.Recipe("b", inputs: [("wire", 8)], outputs: ("gadgetB", 1, 1.0)));
+
+        var result = Compute(graph, [new BomTarget("gadgetA", 1), new BomTarget("gadgetB", 1)]);
+
+        var wire = result.Nodes.Single(node => node.ItemId == "wire");
+        Assert.Equal(16, wire.WholeAmount);
+        Assert.Equal(1, wire.WholeRuns);
+        Assert.Equal(16, result.Leaves.Single().WholeAmount);
+    }
+
+    [Fact]
+    public void AnExactlyDivisibleDemandDoesNotRoundAnExtraRun()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("board", tier: 0), Fx.Leaf("plastic", weight: 1)],
+            Fx.Recipe("wrap", inputs: [("board", 16), ("plastic", 72)], outputs: ("wrapItem", 1, 1.0)));
+
+        var result = Compute(graph, [new BomTarget("wrapItem", 2)]);
+
+        var node = result.Nodes.Single();
+        Assert.Equal(2, node.WholeRuns);
+        Assert.Equal(32, result.Leaves.Single(leaf => leaf.ItemId == "board").WholeAmount);
+        Assert.Equal(144, result.Leaves.Single(leaf => leaf.ItemId == "plastic").WholeAmount);
+    }
+
+    [Fact]
+    public void ChancedWholeRunsCoverTheDemandInExpectation()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("iron", tier: 0)],
+            Fx.Recipe("r", inputs: [("iron", 1)], outputs: ("shard", 1, 0.9)));
+
+        var result = Compute(graph, [new BomTarget("shard", 1)]);
+
+        Assert.Equal(2, result.Nodes.Single().WholeRuns);
+        Assert.Equal(2, result.Leaves.Single().WholeAmount);
+    }
+
+    [Fact]
     public void NodesListEveryExpandedStepTargetsFirst()
     {
         var graph = Fx.Graph(

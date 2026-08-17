@@ -171,8 +171,11 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
           {tierName}
           {node.heat !== null ? ` · ${fmtHeat(node.heat)}` : ''}
         </span>
-        <span className="card-runs mono" title={`${node.runs} runs`}>
-          {fmtRuns(node.runs)}
+        <span
+          className="card-runs mono"
+          title={`${node.wholeRuns} whole run${node.wholeRuns === 1 ? '' : 's'} (${fmtCount(node.runs)} expected)`}
+        >
+          {fmtRuns(node.wholeRuns)}
         </span>
       </header>
       <div
@@ -186,13 +189,14 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
       >
         {node.inputsPerRun.map((input, index) => {
           const item = bom.items[input.itemId]
-          const total = input.amount * node.runs
+          const isFluid = item?.isFluid ?? false
+          const total = input.amount * node.wholeRuns
           return (
             <Slot
               key={index}
               atlasIdx={item?.atlasIdx ?? -1}
               badge={fmtCount(total)}
-              title={`${item?.name ?? input.itemId}\n${fmtAmount(input.amount, item?.isFluid ?? false)} per run · ${fmtAmount(total, item?.isFluid ?? false)} total`}
+              title={`${item?.name ?? input.itemId}\n${fmtAmount(input.amount, isFluid)} per run · ${fmtAmount(total, isFluid)} total (${fmtCount(input.amount * node.runs)} expected)`}
               onClick={() => openDetail(input.itemId)}
               onHover={(hovering) => onHover(hovering ? input.itemId : null)}
             />
@@ -221,16 +225,20 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
         {node.outputs.map((output, index) => {
           const item = bom.items[output.itemId]
           const own = output.itemId === node.itemId
-          const amount = own ? node.amount : output.amount * output.chance * node.runs
+          const produced = output.amount * node.wholeRuns
           const chance = output.chance < 1 ? ` · ${Math.round(output.chance * 100)}%` : ''
+          const spare = own && output.chance === 1 ? produced - node.wholeAmount : 0
+          const need = own
+            ? `\nneed ${fmtCount(node.wholeAmount)}${spare > 0 ? `, +${fmtCount(spare)} spare` : ''}`
+            : '\nbyproduct — not credited'
           return (
             <Slot
               key={index}
               atlasIdx={item?.atlasIdx ?? -1}
-              badge={fmtCount(amount)}
+              badge={fmtCount(produced)}
               dim={!own}
               highlight={own}
-              title={`${item?.name ?? output.itemId}${chance}${own ? '' : '\nbyproduct — not credited'}`}
+              title={`${item?.name ?? output.itemId}${chance}${need}`}
               onClick={() => openDetail(output.itemId)}
               onHover={(hovering) => onHover(hovering ? output.itemId : null)}
             />
@@ -258,10 +266,12 @@ function EndCard({ card, bom, onHover }: CardProps) {
   const { openDetail } = useStore()
   const item = bom.items[card.id]
   const missing = card.kind === 'missing'
+  const expected = bom.leaves.find((leaf) => leaf.itemId === card.id)?.amount
   return (
     <div
       className={`card card-leaf${missing ? ' card-missing' : ''}`}
       style={{ left: card.x, top: card.y, width: card.w, height: card.h }}
+      title={expected === undefined ? undefined : `${fmtCount(expected)} expected`}
       onMouseEnter={() => onHover(card.id)}
       onMouseLeave={() => onHover(null)}
     >

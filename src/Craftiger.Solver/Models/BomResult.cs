@@ -5,6 +5,6 @@ namespace Craftiger.Solver.Models;
 /// targets first, so a renderer can lay the chain out in a single pass.</summary>
 public sealed record BomResult(
     IReadOnlyList<BomTargetResult> Targets,
-    IReadOnlyList<BomStack> Leaves,
+    IReadOnlyList<BomLeaf> Leaves,
     IReadOnlyList<BomWarning> Warnings,
     IReadOnlyList<BomNode> Nodes);

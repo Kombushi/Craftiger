@@ -6,9 +6,11 @@ namespace Craftiger.Solver.Services;
 public sealed class BomService(IGarageLegalityService legality) : IBomService
 {
     /// <summary>Walks the bestRecipe DAG with pins overlaid, in reverse topological order, so
-    /// shared intermediates accumulate their full demand before they are expanded. Runs and
-    /// totals are fractional expected values; leaves never expand, whatever their bestRecipe
-    /// says. A pin that would close a cycle is ignored with a warning (§9).</summary>
+    /// shared intermediates accumulate their full demand before they are expanded. Each step
+    /// carries two accountings: fractional expected values for pricing, and whole runs — the
+    /// accumulated demand rounded up once per item — for a plan a machine can execute. Leaves
+    /// never expand, whatever their bestRecipe says. A pin that would close a cycle is
+    /// ignored with a warning (§9).</summary>
     public BomResult Compute(
         SolverGraph graph, CostTable costs, Garage garage,
         IReadOnlyList<BomTarget> targets, IReadOnlyDictionary<string, string> pins)
@@ -31,13 +33,15 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         }
 
         var demand = new Dictionary<string, double>();
+        var wholeDemand = new Dictionary<string, long>();
         foreach (var target in targets)
         {
             demand[target.ItemId] = demand.GetValueOrDefault(target.ItemId) + target.Count;
+            wholeDemand[target.ItemId] = wholeDemand.GetValueOrDefault(target.ItemId) + target.Count;
         }
 
         var rootSet = roots.ToHashSet();
-        var leaves = new Dictionary<string, double>();
+        var leaves = new Dictionary<string, (double Amount, long Whole)>();
         var nodes = new List<BomNode>();
         foreach (var itemId in order)
         {
@@ -46,9 +50,11 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             {
                 continue;
             }
+            var wholeDemanded = wholeDemand.GetValueOrDefault(itemId);
             if (graph.IsLeaf(itemId))
             {
-                leaves[itemId] = leaves.GetValueOrDefault(itemId) + demanded;
+                var (amount, whole) = leaves.GetValueOrDefault(itemId);
+                leaves[itemId] = (amount + demanded, whole + wholeDemanded);
                 continue;
             }
 
@@ -59,21 +65,27 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
                 continue;
             }
 
-            var runs = demanded / ExpectedYield(recipe, itemId);
-            var inputs = recipe.Slots
+            var yield = ExpectedYield(recipe, itemId);
+            var runs = demanded / yield;
+            var wholeRuns = WholeRuns(wholeDemanded, yield);
+            var chosen = recipe.Slots
                 .Select(slot => SlotChoice.Cheapest(slot, costs.Costs))
-                .Select(alternative => new BomStack(alternative.ItemId, alternative.Amount))
                 .ToList();
-            nodes.Add(new BomNode(itemId, demanded, runs, recipe.Id, inputs));
-            foreach (var input in inputs)
+            nodes.Add(new BomNode(
+                itemId, demanded, runs, wholeDemanded, wholeRuns, recipe.Id,
+                chosen.Select(alternative => new BomStack(alternative.ItemId, alternative.Amount)).ToList()));
+            foreach (var alternative in chosen)
             {
-                demand[input.ItemId] = demand.GetValueOrDefault(input.ItemId) + runs * input.Amount;
+                demand[alternative.ItemId] =
+                    demand.GetValueOrDefault(alternative.ItemId) + runs * alternative.Amount;
+                wholeDemand[alternative.ItemId] =
+                    wholeDemand.GetValueOrDefault(alternative.ItemId) + wholeRuns * alternative.Amount;
             }
         }
 
         return new BomResult(
             targets.Select(target => TargetResult(graph, costs, activePins, target)).ToList(),
-            leaves.Select(leaf => new BomStack(leaf.Key, leaf.Value)).ToList(),
+            leaves.Select(leaf => new BomLeaf(leaf.Key, leaf.Value.Amount, leaf.Value.Whole)).ToList(),
             warnings,
             nodes);
     }
@@ -179,6 +191,12 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         recipe.Outputs
             .Where(output => output.ItemId == itemId)
             .Sum(output => output.Amount * output.Chance);
+
+    /// <summary>The fewest whole runs whose expected yield covers the demand; the tolerance
+    /// keeps an exactly-divisible demand from rounding one run too high. Chanced outputs
+    /// still divide by chance (§4), so the cover holds in expectation only.</summary>
+    private static long WholeRuns(long demanded, double yield) =>
+        (long)Math.Ceiling(demanded / yield - 1e-9);
 
     private BomTargetResult TargetResult(
         SolverGraph graph, CostTable costs, Dictionary<string, SolverRecipe> pins, BomTarget target)

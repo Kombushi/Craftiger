@@ -77,7 +77,7 @@ function recipeSize(node: BomNode): { w: number; h: number } {
 export function layoutChain(bom: BomResponse): ChainLayout {
   const recipeByItem = new Map(bom.nodes.map((node) => [node.itemId, node]))
   const consumed = new Set(bom.nodes.flatMap((node) => node.inputsPerRun.map((input) => input.itemId)))
-  const leafAmounts = new Map(bom.leaves.map((leaf) => [leaf.itemId, leaf.amount]))
+  const leafAmounts = new Map(bom.leaves.map((leaf) => [leaf.itemId, leaf.wholeAmount]))
 
   const cards = new Map<string, ChainCard>()
   for (const [itemId, amount] of leafAmounts) {

@@ -134,7 +134,7 @@ public sealed class PlannerQueryService(
             .Select(output => new OutputDto(output.ItemId, output.Amount, output.Chance))
             .ToList();
         return new BomNodeDto(
-            node.ItemId, node.Amount, node.Runs, node.RecipeId,
+            node.ItemId, node.Amount, node.Runs, node.WholeAmount, node.WholeRuns, node.RecipeId,
             info.Machine, info.Tier, info.MultiTier, info.Heat, info.DurationTicks, info.EuT,
             node.InputsPerRun, outputs);
     }

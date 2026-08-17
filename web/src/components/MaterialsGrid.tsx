@@ -7,8 +7,8 @@ import { Slot } from './Slot'
 export function MaterialsGrid({ bom }: { bom: BomResponse }) {
   const { openDetail } = useStore()
   const leaves = bom.leaves.toSorted((a, b) => {
-    const costA = (bom.items[a.itemId]?.cost ?? 0) * a.amount
-    const costB = (bom.items[b.itemId]?.cost ?? 0) * b.amount
+    const costA = (bom.items[a.itemId]?.cost ?? 0) * a.wholeAmount
+    const costB = (bom.items[b.itemId]?.cost ?? 0) * b.wholeAmount
     return costB - costA
   })
 
@@ -23,13 +23,13 @@ export function MaterialsGrid({ bom }: { bom: BomResponse }) {
         if (!item) {
           return null
         }
-        const total = item.cost === null ? null : item.cost * leaf.amount
+        const total = item.cost === null ? null : item.cost * leaf.wholeAmount
         return (
           <Slot
             key={leaf.itemId}
             atlasIdx={item.atlasIdx}
-            badge={fmtCount(leaf.amount)}
-            title={`${item.name}\n${fmtAmount(leaf.amount, item.isFluid)} · ${fmtCost(item.cost)} each · ${fmtCost(total)} total`}
+            badge={fmtCount(leaf.wholeAmount)}
+            title={`${item.name}\n${fmtAmount(leaf.wholeAmount, item.isFluid)} to gather (${fmtCount(leaf.amount)} expected) · ${fmtCost(item.cost)} each · ${fmtCost(total)} total`}
             onClick={() => openDetail(leaf.itemId)}
           />
         )
