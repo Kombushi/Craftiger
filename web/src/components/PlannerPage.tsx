@@ -77,7 +77,7 @@ export function PlannerPage() {
                       title={entry.name}
                       onClick={() => setSelected(entry.itemId)}
                     >
-                      <Slot atlasIdx={entry.atlasIdx} size="sm" badge={String(entry.count)} />
+                      <Slot atlasIdx={entry.atlasIdx} badge={String(entry.count)} />
                     </button>
                   ))}
                 </span>

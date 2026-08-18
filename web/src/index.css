@@ -60,6 +60,11 @@ select {
   font-size: 12px;
 }
 
+select {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
 input:focus-visible,
 select:focus-visible,
 button:focus-visible,
@@ -281,7 +286,7 @@ a:focus-visible {
 
 .slot-need {
   position: absolute;
-  left: -3px;
+  right: -3px;
   top: -4px;
   font-family: var(--mono);
   font-size: 12px;
@@ -412,11 +417,11 @@ a:focus-visible {
 }
 
 .cart-count {
-  width: 78px;
+  width: 88px;
 }
 
 .weights-input {
-  width: 88px;
+  width: 96px;
 }
 
 .weights-b {
@@ -427,7 +432,7 @@ a:focus-visible {
 }
 
 .weights-b .stepper {
-  width: 104px;
+  width: 112px;
 }
 
 /* ---- steppers ---- */
@@ -440,7 +445,8 @@ a:focus-visible {
 
 .stepper-input {
   width: 100%;
-  padding-right: 22px;
+  padding: 6px 26px 6px 8px;
+  font-size: 13px;
   text-align: right;
   appearance: textfield;
   -moz-appearance: textfield;
@@ -457,7 +463,7 @@ a:focus-visible {
   right: 2px;
   top: 2px;
   bottom: 2px;
-  width: 16px;
+  width: 20px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -466,7 +472,7 @@ a:focus-visible {
 .stepper-arrows button {
   flex: 1;
   padding: 0;
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1;
   background: var(--panel-raised);
   border: 1px solid;
