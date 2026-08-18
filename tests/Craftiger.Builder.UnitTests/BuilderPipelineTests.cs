@@ -474,6 +474,19 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
+    public void AcceptListOredictsClassifyWithoutUnifying()
+    {
+        Assert.Equal(FixtureDump.CherryLeaves, _fixture.Scalar<string>(
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_petals'"));
+        Assert.Equal(FixtureDump.OakLeaves, _fixture.Scalar<string>(
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_oak_leaves_use'"));
+        Assert.Equal("farmable", _fixture.Scalar<string>(
+            $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.CherryLeaves}'"));
+        Assert.Equal("farmable", _fixture.Scalar<string>(
+            $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.OakLeaves}'"));
+    }
+
+    [Fact]
     public void MachineNamesAreNormalized()
     {
         Assert.Equal("Macerator", _fixture.Scalar<string>("SELECT machine FROM recipes WHERE id = 'r_macerate'"));

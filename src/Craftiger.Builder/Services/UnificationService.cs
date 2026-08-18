@@ -26,6 +26,7 @@ public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnifi
             {
                 continue;
             }
+            var acceptList = IsAcceptList(name);
             string? first = null;
             foreach (var stack in stacks)
             {
@@ -43,6 +44,12 @@ public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnifi
                     oredictsByItem[stack.ItemId] = names = [];
                 }
                 names.Add(name);
+                // Accept-list oredicts register for classification and search but
+                // never merge their members' identities.
+                if (acceptList)
+                {
+                    continue;
+                }
                 if (first is null)
                 {
                     first = stack.ItemId;
@@ -123,6 +130,10 @@ public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnifi
         _config.GroupingOredictNames.Contains(name) ||
         _config.GroupingOredictPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)) ||
         _config.GroupingOredictInfixes.Any(i => name.Contains(i, StringComparison.Ordinal));
+
+    private bool IsAcceptList(string name) =>
+        _config.AcceptListOredictNames.Contains(name) ||
+        _config.AcceptListOredictPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal));
 
     private static string PickPrimary(SortedSet<string> oredicts)
     {

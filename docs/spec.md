@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.15
+# GTNH Crafting Planner — Specification v1.16
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -123,9 +123,15 @@ locally for builder runs and ad-hoc queries; it is never shipped.
 Builder responsibilities, in order:
 
 1. **Unification** — collapse oredict-equivalent items into one canonical item;
-   keep an alias table for search. Wildcard grouping oredicts (`ingotAnyIron`,
-   `listAll*`, `crafting*` — editable pattern list) are accept-lists over
-   distinct materials, not equivalence classes, and never drive unification.
+   keep an alias table for search. Two kinds of oredict never drive
+   unification, each on its own editable pattern list. Wildcard grouping
+   oredicts (`ingotAnyIron`, `listAll*`, `crafting*`, `dustSpace`) are ignored
+   outright — registering them would hand their members a leaf class they must
+   not have. Accept-list oredicts (`treeLeaves`, `logWood`, `plankWood`,
+   `treeSapling`, `stickWood`, `flower*`) still register for leaf
+   classification and search — every leaf block is `farmable` through
+   `treeLeaves` — but never merge identities: cherry leaves hammer into pink
+   petals, not oak leaves into tulips.
 2. **Normalization** — decompose every filled container (cell, bucket) into
    empty container + fluid, then net out items appearing on both sides of one
    recipe. Balanced containers vanish, so cell-only recipes become their

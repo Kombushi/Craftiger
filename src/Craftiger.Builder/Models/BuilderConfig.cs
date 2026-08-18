@@ -61,6 +61,11 @@ public sealed record BuilderConfig
     public required IReadOnlyList<string> GroupingOredictInfixes { get; init; }
     public required IReadOnlyList<string> GroupingOredictNames { get; init; }
 
+    /// <summary>Accept-list oredicts over distinct items (any log, any pink flower): they still
+    /// register for classification and search, but never merge their members' identities.</summary>
+    public required IReadOnlyList<string> AcceptListOredictNames { get; init; }
+    public required IReadOnlyList<string> AcceptListOredictPrefixes { get; init; }
+
     /// <summary>Era needed to reach each GT dimension tier (1-8 rockets, 9 mothership, 10 Deep Dark).</summary>
     public required IReadOnlyDictionary<int, int> DimensionTierEras { get; init; }
 

@@ -18,6 +18,8 @@ public static class FixtureDump
     public const string Mold = "i~gregtech~gt.metaitem.01~32306";
     public const string Plank = "i~minecraft~planks~0";
     public const string Log = "i~minecraft~log~0";
+    public const string OakLeaves = "i~minecraft~leaves~0";
+    public const string CherryLeaves = "i~etfuturum~leaves~1";
     public const string IronIngot = "i~minecraft~iron_ingot~0";
     public const string CastIron = "i~gregtech~gt.metaitem.01~11304";
     public const string AluOre = "i~gregtech~gt.blockores~19";
@@ -168,6 +170,8 @@ public static class FixtureDump
         Item(db, Mold, "Extruder Shape (Rod)", "gregtech");
         Item(db, Plank, "Oak Wood Planks", "minecraft");
         Item(db, Log, "Oak Wood", "minecraft");
+        Item(db, OakLeaves, "Oak Leaves", "minecraft");
+        Item(db, CherryLeaves, "Cherry Leaves", "etfuturum");
         Fluid(db, Water, "water", "Water");
         Fluid(db, Lava, "lava", "Lava");
         Fluid(db, Hydrogen, "hydrogen", "Hydrogen");
@@ -300,6 +304,10 @@ public static class FixtureDump
         Oredict(db, "stickAluminium", "g_alu_rod_oredict_unused");
         Oredict(db, "logWood", "g_log");
         Oredict(db, "plankWood", "g_plank_oredict_unused");
+        Group(db, "g_two_leaves", (OakLeaves, 1), (CherryLeaves, 1));
+        Oredict(db, "treeLeaves", "g_two_leaves");
+        Group(db, "g_oak_leaves", (OakLeaves, 1));
+        Group(db, "g_cherry_leaves", (CherryLeaves, 1));
         Group(db, "g_iron", (IronIngot, 1));
         Group(db, "g_cast_iron", (CastIron, 1));
         Group(db, "g_any_iron", (IronIngot, 1), (CastIron, 1));
@@ -420,6 +428,9 @@ public static class FixtureDump
         // Distinct materials share the wildcard ingotAnyIron group but must stay separate.
         Recipe(db, "r_iron_use", "t_shaped", inputs: [("g_iron", 0)], outputs: [(Plank, 1, 1.0)]);
         Recipe(db, "r_cast_use", "t_shaped", inputs: [("g_cast_iron", 0)], outputs: [(Plank, 1, 1.0)]);
+        // Accept-list oredicts (treeLeaves) classify their members but never merge them.
+        Recipe(db, "r_oak_leaves_use", "t_shaped", inputs: [("g_oak_leaves", 0)], outputs: [(Plank, 1, 1.0)]);
+        Recipe(db, "r_petals", "t_shaped", inputs: [("g_cherry_leaves", 0)], outputs: [(Plank, 1, 1.0)]);
         // A slot that takes either iron must ship both, not whichever sorts first.
         Recipe(db, "r_any_iron_use", "t_shaped", inputs: [("g_any_iron", 0)], outputs: [(Plank, 1, 1.0)]);
         // A tool anywhere in a slot marks the whole slot as tools, third-party ones included.
