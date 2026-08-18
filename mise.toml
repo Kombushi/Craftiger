@@ -25,3 +25,37 @@ env = { ApiOptions__ArtifactsDir = "{{config_root}}/artifacts" }
 description = "Run the web dev server"
 dir = "web"
 run = "npm run dev"
+
+# Image coordinates shared by every docker task; the tag is passed per call via TAG.
+[env]
+CRAFTIGER_API_IMAGE = "ghcr.io/kombushi/craftiger-api"
+CRAFTIGER_WEB_IMAGE = "ghcr.io/kombushi/craftiger-web"
+
+[tasks."docker:login"]
+description = "Log docker in to GHCR with the gh CLI token"
+run = "gh auth token | docker login ghcr.io -u Kombushi --password-stdin"
+
+[tasks."docker:build"]
+description = "Build both container images"
+depends = ["docker:build:api", "docker:build:web"]
+
+[tasks."docker:build:api"]
+description = "Build the API image (planner artifacts baked in)"
+run = 'docker build -f Dockerfile.api -t "${CRAFTIGER_API_IMAGE}:${TAG:?set TAG to the image version}" .'
+
+[tasks."docker:build:web"]
+description = "Build the web image"
+dir = "web"
+run = 'docker build -t "${CRAFTIGER_WEB_IMAGE}:${TAG:?set TAG to the image version}" .'
+
+[tasks."docker:push"]
+description = "Push both container images to GHCR"
+depends = ["docker:push:api", "docker:push:web"]
+
+[tasks."docker:push:api"]
+description = "Push the API image"
+run = 'docker push "${CRAFTIGER_API_IMAGE}:${TAG:?set TAG to the image version}"'
+
+[tasks."docker:push:web"]
+description = "Push the web image"
+run = 'docker push "${CRAFTIGER_WEB_IMAGE}:${TAG:?set TAG to the image version}"'

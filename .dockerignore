@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.git/
+.idea/
+.claude/
+docs/
+tests/
+web/
+dump*.sqlite
+image.zip
+*.md

@@ -547,13 +547,17 @@ with the results they describe. Screens:
 ### Runtime
 
 - **Backend**: the minimal API, stateless, deployed on the `ryokutek` k8s
-  cluster. Loads `planner.sqlite` read-only into memory at startup — refusing
+  cluster as a container image (`Dockerfile.api`) with the three artifacts
+  baked in. Loads `planner.sqlite` read-only into memory at startup — refusing
   an artifact whose `schema_version` it does not know before serving anything —
   and holds the solver and its cost-table cache in memory. The artifacts
   directory and the garage rules of §2/§9 (always-owned machines, heat-exempt
   and heat-bonus maps) are configuration.
-- **Frontend**: React SPA served statically alongside `atlas.webp` and
-  `atlas-offsets.json`.
+- **Frontend**: React SPA served statically by nginx in its own container
+  (`web/Dockerfile`). Both containers share one public origin: the cluster's
+  reverse proxy routes `/api` and the two atlas paths to the API and
+  everything else to nginx, so the SPA's relative fetches need no
+  configuration.
 - **Client state**: everything user-specific lives in browser `localStorage` and
   travels with each request — the API stores nothing per user.
 
@@ -588,6 +592,8 @@ with the results they describe. Screens:
 - `GET /api/meta` → tier ladder, machine list (each with its availability
   era), coil list, pack version, atlas dimensions
 - Static: `/atlas.webp`, `/atlas-offsets.json`
+- Probes: `GET /livez`, `GET /readyz` — bare health checks; the eager artifact
+  load at startup means a live process is also ready.
 
 ### localStorage keys
 

@@ -27,6 +27,7 @@ builder.Services.AddSingleton<IBomService, BomService>();
 builder.Services.AddSingleton<IClosureService, ClosureService>();
 builder.Services.AddSingleton<ISolveCacheService, SolveCacheService>();
 builder.Services.AddSingleton<IPlannerQueryService, PlannerQueryService>();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -88,6 +89,10 @@ app.MapGet("/atlas.webp", (IOptions<ApiOptions> options) =>
 
 app.MapGet("/atlas-offsets.json", (IOptions<ApiOptions> options) =>
     StaticArtifact(options.Value.ArtifactsDir, "atlas-offsets.json", "application/json"));
+
+// Both probes are bare: the artifact loads eagerly at startup, so a live process is ready.
+app.MapHealthChecks("/livez");
+app.MapHealthChecks("/readyz");
 
 app.Run();
 

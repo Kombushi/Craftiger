@@ -52,8 +52,9 @@ types and identifiers.
 - .NET 10, `Microsoft.Data.Sqlite` with Dapper for all database access,
   `Microsoft.Extensions.DependencyInjection`, xUnit.
 - Task runner: `mise`. Every build/test/run command is a named `mise` task;
-  docs reference targets by name only. Targets to create with the scaffold:
-  `build`, `test`, `builder`, `api`, `web`.
+  docs reference targets by name only. Targets: `build`, `test`, `builder`,
+  `api`, `web`, plus `docker:login` / `docker:build` / `docker:push` (the
+  latter two take the image version via `TAG`) for the container images.
 - The NESQL dump is an HSQLDB database (Java-only format, ~600 MB), converted
   once into a local `dump.sqlite` by a throwaway JDBC copy (HSQLDB driver,
   `jdbc:hsqldb:file:…`, user `sa`, empty password) — the only step that ever
