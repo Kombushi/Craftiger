@@ -17,6 +17,10 @@ public sealed record BuilderConfig
     /// each mapped to the in-game observation that condemned it.</summary>
     public required IReadOnlyDictionary<string, string> PhantomRecipeIds { get; init; }
 
+    /// <summary>Item names whose consuming GT recipes are reverse-crafting that GregTech
+    /// forgot to recycling-tag; they face the same material-shape test as tagged ones.</summary>
+    public required IReadOnlyList<string> UntaggedRecyclingInputItems { get; init; }
+
     /// <summary>GregTech recipe-category suffixes marking reverse-crafting, matched
     /// case-insensitively. The tag alone does not condemn a recipe: GregTech applies it to
     /// melting a rod down as readily as to melting a door down.</summary>

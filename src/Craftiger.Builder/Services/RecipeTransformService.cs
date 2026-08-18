@@ -157,7 +157,10 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             {
                 continue;
             }
-            if (gt is not null && IsRecycling(gt.Category) && !ingredients.All(id => IsMaterialShape(id, dump, unified)))
+            var recycling = gt is not null
+                && (IsRecycling(gt.Category)
+                    || ingredients.Any(id => _config.UntaggedRecyclingInputItems.Contains(dump.NameOf(id))));
+            if (recycling && !ingredients.All(id => IsMaterialShape(id, dump, unified)))
             {
                 continue;
             }

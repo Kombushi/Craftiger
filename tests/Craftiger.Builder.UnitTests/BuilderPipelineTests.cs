@@ -95,6 +95,29 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
         Assert.Equal(0, fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_melt'"));
 }
 
+/// <summary>The same pack with the fixture pipe listed as untagged recycling, proving its GT
+/// consumers drop while its crafting-grid consumers survive.</summary>
+public sealed class UntaggedRecyclingFixture : IDisposable
+{
+    private readonly FixtureRun _run =
+        new(new KeyValuePair<string, string?>(
+            "BuilderConfig:UntaggedRecyclingInputItems:0", "Fixture Pipe"));
+
+    public void Dispose() => _run.Dispose();
+    public T Scalar<T>(string sql) => _run.Scalar<T>(sql);
+}
+
+public sealed class UntaggedRecyclingTests(UntaggedRecyclingFixture fixture)
+    : IClassFixture<UntaggedRecyclingFixture>
+{
+    [Fact]
+    public void AListedItemsGtConsumersNeverShip()
+    {
+        Assert.Equal(0, fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_pipe_grind'"));
+        Assert.Equal(1, fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_pipe_block'"));
+    }
+}
+
 /// <summary>The same pack with an era floor under the mixer, proving a quest-anchored gate
 /// outranks everything the recipe graph derives.</summary>
 public sealed class EraFloorFixture : IDisposable
@@ -346,6 +369,10 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
         Assert.Equal(1, _fixture.Scalar<int>(
             $"SELECT COUNT(*) FROM items WHERE id = '{FixtureDump.Saw}'"));
     }
+
+    [Fact]
+    public void AnUnlistedPipeGrinderStillShips() =>
+        Assert.Equal(1, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_pipe_grind'"));
 
     [Fact]
     public void ChoiceSlotsShipEveryAlternativeUnderOneSlot()

@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.16
+# GTNH Crafting Planner — Specification v1.17
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -125,9 +125,10 @@ Builder responsibilities, in order:
 1. **Unification** — collapse oredict-equivalent items into one canonical item;
    keep an alias table for search. Two kinds of oredict never drive
    unification, each on its own editable pattern list. Wildcard grouping
-   oredicts (`ingotAnyIron`, `listAll*`, `crafting*`, `dustSpace`) are ignored
-   outright — registering them would hand their members a leaf class they must
-   not have. Accept-list oredicts (`treeLeaves`, `logWood`, `plankWood`,
+   oredicts (`ingotAnyIron`, `listAll*`, `crafting*`, `dustSpace`, `dye*` —
+   GregTech hands colored mineral dusts dye oredicts, so `dyeBrown` would
+   quietly turn limonite into cocoa beans) are ignored outright — registering
+   them would hand their members a leaf class they must not have. Accept-list oredicts (`treeLeaves`, `logWood`, `plankWood`,
    `treeSapling`, `stickWood`, `flower*`) still register for leaf
    classification and search — every leaf block is `farmable` through
    `treeLeaves` — but never merge identities: cherry leaves hammer into pink
@@ -644,7 +645,15 @@ All "does not / never" rules live here; other sections only reference this one.
   (`ingot*`, `plate*`, `stick*`, `gear*`, `nugget*`, `dust*`, `block*`, …, or a
   fluid), and is dropped when anything else goes in — a `doorIron`, a `signWood`,
   an Electric Piston with no oredict at all. Storage-block cycles are safe either
-  way: nine ingots in, nine ingots back.
+  way: nine ingots in, nine ingots back. A few reverse-crafting recipes carry no
+  recycling tag at all: Mining Pipes multiply matter on the way out (one fluid
+  pipe extrudes into up to 32 of them as a deliberate in-game cheapening), so
+  grinding or arcing them back to steel amplifies — one stainless ingot would
+  return sixteen ingots of steel and drag the whole ferrous family onto that
+  loop's fixpoint. GT recipes consuming an item on the editable
+  untagged-recycling list face the same material-shape test as tagged ones and
+  drop; the item's crafting-grid consumers (the Block Breaker really is built
+  from a Mining Pipe) are untouched.
 - **Phantom registrations** — a recipe the game registers but the machine never
   performs is excluded by its dump id in `PhantomRecipeIds`, each entry carrying
   the in-game observation that condemned it. The one known case: the canner
@@ -761,3 +770,6 @@ All "does not / never" rules live here; other sections only reference this one.
     while an explicit per-machine tier brings them back.
 27. Grinding an ingot to dust shows the mortar in the recipe, and the dust's
     price does not contain the mortar's.
+28. Macerating or arcing Mining Pipes back to steel never ships, so no ferrous
+    price rides the pipes-per-ingot amplifier, while the Block Breaker still
+    crafts from a Mining Pipe.
