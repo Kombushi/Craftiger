@@ -40,7 +40,6 @@ export function PlannerPage() {
         >
           {status.phase === 'solving' ? 'CALCULATING…' : stale ? 'RECALCULATE' : 'CALCULATE'}
         </button>
-        {status.phase === 'error' ? <p className="warning-row">{status.message}</p> : null}
       </aside>
       <main className="results">
         {results === null ? (

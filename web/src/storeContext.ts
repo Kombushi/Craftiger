@@ -15,15 +15,18 @@ export interface Results {
   perTarget: Record<string, BomResponse>
 }
 
-export type Status =
-  | { phase: 'idle' }
-  | { phase: 'solving' }
-  | { phase: 'done' }
-  | { phase: 'error'; message: string }
+export type Status = { phase: 'idle' } | { phase: 'solving' } | { phase: 'done' }
+
+export interface Toast {
+  id: number
+  message: string
+}
 
 export interface Store {
   meta: MetaResponse | null
-  metaError: string | null
+  toasts: Toast[]
+  pushToast: (message: string) => void
+  dismissToast: (id: number) => void
   cart: CartEntry[]
   addToCart: (entry: Omit<CartEntry, 'count'>) => void
   setCount: (itemId: string, count: number) => void

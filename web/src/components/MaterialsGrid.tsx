@@ -27,6 +27,7 @@ export function MaterialsGrid({ bom }: { bom: BomResponse }) {
         return (
           <Slot
             key={leaf.itemId}
+            size="lg"
             atlasIdx={item.atlasIdx}
             badge={fmtCount(leaf.wholeAmount)}
             title={`${item.name}\n${fmtAmount(leaf.wholeAmount, item.isFluid)} to gather (${fmtCount(leaf.amount)} expected) · ${fmtCost(item.cost)} each · ${fmtCost(total)} total`}

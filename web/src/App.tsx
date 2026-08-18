@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ItemDetailOverlay } from './components/ItemDetailOverlay'
 import { PlannerPage } from './components/PlannerPage'
 import { PriceListPage } from './components/PriceListPage'
+import { Toasts } from './components/Toasts'
 import { WeightsModal } from './components/WeightsModal'
 import { StoreProvider } from './store'
 import { useStore } from './storeContext'
@@ -17,7 +18,7 @@ function useHashRoute(): string {
 }
 
 function Shell() {
-  const { meta, metaError, results, status } = useStore()
+  const { meta, results, status } = useStore()
   const hash = useHashRoute()
   const [weightsOpen, setWeightsOpen] = useState(false)
 
@@ -25,6 +26,7 @@ function Shell() {
     <div className="app">
       <header className="topbar">
         <span className="brand">
+          <img className="brand-logo" src="/favicon.png" alt="" />
           CRAFTIGER
           {meta ? <span className="brand-pack mono">{meta.packVersion}</span> : null}
         </span>
@@ -47,12 +49,10 @@ function Shell() {
           Weights
         </button>
       </header>
-      {metaError ? (
-        <p className="warning-row">The planner API is not reachable: {metaError}</p>
-      ) : null}
       {hash === '#/list' ? <PriceListPage /> : <PlannerPage />}
       <ItemDetailOverlay />
       {weightsOpen ? <WeightsModal onClose={() => setWeightsOpen(false)} /> : null}
+      <Toasts />
     </div>
   )
 }

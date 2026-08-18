@@ -2,6 +2,7 @@ import { fmtCost } from '../format'
 import { useStore } from '../storeContext'
 import { SearchBox } from './SearchBox'
 import { Slot } from './Slot'
+import { Stepper } from './Stepper'
 
 export function CartPanel() {
   const { cart, addToCart, setCount, removeFromCart, results, openDetail } = useStore()
@@ -33,17 +34,11 @@ export function CartPanel() {
                   {entry.name}
                 </span>
                 {results ? <span className="mono cart-cost">{fmtCost(cost)}</span> : null}
-                <input
-                  className="cart-count mono"
-                  type="number"
+                <Stepper
+                  className="cart-count"
                   min={1}
                   value={entry.count}
-                  onChange={(event) => {
-                    const count = Number(event.target.value)
-                    if (Number.isFinite(count) && count >= 1) {
-                      setCount(entry.itemId, Math.floor(count))
-                    }
-                  }}
+                  onChange={(count) => setCount(entry.itemId, Math.floor(count))}
                 />
                 <button
                   type="button"

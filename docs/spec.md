@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.13
+# GTNH Crafting Planner — Specification v1.14
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -453,7 +453,10 @@ any choice the walk already made.
 
 ## 7. UI
 
-Single-page app, English item names (dump locale). Screens:
+Single-page app, English item names (dump locale). Transient errors — an
+unreachable API, a failed solve — surface as self-dismissing toast
+notifications, never as layout-shifting inline rows; BOM warnings stay inline
+with the results they describe. Screens:
 
 - **Search** — type-ahead over canonical names and oredict aliases; results show
   icon, name, and cost. Search works before the first solve — costs are simply
@@ -481,8 +484,10 @@ Single-page app, English item names (dump locale). Screens:
      material cards. Cards link into item detail for pinning.
   Displayed runs and amounts are the whole-run plan (§6) — a machine takes a
   full recipe or nothing, so no card ever shows a partial craft; the
-  fractional expected values surface only in tooltips, alongside the surplus
-  a rounded-up batch leaves over.
+  fractional expected values surface only in tooltips. A recipe card's own
+  output square carries two counts: what the whole runs produce and, in the
+  accent color, what the plan actually needs — the surplus is their
+  difference, read off the card rather than a tooltip.
   Tapping any square opens that item's detail.
 - **Garage** — global default tier (Steam…max) plus a machine list
   **filtered to relevance**: only machines in the current cart's upstream
@@ -492,8 +497,10 @@ Single-page app, English item names (dump locale). Screens:
   machine (`inherit / None / Steam / LV / …`); each coil-gated map's row (§2)
   has a coil dropdown beside its tier picker; crafting table, furnace, and
   Mining are shown as always-owned. A machine first craftable beyond the
-  default tier shows its inherit state as "Not built" (§2) — picking an
-  explicit tier claims it.
+  default tier (§2) is dropped from the relevance list entirely — the default
+  garage cannot own it, so it only appears under "show all" or once the user
+  has configured it explicitly; there its inherit state reads "Not built",
+  and picking an explicit tier claims it.
 - **Config** — the `B` input and the editable per-item leaf-weights table (§4)
   live in a separate weights window; both apply on the next Calculate. Leaf
   membership — which blocks are minable, which fluids are world fluids — is

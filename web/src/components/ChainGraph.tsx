@@ -18,9 +18,14 @@ export function ChainGraph({ bom }: { bom: BomResponse }) {
   const viewport = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<View>({ x: MARGIN, y: MARGIN, k: 1 })
   const [hovered, setHovered] = useState<string | null>(null)
-  const drag = useRef<{ pointerId: number; startX: number; startY: number; moved: boolean } | null>(
-    null,
-  )
+  const drag = useRef<{
+    pointerId: number
+    originX: number
+    originY: number
+    lastX: number
+    lastY: number
+    moved: boolean
+  } | null>(null)
 
   const fit = () => {
     const element = viewport.current
@@ -76,28 +81,39 @@ export function ChainGraph({ bom }: { bom: BomResponse }) {
         }
         drag.current = {
           pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
+          originX: event.clientX,
+          originY: event.clientY,
+          lastX: event.clientX,
+          lastY: event.clientY,
           moved: false,
         }
-        event.currentTarget.setPointerCapture(event.pointerId)
       }}
       onPointerMove={(event) => {
         const state = drag.current
         if (!state || state.pointerId !== event.pointerId) {
           return
         }
-        const dx = event.clientX - state.startX
-        const dy = event.clientY - state.startY
-        if (Math.abs(dx) + Math.abs(dy) > 3) {
+        const dx = event.clientX - state.lastX
+        const dy = event.clientY - state.lastY
+        state.lastX = event.clientX
+        state.lastY = event.clientY
+        // Capture only once a real drag starts — capturing on pointerdown swallows child clicks.
+        if (
+          !state.moved &&
+          Math.abs(event.clientX - state.originX) + Math.abs(event.clientY - state.originY) > 4
+        ) {
           state.moved = true
+          event.currentTarget.setPointerCapture(event.pointerId)
         }
-        state.startX = event.clientX
-        state.startY = event.clientY
         setView((previous) => ({ ...previous, x: previous.x + dx, y: previous.y + dy }))
       }}
       onPointerUp={() => {
         drag.current = null
+      }}
+      onPointerLeave={() => {
+        if (drag.current !== null && !drag.current.moved) {
+          drag.current = null
+        }
       }}
       onClickCapture={(event) => {
         if (drag.current?.moved) {
@@ -151,16 +167,15 @@ interface CardProps {
 }
 
 function RecipeCard({ card, bom, onHover }: CardProps) {
-  const { meta, pins, openDetail } = useStore()
+  const { meta, openDetail } = useStore()
   const node = card.node!
   const tierName = meta?.tierNames[node.tier] ?? String(node.tier)
-  const pinned = pins[node.itemId] === node.recipeId
   const bodyTop = HEADER + PAD
   const gridWidth = (columns: number) => columns * SLOT + (columns - 1) * SLOT_GAP
 
   return (
     <div
-      className={`card card-recipe${pinned ? ' card-pinned' : ''}`}
+      className="card card-recipe"
       style={{ left: card.x, top: card.y, width: card.w, height: card.h }}
     >
       <header className="card-head">
@@ -227,18 +242,15 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
           const own = output.itemId === node.itemId
           const produced = output.amount * node.wholeRuns
           const chance = output.chance < 1 ? ` · ${Math.round(output.chance * 100)}%` : ''
-          const spare = own && output.chance === 1 ? produced - node.wholeAmount : 0
-          const need = own
-            ? `\nneed ${fmtCount(node.wholeAmount)}${spare > 0 ? `, +${fmtCount(spare)} spare` : ''}`
-            : '\nbyproduct — not credited'
           return (
             <Slot
               key={index}
               atlasIdx={item?.atlasIdx ?? -1}
               badge={fmtCount(produced)}
+              needBadge={own ? fmtCount(node.wholeAmount) : undefined}
               dim={!own}
               highlight={own}
-              title={`${item?.name ?? output.itemId}${chance}${need}`}
+              title={`${item?.name ?? output.itemId}${chance}${own ? '' : '\nbyproduct — not credited'}`}
               onClick={() => openDetail(output.itemId)}
               onHover={(hovering) => onHover(hovering ? output.itemId : null)}
             />
@@ -249,14 +261,6 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
         <span>
           {fmtDuration(node.durationTicks)} · {node.euT.toLocaleString('en-US')} EU/t
         </span>
-        <button
-          type="button"
-          className={`pin-button${pinned ? ' pin-active' : ''}`}
-          title={pinned ? 'Pinned — open recipes' : 'Choose a recipe'}
-          onClick={() => openDetail(node.itemId)}
-        >
-          {pinned ? 'PINNED' : 'PIN'}
-        </button>
       </footer>
     </div>
   )

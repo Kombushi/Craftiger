@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as api from './api'
 import { ApiError } from './api'
-import { StoreContext, type NameRef, type Results, type Status, type Store } from './storeContext'
+import { StoreContext, type NameRef, type Results, type Status, type Store, type Toast } from './storeContext'
 import type { CartEntry, GarageState, MetaResponse } from './types'
 
 interface UiState {
@@ -60,7 +60,8 @@ function sorted<T>(record: Record<string, T>): [string, T][] {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [meta, setMeta] = useState<MetaResponse | null>(null)
-  const [metaError, setMetaError] = useState<string | null>(null)
+  const [toasts, setToasts] = useState<Toast[]>([])
+  const toastId = useRef(0)
   const [cart, setCart] = useState<CartEntry[]>(() => load('gtnhp.cart', []))
   const [garage, setGarage] = useState<GarageState>(() => load('gtnhp.machines', defaultGarage))
   const [config, setConfig] = useState<{ b: number }>(() => load('gtnhp.config', { b: 4 }))
@@ -74,12 +75,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [detailItemId, setDetailItemId] = useState<string | null>(null)
   const generation = useRef(0)
 
-  useEffect(() => {
-    api
-      .getMeta()
-      .then(setMeta)
-      .catch((error: unknown) => setMetaError(error instanceof Error ? error.message : String(error)))
+  const dismissToast = useCallback((id: number) => {
+    setToasts((previous) => previous.filter((toast) => toast.id !== id))
   }, [])
+
+  const pushToast = useCallback((message: string) => {
+    const id = ++toastId.current
+    setToasts((previous) => [...previous.slice(-3), { id, message }])
+  }, [])
+
+  // An unreachable API announces itself once and keeps retrying quietly.
+  useEffect(() => {
+    let live = true
+    let announced = false
+    const attempt = () => {
+      api
+        .getMeta()
+        .then((fetched) => {
+          if (live) {
+            setMeta(fetched)
+          }
+        })
+        .catch((error: unknown) => {
+          if (!live) {
+            return
+          }
+          if (!announced) {
+            announced = true
+            pushToast(
+              `The planner API is not reachable: ${error instanceof Error ? error.message : String(error)}`,
+            )
+          }
+          window.setTimeout(() => {
+            if (live) {
+              attempt()
+            }
+          }, 5000)
+        })
+    }
+    attempt()
+    return () => {
+      live = false
+    }
+  }, [pushToast])
 
   useEffect(() => persist('gtnhp.cart', cart), [cart])
   useEffect(() => persist('gtnhp.machines', garage), [garage])
@@ -126,14 +164,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }))
       } catch (error) {
         if (run === generation.current) {
-          setStatus({
-            phase: 'error',
-            message: error instanceof Error ? error.message : String(error),
-          })
+          setStatus({ phase: 'idle' })
+          pushToast(error instanceof Error ? error.message : String(error))
         }
       }
     },
-    [garage, config.b, weights, fetchBoms],
+    [garage, config.b, weights, fetchBoms, pushToast],
   )
 
   const calculate = useCallback(() => {
@@ -165,14 +201,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (error instanceof ApiError && error.status === 404) {
             void runSolve(cart, next)
           } else if (run === generation.current) {
-            setStatus({
-              phase: 'error',
-              message: error instanceof Error ? error.message : String(error),
-            })
+            pushToast(error instanceof Error ? error.message : String(error))
           }
         })
     },
-    [pins, results, cart, fetchBoms, runSolve],
+    [pins, results, cart, fetchBoms, runSolve, pushToast],
   )
 
   // Reload with unchanged settings resumes on the cached solve instead of asking for a
@@ -250,7 +283,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value: Store = {
     meta,
-    metaError,
+    toasts,
+    pushToast,
+    dismissToast,
     cart,
     addToCart,
     setCount,

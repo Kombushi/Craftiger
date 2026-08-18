@@ -1,6 +1,7 @@
 import { useStore } from '../storeContext'
 import { SearchBox } from './SearchBox'
 import { Slot } from './Slot'
+import { Stepper } from './Stepper'
 
 interface Props {
   onClose: () => void
@@ -33,20 +34,7 @@ export function WeightsModal({ onClose }: Props) {
           <label htmlFor="weight-b" title="Ingot price base: an ingot of tier t costs B × 4^t">
             Price base B
           </label>
-          <input
-            id="weight-b"
-            className="mono"
-            type="number"
-            min={0.1}
-            step={0.5}
-            value={b}
-            onChange={(event) => {
-              const value = Number(event.target.value)
-              if (Number.isFinite(value) && value > 0) {
-                setB(value)
-              }
-            }}
-          />
+          <Stepper id="weight-b" min={0.1} step={0.5} value={b} onChange={setB} />
         </div>
         <SearchBox
           placeholder="Add an item override…"
@@ -71,18 +59,12 @@ export function WeightsModal({ onClose }: Props) {
                   <span className="cart-name" title={ref?.name ?? itemId}>
                     {ref?.name ?? itemId}
                   </span>
-                  <input
-                    className="mono weights-input"
-                    type="number"
+                  <Stepper
+                    className="weights-input"
                     min={0}
                     step={0.5}
                     value={weight}
-                    onChange={(event) => {
-                      const value = Number(event.target.value)
-                      if (Number.isFinite(value) && value >= 0) {
-                        setWeight(itemId, value)
-                      }
-                    }}
+                    onChange={(value) => setWeight(itemId, value)}
                   />
                   <button
                     type="button"

@@ -40,18 +40,22 @@ export function GaragePanel() {
     if (!meta) {
       return []
     }
-    const wanted = new Set(relevant)
-    for (const name of Object.keys(garage.machines)) {
-      wanted.add(name)
-    }
-    for (const name of garage.builtMultiblocks) {
-      wanted.add(name)
-    }
-    for (const name of Object.keys(garage.coils)) {
-      wanted.add(name)
-    }
+    const configured = new Set([
+      ...Object.keys(garage.machines),
+      ...garage.builtMultiblocks,
+      ...Object.keys(garage.coils),
+    ])
+    const wanted = new Set([...relevant, ...configured])
+    // The default garage cannot own late-era machines — hide them unless configured or showing all.
+    const shown = (machine: MachineDto) =>
+      showAll ||
+      (wanted.has(machine.name) &&
+        (configured.has(machine.name) ||
+          machine.alwaysOwned ||
+          machine.era === null ||
+          machine.era <= garage.defaultTier))
     return meta.machines
-      .filter((machine) => showAll || wanted.has(machine.name))
+      .filter(shown)
       .toSorted((a, b) => {
         if (a.alwaysOwned !== b.alwaysOwned) {
           return a.alwaysOwned ? 1 : -1
@@ -95,7 +99,7 @@ export function GaragePanel() {
   }
 
   return (
-    <section className="panel">
+    <section className="panel panel-garage">
       <header className="panel-title">Machine garage</header>
       <div className="garage-default">
         <label htmlFor="default-tier">Default tier</label>
