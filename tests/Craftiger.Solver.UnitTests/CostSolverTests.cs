@@ -203,6 +203,30 @@ public sealed class CostSolverTests
     }
 
     [Fact]
+    public void AFormTieNeverPointsTwoItemsAtEachOther()
+    {
+        // Macerating the ingot ties the dust's mix price and consumes a better form, but
+        // the ingot's own best recipe is the blast from that dust: rerouting the dust to
+        // the macerator would leave the pair explaining each other's price in a circle.
+        var graph = Fx.Graph(
+            [
+                Fx.Leaf("rawDust", tier: 0, leafClass: "dust"),
+                Fx.Leaf("alloyDust", tier: 0, leafClass: "dust"),
+                Fx.Leaf("alloyIngot", tier: 0, leafClass: "ingot"),
+            ],
+            Fx.Recipe("mix", inputs: [("rawDust", 2)], outputs: ("alloyDust", 3, 1.0)),
+            Fx.Recipe("blast", inputs: [("alloyDust", 1)], outputs: ("alloyIngot", 1, 1.0)),
+            Fx.Recipe("macerate", inputs: [("alloyIngot", 1)], outputs: ("alloyDust", 1, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal("mix", table.BestRecipes["alloyDust"].Id);
+        Assert.Equal("blast", table.BestRecipes["alloyIngot"].Id);
+        Assert.Equal(8.0 / 3, table.Costs["alloyDust"], 9);
+        Assert.Equal(8.0 / 3, table.Costs["alloyIngot"], 9);
+    }
+
+    [Fact]
     public void AMeltTieSkipsTheDetourThroughARod()
     {
         // Rodding is mass-conserving, so melting the rod ties melting the ingot exactly;

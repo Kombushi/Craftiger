@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.17
+# GTNH Crafting Planner — Specification v1.18
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -409,9 +409,13 @@ Why this shape:
      magnetic steel, whose polarizer chain equalized the price but not the
      era ceiling).
   `bestRecipe` moves to the best-scoring producer — unless that recipe's
-  chosen inputs can reach the item over the walk's own chosen edges, where
-  rerouting would hand the BOM a cycle, so the incumbent is kept. Depths are
-  measured on the DAG as the solve left it. Costs never change in this pass,
+  chosen inputs can reach the item over chosen edges, where rerouting would
+  close a pointer loop, so the incumbent is kept. The reachability walk runs
+  through produced leaves: the BOM stops at leaves, but the pointer graph
+  itself must stay a DAG, or two forms at an exact plateau end up pointing
+  at each other (macerate-the-ingot ↔ blast-the-dust) and neither can be
+  traced to raw materials. Depths are measured on the DAG as the solve left
+  it. Costs never change in this pass,
   ties still lose during the solve, and the walk then ends on the best
   form's leaf. A route where a worse form is genuinely cheaper is a real
   gap, not a tie, and keeps winning.
@@ -773,3 +777,6 @@ All "does not / never" rules live here; other sections only reference this one.
 28. Macerating or arcing Mining Pipes back to steel never ships, so no ferrous
     price rides the pipes-per-ingot amplifier, while the Block Breaker still
     crafts from a Mining Pipe.
+29. Two forms at an exact price plateau never point at each other: the dust
+    keeps its real producer even when macerating the ingot ties the price
+    with a better-ranked form.

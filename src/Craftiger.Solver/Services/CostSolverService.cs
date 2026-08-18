@@ -127,8 +127,8 @@ public sealed class CostSolverService(
     /// rank first, then chain depth of the chosen inputs (a leaf beats a detour through
     /// intermediates), then the leaf weight of the chosen leaves (a lighter-era material
     /// beats a heavier one) — unless the new recipe's inputs can reach the item over chosen
-    /// edges, which would hand the BOM walk a cycle. Costs never change here, only
-    /// pointers.</summary>
+    /// edges, leaves included, which would close a pointer loop. Costs never change here,
+    /// only pointers.</summary>
     private void PreferForms(
         SolverGraph graph, Dictionary<string, List<SolverRecipe>> producers,
         Dictionary<string, double> cost, Dictionary<string, SolverRecipe> best,
@@ -148,7 +148,7 @@ public sealed class CostSolverService(
             foreach (var (candidate, _) in candidates)
             {
                 if (Candidate(candidate, itemId, cost) > cost[itemId] + Epsilon
-                    || Reaches(graph, cost, best, candidate, itemId))
+                    || Reaches(cost, best, candidate, itemId))
                 {
                     continue;
                 }
@@ -231,10 +231,11 @@ public sealed class CostSolverService(
         return depths;
     }
 
-    /// <summary>Whether the item is reachable from the recipe's chosen inputs over the same
-    /// chosen edges the BOM walks — leaves and unpriced items are terminal there too.</summary>
+    /// <summary>Whether the item is reachable from the recipe's chosen inputs over chosen
+    /// edges. The walk runs through produced leaves — the BOM stops at them, but a pointer
+    /// loop hiding behind one would explain two forms' prices with each other.</summary>
     private static bool Reaches(
-        SolverGraph graph, IReadOnlyDictionary<string, double> cost,
+        IReadOnlyDictionary<string, double> cost,
         Dictionary<string, SolverRecipe> best, SolverRecipe from, string target)
     {
         var pending = new Stack<string>(
@@ -246,7 +247,7 @@ public sealed class CostSolverService(
             {
                 return true;
             }
-            if (!seen.Add(itemId) || graph.IsLeaf(itemId) || !best.TryGetValue(itemId, out var recipe))
+            if (!seen.Add(itemId) || !best.TryGetValue(itemId, out var recipe))
             {
                 continue;
             }
