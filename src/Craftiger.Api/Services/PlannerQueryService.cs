@@ -84,6 +84,7 @@ public sealed class PlannerQueryService(
         foreach (var recipe in recipes)
         {
             ids.UnionWith(recipe.Slots.SelectMany(slot => slot).Select(alternative => alternative.ItemId));
+            ids.UnionWith(recipe.Catalysts.SelectMany(slot => slot).Select(alternative => alternative.ItemId));
             ids.UnionWith(recipe.Outputs.Select(output => output.ItemId));
         }
 
@@ -122,6 +123,7 @@ public sealed class PlannerQueryService(
         {
             ids.Add(node.ItemId);
             ids.UnionWith(node.InputsPerRun.Select(input => input.ItemId));
+            ids.UnionWith(node.Catalysts.Select(catalyst => catalyst.ItemId));
             ids.UnionWith(node.Outputs.Select(output => output.ItemId));
         }
         return new BomResponse(result.Targets, result.Leaves, result.Warnings, nodes, Refs(entry, ids));
@@ -133,10 +135,14 @@ public sealed class PlannerQueryService(
         var outputs = artifact.Graph.RecipesById[node.RecipeId].Outputs
             .Select(output => new OutputDto(output.ItemId, output.Amount, output.Chance))
             .ToList();
+        // One representative stack per catalyst slot; the item detail lists the alternatives.
+        var catalysts = info.Catalysts
+            .Select(slot => new BomStack(slot.Alternatives[0].ItemId, slot.Alternatives[0].Amount))
+            .ToList();
         return new BomNodeDto(
             node.ItemId, node.Amount, node.Runs, node.WholeAmount, node.WholeRuns, node.RecipeId,
             info.Machine, info.Tier, info.MultiTier, info.Heat, info.DurationTicks, info.EuT,
-            node.InputsPerRun, outputs);
+            node.InputsPerRun, catalysts, outputs);
     }
 
     private IReadOnlyDictionary<string, ItemRefDto> Refs(SolveEntry entry, IEnumerable<string> ids) =>
@@ -165,6 +171,11 @@ public sealed class PlannerQueryService(
                         entry.Table.Costs.TryGetValue(alternative.ItemId, out var cost)
                             ? cost * alternative.Amount
                             : null))
+                    .ToList())
+                .ToList(),
+            info.Catalysts
+                .Select(slot => (IReadOnlyList<SlotAlternativeDto>)slot.Alternatives
+                    .Select(alternative => new SlotAlternativeDto(alternative.ItemId, alternative.Amount, null))
                     .ToList())
                 .ToList(),
             recipe.Outputs.Select(output => new OutputDto(output.ItemId, output.Amount, output.Chance)).ToList());

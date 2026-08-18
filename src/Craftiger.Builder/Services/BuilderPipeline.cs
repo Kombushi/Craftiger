@@ -159,6 +159,10 @@ public sealed class BuilderPipeline(
             {
                 ids.UnionWith(choice.Alternatives.Select(a => a.ItemId));
             }
+            foreach (var catalyst in recipe.Catalysts)
+            {
+                ids.UnionWith(catalyst.Alternatives.Select(a => a.ItemId));
+            }
             foreach (var output in recipe.Outputs)
             {
                 ids.Add(output.ItemId);

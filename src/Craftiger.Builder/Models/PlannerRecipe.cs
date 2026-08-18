@@ -16,6 +16,10 @@ public sealed record PlannerRecipe(
     bool RequiresCleanroom,
     bool EraOnly = false)
 {
+    /// <summary>Tool, mold, and circuit slots the recipe needs in place but never consumes —
+    /// shipped for display only, never priced and never era-gated.</summary>
+    public IReadOnlyList<PlannerChoice> Catalysts { get; init; } = [];
+
     /// <summary>The tier of the best machine for the job: multiblocks run recipes one tier
     /// above their hatches, so serving this recipe on one costs a tier less.</summary>
     public int BestCaseTier =>

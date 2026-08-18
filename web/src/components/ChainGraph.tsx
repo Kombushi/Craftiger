@@ -217,6 +217,20 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
             />
           )
         })}
+        {node.catalysts.map((tool, index) => {
+          const item = bom.items[tool.itemId]
+          return (
+            <Slot
+              key={`tool-${index}`}
+              atlasIdx={item?.atlasIdx ?? -1}
+              badge={fmtCount(tool.amount)}
+              dim
+              title={`${item?.name ?? tool.itemId}\nneeded in place — not consumed`}
+              onClick={() => openDetail(tool.itemId)}
+              onHover={(hovering) => onHover(hovering ? tool.itemId : null)}
+            />
+          )
+        })}
       </div>
       <span
         className="card-arrow"
@@ -240,6 +254,8 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
         {node.outputs.map((output, index) => {
           const item = bom.items[output.itemId]
           const own = output.itemId === node.itemId
+          // Chanced recipes list the same item several times; the need shows once.
+          const firstOwn = index === node.outputs.findIndex((o) => o.itemId === node.itemId)
           const produced = output.amount * node.wholeRuns
           const chance = output.chance < 1 ? ` · ${Math.round(output.chance * 100)}%` : ''
           return (
@@ -247,7 +263,7 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
               key={index}
               atlasIdx={item?.atlasIdx ?? -1}
               badge={fmtCount(produced)}
-              needBadge={own ? fmtCount(node.wholeAmount) : undefined}
+              needBadge={own && firstOwn ? fmtCount(node.wholeAmount) : undefined}
               dim={!own}
               highlight={own}
               title={`${item?.name ?? output.itemId}${chance}${own ? '' : '\nbyproduct — not credited'}`}

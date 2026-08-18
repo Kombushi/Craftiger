@@ -161,6 +161,17 @@ function cheapest(slot: SlotAlternative[]): SlotAlternative {
   })
 }
 
+function altLines(slot: SlotAlternative[], name: (id: string) => string): string {
+  if (slot.length <= 1) {
+    return ''
+  }
+  const lines = slot
+    .slice(0, 8)
+    .map((alternative) => `  ${name(alternative.itemId)}`)
+    .join('\n')
+  return `\n${slot.length} alternatives:\n${lines}${slot.length > 8 ? '\n  …' : ''}`
+}
+
 function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: DetailRecipeProps) {
   const { openDetail } = useStore()
   const item = (id: string) => detail.items[id]
@@ -183,13 +194,7 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
           {recipe.slots.map((slot, index) => {
             const chosen = cheapest(slot)
             const chosenItem = item(chosen.itemId)
-            const alternatives =
-              slot.length > 1
-                ? `\n${slot.length} alternatives:\n${slot
-                    .slice(0, 8)
-                    .map((alternative) => `  ${item(alternative.itemId)?.name ?? alternative.itemId}`)
-                    .join('\n')}${slot.length > 8 ? '\n  …' : ''}`
-                : ''
+            const alternatives = altLines(slot, (id) => item(id)?.name ?? id)
             return (
               <span key={index} className="detail-slot">
                 <Slot
@@ -197,6 +202,23 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
                   badge={fmtCount(chosen.amount)}
                   title={`${chosenItem?.name ?? chosen.itemId} · ${fmtAmount(chosen.amount, chosenItem?.isFluid ?? false)} · ${fmtCost(chosenItem?.cost ?? null)} each${alternatives}`}
                   onClick={() => openDetail(chosen.itemId)}
+                />
+                {slot.length > 1 ? <span className="alt-badge mono">+{slot.length - 1}</span> : null}
+              </span>
+            )
+          })}
+          {recipe.catalysts.map((slot, index) => {
+            const tool = slot[0]
+            const toolItem = item(tool.itemId)
+            const alternatives = altLines(slot, (id) => item(id)?.name ?? id)
+            return (
+              <span key={`tool-${index}`} className="detail-slot">
+                <Slot
+                  atlasIdx={toolItem?.atlasIdx ?? -1}
+                  badge={fmtCount(tool.amount)}
+                  dim
+                  title={`${toolItem?.name ?? tool.itemId} · needed in place — not consumed${alternatives}`}
+                  onClick={() => openDetail(tool.itemId)}
                 />
                 {slot.length > 1 ? <span className="alt-badge mono">+{slot.length - 1}</span> : null}
               </span>

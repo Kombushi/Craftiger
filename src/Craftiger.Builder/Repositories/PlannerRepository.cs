@@ -9,7 +9,7 @@ public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader
     /// can refuse an artifact written for a contract it does not know.</summary>
-    public const int SchemaVersion = 3;
+    public const int SchemaVersion = 4;
 
     public void Write(string path, PlannerData data)
     {
@@ -54,6 +54,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 item_id TEXT NOT NULL,
                 amount INTEGER NOT NULL,
                 slot INTEGER NOT NULL,
+                catalyst INTEGER NOT NULL,
                 UNIQUE(recipe_id, slot, item_id));
             CREATE TABLE recipe_outputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, chance REAL NOT NULL);
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
@@ -93,13 +94,22 @@ public sealed class PlannerRepository : IPlannerRepository
             }), tx);
 
         // Rows sharing a slot are alternatives; the solver takes the cheapest of them.
-        db.Execute("INSERT INTO recipe_inputs VALUES (@RecipeId, @ItemId, @Amount, @Slot)",
+        // Catalyst rows are display only: tools the recipe needs in place but never consumes.
+        db.Execute("INSERT INTO recipe_inputs VALUES (@RecipeId, @ItemId, @Amount, @Slot, @Catalyst)",
             data.Recipes.SelectMany(r =>
                 r.Inputs
-                    .Select((i, slot) => new { RecipeId = r.Id, ItemId = i.Key, Amount = i.Value, Slot = slot })
+                    .Select((i, slot) => new
+                    {
+                        RecipeId = r.Id, ItemId = i.Key, Amount = i.Value, Slot = slot, Catalyst = 0
+                    })
                     .Concat(r.Choices.SelectMany((choice, index) => choice.Alternatives.Select(a => new
                     {
-                        RecipeId = r.Id, a.ItemId, a.Amount, Slot = r.Inputs.Count + index
+                        RecipeId = r.Id, a.ItemId, a.Amount, Slot = r.Inputs.Count + index, Catalyst = 0
+                    })))
+                    .Concat(r.Catalysts.SelectMany((slot, index) => slot.Alternatives.Select(a => new
+                    {
+                        RecipeId = r.Id, a.ItemId, a.Amount,
+                        Slot = r.Inputs.Count + r.Choices.Count + index, Catalyst = 1
                     })))), tx);
 
         db.Execute("INSERT INTO recipe_outputs VALUES (@RecipeId, @ItemId, @Amount, @Chance)",

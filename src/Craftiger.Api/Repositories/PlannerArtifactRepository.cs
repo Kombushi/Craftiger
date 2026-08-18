@@ -11,7 +11,7 @@ public sealed class PlannerArtifactRepository(
     GarageRules rules, ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 3;
+    public const int SupportedSchemaVersion = 4;
 
     public PlannerArtifact Load(string artifactsDir)
     {
@@ -61,14 +61,17 @@ public sealed class PlannerArtifactRepository(
             .ToList();
 
         // Row order inside a slot fixes which alternative wins ties, so it must be stable.
+        // Catalyst rows never reach the solver: they are display-only tool slots.
         var slotsByRecipe = new Dictionary<string, List<SolverSlot>>();
-        foreach (var group in db.Query<(string RecipeId, string ItemId, long Amount, long Slot)>(
-                "SELECT recipe_id, item_id, amount, slot FROM recipe_inputs ORDER BY recipe_id, slot, rowid")
-            .GroupBy(row => (row.RecipeId, row.Slot)))
+        var catalystsByRecipe = new Dictionary<string, List<SolverSlot>>();
+        foreach (var group in db.Query<(string RecipeId, string ItemId, long Amount, long Slot, long Catalyst)>(
+                "SELECT recipe_id, item_id, amount, slot, catalyst FROM recipe_inputs ORDER BY recipe_id, slot, rowid")
+            .GroupBy(row => (row.RecipeId, row.Slot, row.Catalyst)))
         {
-            if (!slotsByRecipe.TryGetValue(group.Key.RecipeId, out var slots))
+            var target = group.Key.Catalyst != 0 ? catalystsByRecipe : slotsByRecipe;
+            if (!target.TryGetValue(group.Key.RecipeId, out var slots))
             {
-                slotsByRecipe[group.Key.RecipeId] = slots = [];
+                target[group.Key.RecipeId] = slots = [];
             }
             slots.Add(new SolverSlot(group.Select(row => new SolverStack(row.ItemId, row.Amount)).ToList()));
         }
@@ -110,7 +113,8 @@ public sealed class PlannerArtifactRepository(
             items,
             recipeRows.ToDictionary(row => row.Id, row => new ArtifactRecipe(
                 row.Id, row.Machine, (int)row.Tier, (int?)row.MultiTier, (int?)row.Heat,
-                row.DurationTicks, row.EuT)),
+                row.DurationTicks, row.EuT,
+                catalystsByRecipe.GetValueOrDefault(row.Id) ?? [])),
             meta.GetValueOrDefault("pack_version") ?? "unknown",
             JsonSerializer.Deserialize<List<string>>(meta.GetValueOrDefault("tier_names") ?? "[]") ?? [],
             JsonSerializer.Deserialize<List<CoilDto>>(meta.GetValueOrDefault("coils") ?? "[]") ?? [],

@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Craftiger.Api.UnitTests;
 
-/// <summary>Boots the API once over a hand-written schema-v3 artifact.</summary>
+/// <summary>Boots the API once over a hand-written schema-v4 artifact.</summary>
 public sealed class ApiFixture : IDisposable
 {
     public string Dir { get; }
@@ -17,7 +17,7 @@ public sealed class ApiFixture : IDisposable
     {
         Dir = Path.Combine(Path.GetTempPath(), "craftiger-api-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Dir);
-        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 3);
+        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 4);
         File.WriteAllText(Path.Combine(Dir, "atlas-offsets.json"), "{}");
         _factory = Create(Dir);
         Client = _factory.CreateClient();
@@ -27,9 +27,9 @@ public sealed class ApiFixture : IDisposable
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder.UseSetting("ApiOptions:ArtifactsDir", artifactsDir));
 
-    /// <summary>The fixture graph: two tiered ingots, a nugget fraction, a wiremill recipe,
-    /// a heat-1900 EBF recipe, an MV extruder recipe, and an LV recipe on a late-era
-    /// machine.</summary>
+    /// <summary>The fixture graph: two tiered ingots, a nugget fraction, a wiremill recipe
+    /// with a catalyst saw, a heat-1900 EBF recipe, an MV extruder recipe, and an LV recipe
+    /// on a late-era machine.</summary>
     public static void WriteArtifact(string path, int schemaVersion)
     {
         using var db = new SqliteConnection($"Data Source={path}");
@@ -56,6 +56,7 @@ public sealed class ApiFixture : IDisposable
                 item_id TEXT NOT NULL,
                 amount INTEGER NOT NULL,
                 slot INTEGER NOT NULL,
+                catalyst INTEGER NOT NULL,
                 UNIQUE(recipe_id, slot, item_id));
             CREATE TABLE recipe_outputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, chance REAL NOT NULL);
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
@@ -73,7 +74,8 @@ public sealed class ApiFixture : IDisposable
                 ('hot', 'Hot Thing', NULL, 0, NULL, 3),
                 ('sil', 'Silver Ingot', 'ingotSilverium', 0, 'ingot', 4),
                 ('rod', 'Extruded Rod', NULL, 0, NULL, 5),
-                ('chip', 'Late Chip', NULL, 0, NULL, 6);
+                ('chip', 'Late Chip', NULL, 0, NULL, 6),
+                ('saw', 'Test Saw', NULL, 0, NULL, 7);
             INSERT INTO item_aliases VALUES ('ing', 'ingotIronium'), ('ing', 'Ferrum Ingot');
             INSERT INTO recipes VALUES
                 ('r_wire', 'Wiremill', 1, NULL, NULL, 100, 32),
@@ -81,10 +83,11 @@ public sealed class ApiFixture : IDisposable
                 ('r_rod', 'Extruder', 2, NULL, NULL, 100, 96),
                 ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32);
             INSERT INTO recipe_inputs VALUES
-                ('r_wire', 'ing', 1, 0),
-                ('r_ebf', 'ing', 1, 0),
-                ('r_rod', 'ing', 1, 0),
-                ('r_chip', 'ing', 1, 0);
+                ('r_wire', 'ing', 1, 0, 0),
+                ('r_wire', 'saw', 1, 1, 1),
+                ('r_ebf', 'ing', 1, 0, 0),
+                ('r_rod', 'ing', 1, 0, 0),
+                ('r_chip', 'ing', 1, 0, 0);
             INSERT INTO recipe_outputs VALUES
                 ('r_wire', 'wire', 2, 1.0),
                 ('r_ebf', 'hot', 1, 1.0),

@@ -331,11 +331,20 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             "SELECT chance FROM recipe_outputs WHERE recipe_id = 'r_macerate' AND chance < 1"), precision: 9);
 
     [Fact]
-    public void CatalystsAreStripped()
+    public void CatalystsShipAsDisplayOnlyRows()
     {
         Assert.Equal(0, _fixture.Scalar<int>(
-            $"SELECT COUNT(*) FROM recipe_inputs WHERE item_id IN ('{FixtureDump.Saw}', '{FixtureDump.Mold}')"));
-        Assert.Equal(1, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_planks'"));
+            $"SELECT COUNT(*) FROM recipe_inputs WHERE item_id IN ('{FixtureDump.Saw}', '{FixtureDump.Mold}') AND catalyst = 0"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_planks' AND catalyst = 0"));
+        Assert.Equal(FixtureDump.Saw, _fixture.Scalar<string>(
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_planks' AND catalyst = 1"));
+        Assert.Equal(FixtureDump.Mold, _fixture.Scalar<string>(
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_extrude' AND catalyst = 1"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            "SELECT amount FROM recipe_inputs WHERE recipe_id = 'r_extrude' AND catalyst = 1"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM items WHERE id = '{FixtureDump.Saw}'"));
     }
 
     [Fact]
@@ -351,9 +360,13 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     public void OneToolCondemnsTheWholeSlot()
     {
         Assert.Equal(1, _fixture.Scalar<int>(
-            "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_tool_choice'"));
+            "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_tool_choice' AND catalyst = 0"));
         Assert.Equal(FixtureDump.Log, _fixture.Scalar<string>(
-            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_tool_choice'"));
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_tool_choice' AND catalyst = 0"));
+        Assert.Equal(2, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_tool_choice' AND catalyst = 1"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            "SELECT COUNT(DISTINCT slot) FROM recipe_inputs WHERE recipe_id = 'r_tool_choice' AND catalyst = 1"));
     }
 
     [Fact]

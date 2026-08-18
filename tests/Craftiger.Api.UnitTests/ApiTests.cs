@@ -51,7 +51,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         var list = await Client.GetFromJsonAsync<ListResponse>(
             $"/api/list?solveId={solveId}&pageSize=10");
 
-        Assert.Equal(7, list!.Total);
+        Assert.Equal(8, list!.Total);
         Assert.Equal("nug", list.Items[0].ItemId);
         Assert.Equal(4.0 / 9, list.Items[0].Cost!.Value, 9);
         Assert.Equal("wire", list.Items[1].ItemId);
@@ -72,11 +72,12 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         var reachable = await Client.GetFromJsonAsync<ListResponse>(
             $"/api/list?solveId={solveId}&pageSize=10&hideUnreachable=true");
 
-        Assert.Equal(7, full!.Total);
-        Assert.Equal("rod", full.Items[^1].ItemId);
+        Assert.Equal(8, full!.Total);
+        Assert.Contains(full.Items, item => item.ItemId == "rod" && item.Cost is null);
         Assert.Null(full.Items[^1].Cost);
         Assert.Equal(6, reachable!.Total);
         Assert.DoesNotContain(reachable.Items, item => item.ItemId == "rod");
+        Assert.DoesNotContain(reachable.Items, item => item.ItemId == "saw");
     }
 
     [Fact]
@@ -156,7 +157,11 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Equal("Wiremill", recipe.Machine);
         Assert.Equal(2, recipe.CandidateCost);
         Assert.Equal(4, Assert.Single(Assert.Single(recipe.Slots)).Cost);
+        var catalyst = Assert.Single(Assert.Single(recipe.Catalysts));
+        Assert.Equal("saw", catalyst.ItemId);
+        Assert.Null(catalyst.Cost);
         Assert.Equal(4, detail.Items["ing"].Cost);
+        Assert.Equal("Test Saw", detail.Items["saw"].Name);
         Assert.False(detail.Items["ing"].IsFluid);
     }
 
@@ -225,6 +230,8 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Equal(2, node.WholeRuns);
         Assert.Equal(2, result.Leaves[0].WholeAmount);
         Assert.Equal("ing", Assert.Single(node.InputsPerRun).ItemId);
+        Assert.Equal("saw", Assert.Single(node.Catalysts).ItemId);
+        Assert.Null(result.Items["saw"].Cost);
         Assert.Equal(4, result.Items["ing"].Cost);
         Assert.Equal(2, result.Items["wire"].Cost);
     }

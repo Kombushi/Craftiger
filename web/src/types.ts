@@ -85,6 +85,7 @@ export interface BomNode {
   durationTicks: number
   euT: number
   inputsPerRun: BomStack[]
+  catalysts: BomStack[]
   outputs: OutputRow[]
 }
 
@@ -124,6 +125,7 @@ export interface RecipeDto {
   euT: number
   candidateCost: number | null
   slots: SlotAlternative[][]
+  catalysts: SlotAlternative[][]
   outputs: OutputRow[]
 }
 

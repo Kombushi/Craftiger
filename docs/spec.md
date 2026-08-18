@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.14
+# GTNH Crafting Planner — Specification v1.15
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -130,14 +130,17 @@ Builder responsibilities, in order:
    empty container + fluid, then net out items appearing on both sides of one
    recipe. Balanced containers vanish, so cell-only recipes become their
    fluid form automatically; unmatched containers survive as real inputs or
-   outputs and stay priced. Then strip non-consumed inputs: the dump marks
+   outputs and stay priced. Then split off non-consumed inputs: the dump marks
    most catalysts (programmed circuits, molds, shapes, lenses) with stack
    size 0, which is the primary signal; a static editable prefix list
-   additionally strips GT crafting tools (wire cutter, hammer, file, saw,
-   screwdriver, wrench, …), which crafting-grid recipes list at size 1. One
-   catalyst condemns its whole slot: a tool slot lists every mod's version of
-   that tool and the prefix list only recognises GregTech's, so judging members
-   one at a time would leave the third-party tools priced as ingredients.
+   additionally catches GT crafting tools (wire cutter, hammer, file, saw,
+   screwdriver, wrench, mortar, …), which crafting-grid recipes list at size 1.
+   One catalyst condemns its whole slot: a tool slot lists every mod's version
+   of that tool and the prefix list only recognises GregTech's, so judging
+   members one at a time would leave the third-party tools priced as
+   ingredients. Condemned slots are not dropped — they ship as
+   catalyst-flagged rows (§9): a recipe that needs a mortar in place shows
+   the mortar, it just never pays for it.
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
 4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). Two tiers
@@ -273,8 +276,11 @@ Builder responsibilities, in order:
 - `recipes(id, machine, tier, multi_tier NULL, heat NULL, duration_ticks, eu_t)`
   — `multi_tier` for maps whose multiblock lowers the tier, `heat` for
   coil-gated recipes only
-- `recipe_inputs(recipe_id, item_id, amount, slot)` — amount in units, or mB for
-  fluids; rows sharing a `slot` are alternatives the recipe accepts any one of
+- `recipe_inputs(recipe_id, item_id, amount, slot, catalyst)` — amount in
+  units, or mB for fluids; rows sharing a `slot` are alternatives the recipe
+  accepts any one of; `catalyst = 1` rows are the tool, mold, and circuit
+  slots the recipe needs in place but never consumes — display only, never
+  read by the solver (§9)
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
 - `item_tiers(item_id, tier)` — tiered materials: ingots, gems and dusts (§4)
 - `item_parents(item_id, parent_item_id, divisor)` — fraction leaves (small and
@@ -481,13 +487,17 @@ with the results they describe. Screens:
      recipe card (machine, tier, heat, runs, chosen input stacks, output rows,
      duration, EU/t) laid out in topological layers, edges running from each
      producer to the slots that consume it; leaves close the left edge as
-     material cards. Cards link into item detail for pinning.
+     material cards. Cards link into item detail for pinning. Catalyst slots
+     (§9) render dimmed among the inputs, marked as needed in place but not
+     consumed, in both recipe cards and item detail.
   Displayed runs and amounts are the whole-run plan (§6) — a machine takes a
   full recipe or nothing, so no card ever shows a partial craft; the
   fractional expected values surface only in tooltips. A recipe card's own
   output square carries two counts: what the whole runs produce and, in the
   accent color, what the plan actually needs — the surplus is their
-  difference, read off the card rather than a tooltip.
+  difference, read off the card rather than a tooltip. A chanced recipe may
+  list the same item on several output squares; the needed count appears on
+  the first of them only.
   Tapping any square opens that item's detail.
 - **Garage** — global default tier (Steam…max) plus a machine list
   **filtered to relevance**: only machines in the current cart's upstream
@@ -583,6 +593,10 @@ All "does not / never" rules live here; other sections only reference this one.
 
 - **Crafting-tree and step-list views** — the result is always the flat BOM grid.
 - **Energy and machine time in prices** — cost is material-only.
+- **Catalyst costs** — tool, mold, and circuit slots (§3 step 2) never price
+  and never gate eras: a mortar survives its crafts, so charging one per run
+  would overprice every hand-ground dust. They ship as `catalyst`-flagged
+  `recipe_inputs` rows for display only, and the solver never reads them.
 - **Byproduct credit** — sibling outputs never reduce a recipe's cost;
   crediting them collapses all prices toward zero through recycling loops.
 - **Pseudo-recipe sources** — bee breeding, mob drops, dungeon/chest loot,
@@ -739,3 +753,5 @@ All "does not / never" rules live here; other sections only reference this one.
 26. A default-tier garage does not run recipes on machines first craftable
     beyond that tier — an HV default never plans the Circuit Assembly Line —
     while an explicit per-machine tier brings them back.
+27. Grinding an ingot to dust shows the mortar in the recipe, and the dust's
+    price does not contain the mortar's.

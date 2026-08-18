@@ -42,7 +42,7 @@ export interface ChainLayout {
 }
 
 export function inputColumns(node: BomNode): number {
-  const count = node.inputsPerRun.length
+  const count = node.inputsPerRun.length + node.catalysts.length
   if (count === 0) {
     return 1
   }
@@ -63,7 +63,7 @@ const MIN_RECIPE_W = 210
 function recipeSize(node: BomNode): { w: number; h: number } {
   const inCols = inputColumns(node)
   const outCols = outputColumns(node)
-  const inRows = Math.max(1, Math.ceil(node.inputsPerRun.length / inCols))
+  const inRows = Math.max(1, Math.ceil((node.inputsPerRun.length + node.catalysts.length) / inCols))
   const outRows = Math.max(1, Math.ceil(node.outputs.length / outCols))
   const rows = Math.max(inRows, outRows)
   return {

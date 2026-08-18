@@ -4,7 +4,8 @@ namespace Craftiger.Api.Models;
 
 /// <summary>A chain node: one expanded item with its chosen recipe's display data, the
 /// chosen input stacks per single run, and the recipe's full output rows. Demand and runs
-/// come in both accountings — fractional expected values and the whole-run plan.</summary>
+/// come in both accountings — fractional expected values and the whole-run plan. Catalysts
+/// are the recipe's tool slots: needed in place, never consumed, one stack per slot.</summary>
 public sealed record BomNodeDto(
     string ItemId,
     double Amount,
@@ -19,4 +20,5 @@ public sealed record BomNodeDto(
     long DurationTicks,
     long EuT,
     IReadOnlyList<BomStack> InputsPerRun,
+    IReadOnlyList<BomStack> Catalysts,
     IReadOnlyList<OutputDto> Outputs);

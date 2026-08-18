@@ -63,16 +63,23 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
 
             var inputs = new Dictionary<string, long>();
             var choices = new List<PlannerChoice>();
+            var catalysts = new List<PlannerChoice>();
             var slots = new List<IReadOnlyList<string>>();
             foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
             {
-                var members = ResolveSlot(dump, unified, groupId);
+                var (members, catalyst) = ResolveSlot(dump, unified, groupId);
                 if (members.Count == 0)
                 {
                     continue;
                 }
 
                 var alternatives = members.DistinctBy(member => member.ItemId).ToList();
+                if (catalyst)
+                {
+                    catalysts.Add(new PlannerChoice(alternatives));
+                    continue;
+                }
+
                 if (alternatives.Count > 1)
                 {
                     // A real choice of ingredient: ship every option at its own amount so
@@ -175,7 +182,10 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                         : machinesByTypeId.GetValueOrDefault(recipe.RecipeTypeId) ?? [],
                     slots,
                     gt?.RequiresCleanroom ?? false,
-                    _config.EraOnlyMachines.Contains(machine)));
+                    _config.EraOnlyMachines.Contains(machine))
+                {
+                    Catalysts = catalysts,
+                });
             }
         }
 
@@ -231,28 +241,30 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
         _config.ExcludedMachineSuffixes.Any(s => machine.EndsWith(s, StringComparison.Ordinal)) ||
         _config.ExcludedMachinePrefixes.Any(p => machine.StartsWith(p, StringComparison.Ordinal));
 
-    /// <summary>Every member of an input slot the recipe really consumes, or nothing when the
-    /// slot is a catalyst. One catalyst condemns the whole slot on purpose: a tool slot lists
-    /// every mod's version of that tool, and the prefix list only recognises GregTech's, so
-    /// judging members one by one would leave the third-party tools priced as ingredients.</summary>
-    private List<(string ItemId, long Amount)> ResolveSlot(Dump dump, UnifiedItems unified, string groupId)
+    /// <summary>Every member of an input slot, flagged as a catalyst when the recipe does not
+    /// consume it. One catalyst condemns the whole slot on purpose: a tool slot lists every
+    /// mod's version of that tool, and the prefix list only recognises GregTech's, so judging
+    /// members one by one would leave the third-party tools priced as ingredients.</summary>
+    private (List<(string ItemId, long Amount)> Members, bool Catalyst) ResolveSlot(
+        Dump dump, UnifiedItems unified, string groupId)
     {
         if (!dump.GroupStacks.TryGetValue(groupId, out var stacks))
         {
-            return [];
+            return ([], false);
         }
 
+        var catalyst = false;
         var members = new List<(string ItemId, long Amount)>();
         foreach (var stack in stacks.OrderBy(stack => unified.Canonical(stack.ItemId), StringComparer.Ordinal))
         {
             var canonical = unified.Canonical(stack.ItemId);
             if (stack.Size <= 0 || IsCatalyst(stack.ItemId) || IsCatalyst(canonical))
             {
-                return [];
+                catalyst = true;
             }
-            members.Add((canonical, stack.Size));
+            members.Add((canonical, Math.Max(1, stack.Size)));
         }
-        return members;
+        return (members, catalyst);
     }
 
     private static IEnumerable<(string ItemId, long Amount)> Decompose(Dump dump, string itemId, long amount)
