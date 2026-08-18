@@ -14,6 +14,9 @@ export function ItemIcon({ atlasIdx, size = 32 }: Props) {
   }
   const cols = atlas.width / atlas.cell
   const scale = size / atlas.cell
+  // One-texel crop per edge: zoom-level rounding otherwise samples the neighboring
+  // atlas cell, drawing a stray line on edge-to-edge sprites such as fluids.
+  const inset = scale
   const x = (atlasIdx % cols) * atlas.cell * scale
   const y = Math.floor(atlasIdx / cols) * atlas.cell * scale
   return (
@@ -22,8 +25,10 @@ export function ItemIcon({ atlasIdx, size = 32 }: Props) {
       style={{
         width: size,
         height: size,
+        border: `${inset}px solid transparent`,
+        backgroundClip: 'padding-box',
         backgroundImage: 'url(/atlas.webp)',
-        backgroundPosition: `${-x}px ${-y}px`,
+        backgroundPosition: `${-(x + inset)}px ${-(y + inset)}px`,
         backgroundSize: `${atlas.width * scale}px ${atlas.height * scale}px`,
       }}
     />
