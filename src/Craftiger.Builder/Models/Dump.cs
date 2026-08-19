@@ -18,6 +18,9 @@ public sealed class Dump
 
     /// <summary>GT's ore-prefix registry behind a longest-prefix matcher.</summary>
     public required OrePrefixIndex OrePrefixes { get; init; }
+
+    /// <summary>Forge container items: what using this item in a craft leaves behind.</summary>
+    public required Dictionary<string, string> ItemContainers { get; init; }
     public required Dictionary<string, List<(long Slot, string GroupId)>> ItemInputsByRecipe { get; init; }
     public required Dictionary<string, List<DumpItemOutput>> ItemOutputsByRecipe { get; init; }
     public required Dictionary<string, List<DumpFluidInput>> FluidInputsByRecipe { get; init; }

@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.21
+# GTNH Crafting Planner — Specification v1.22
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -150,15 +150,15 @@ Builder responsibilities, in order:
    fluid form automatically; unmatched containers survive as real inputs or
    outputs and stay priced. Then split off non-consumed inputs: the dump marks
    most catalysts (programmed circuits, molds, shapes, lenses) with stack
-   size 0, which is the primary signal; a static editable prefix list
-   additionally catches GT crafting tools (wire cutter, hammer, file, saw,
-   screwdriver, wrench, mortar, …), which crafting-grid recipes list at size 1.
-   One catalyst condemns its whole slot: a tool slot lists every mod's version
-   of that tool and the prefix list only recognises GregTech's, so judging
-   members one at a time would leave the third-party tools priced as
-   ingredients. Condemned slots are not dropped — they ship as
-   catalyst-flagged rows (§9): a recipe that needs a mortar in place shows
-   the mortar, it just never pays for it.
+   size 0, which is the primary signal; crafting tools additionally announce
+   themselves through Forge's container-item data — a tool crafts into its own
+   worn self, damage in NBT or in the meta, whatever mod it comes from — while
+   an item whose container is a different item (a soup bucket leaving its
+   bucket) stays a real ingredient, as does a programmed circuit that a
+   crafting-grid conversion genuinely consumes. One catalyst condemns its
+   whole slot: its members are alternatives for the same role. Condemned
+   slots are not dropped — they ship as catalyst-flagged rows (§9): a recipe
+   that needs a mortar in place shows the mortar, it just never pays for it.
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
 4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). Two tiers
@@ -824,3 +824,6 @@ All "does not / never" rules live here; other sections only reference this one.
 33. Fuel tabs and steam relaxation follow the dump's flags: no fuel map's
     tab ships as a recipe, and a steam machine runs its map's LV recipes in
     the steam era with no voltage floor, whatever the machine is named.
+34. A crafting tool of any mod ships as a catalyst through its container
+    item, a bucket-returning item stays an ingredient, and no prefix list
+    names either.

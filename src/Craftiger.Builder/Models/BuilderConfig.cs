@@ -3,9 +3,6 @@ namespace Craftiger.Builder.Models;
 /// <summary>Editable heuristics and pack-specific lists used by the pipeline.</summary>
 public sealed record BuilderConfig
 {
-    /// <summary>Input item-id prefixes stripped as non-consumed catalysts.</summary>
-    public required IReadOnlyList<string> CatalystItemIdPrefixes { get; init; }
-
     /// <summary>Exact machine names dropped as pseudo-recipe sources.</summary>
     public required IReadOnlyList<string> ExcludedMachines { get; init; }
 

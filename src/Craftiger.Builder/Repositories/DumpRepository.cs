@@ -22,7 +22,8 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
 
         var items = db.Query<DumpItem>("""
             SELECT ID AS Id, LOCALIZED_NAME AS Name, MOD_ID AS ModId,
-                INTERNAL_NAME AS InternalName, IMAGE_FILE_PATH AS ImagePath
+                INTERNAL_NAME AS InternalName, IMAGE_FILE_PATH AS ImagePath,
+                MAX_DAMAGE AS MaxDamage
             FROM ITEM
             """).ToDictionary(i => i.Id);
 
@@ -101,6 +102,15 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             .ToDictionary(r => r.Name, r => new DumpOrePrefix(
                 r.Name, r.Unifiable, r.SelfReferencing, r.MaterialBased, r.Container, r.Recyclable,
                 r.MaterialAmount));
+
+        if (!HasTable(db, "ITEM_CONTAINER"))
+        {
+            throw new InvalidOperationException(
+                "dump predates ITEM_CONTAINER; re-export with exporter 0.6.4 or later");
+        }
+        var itemContainers = db.Query<(string ItemId, string ContainerId)>(
+            """SELECT ITEM_ID, CONTAINER_ITEM_ID FROM ITEM_CONTAINER""")
+            .ToDictionary(r => r.ItemId, r => r.ContainerId);
 
         var itemInputs = new Dictionary<string, List<(long Slot, string GroupId)>>();
         foreach (var (recipeId, slot, groupId) in db.Query<(string, long, string)>(
@@ -294,6 +304,7 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             UnifiedOredictTargets = unifiedOredictTargets,
             UnificationBlacklist = unificationBlacklist,
             OrePrefixes = new OrePrefixIndex(orePrefixes),
+            ItemContainers = itemContainers,
             ItemInputsByRecipe = itemInputs,
             ItemOutputsByRecipe = itemOutputs,
             FluidInputsByRecipe = fluidInputs,

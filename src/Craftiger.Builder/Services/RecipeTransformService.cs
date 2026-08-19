@@ -15,6 +15,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
     public List<PlannerRecipe> Run(Dump dump, UnifiedItems unified)
     {
         var result = new List<PlannerRecipe>();
+        var tools = new ToolIndex(dump);
 
         // Machine items gate an era only when they exist as real craftable items.
         var machinesByTypeId = new Dictionary<string, IReadOnlyList<RecipeMachine>>();
@@ -73,7 +74,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             var slots = new List<IReadOnlyList<string>>();
             foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
             {
-                var (members, catalyst) = ResolveSlot(dump, unified, groupId);
+                var (members, catalyst) = ResolveSlot(dump, unified, tools, groupId);
                 if (members.Count == 0)
                 {
                     continue;
@@ -248,11 +249,11 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
         _config.ExcludedMachines.Contains(machine);
 
     /// <summary>Every member of an input slot, flagged as a catalyst when the recipe does not
-    /// consume it. One catalyst condemns the whole slot on purpose: a tool slot lists every
-    /// mod's version of that tool, and the prefix list only recognises GregTech's, so judging
-    /// members one by one would leave the third-party tools priced as ingredients.</summary>
-    private (List<(string ItemId, long Amount)> Members, bool Catalyst) ResolveSlot(
-        Dump dump, UnifiedItems unified, string groupId)
+    /// consume it: a zero-size stack by the dump's own mark, or a tool that crafts into its
+    /// own worn self by Forge's container-item data, whatever mod it comes from. One catalyst
+    /// still condemns the whole slot: its members are alternatives for the same role.</summary>
+    private static (List<(string ItemId, long Amount)> Members, bool Catalyst) ResolveSlot(
+        Dump dump, UnifiedItems unified, ToolIndex tools, string groupId)
     {
         if (!dump.GroupStacks.TryGetValue(groupId, out var stacks))
         {
@@ -264,7 +265,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
         foreach (var stack in stacks.OrderBy(stack => unified.Canonical(stack.ItemId), StringComparer.Ordinal))
         {
             var canonical = unified.Canonical(stack.ItemId);
-            if (stack.Size <= 0 || IsCatalyst(stack.ItemId) || IsCatalyst(canonical))
+            if (stack.Size <= 0 || tools.IsTool(stack.ItemId) || tools.IsTool(canonical))
             {
                 catalyst = true;
             }
@@ -285,9 +286,6 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             yield return (itemId, amount);
         }
     }
-
-    private bool IsCatalyst(string itemId) =>
-        _config.CatalystItemIdPrefixes.Any(p => itemId.StartsWith(p, StringComparison.Ordinal));
 
     private static List<PlannerOutput> Merge(List<PlannerOutput> outputs) =>
         outputs

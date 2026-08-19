@@ -104,6 +104,8 @@ public static class FixtureDump
     public const string CopperWire = "i~gregtech~gt.metaitem.02~30035";
     public const string SteamGrinder = "i~gregtech~gt.blockmachines~104";
     public const string SteamIngot = "i~gregtech~gt.metaitem.01~11888";
+    public const string TinkerSaw = "i~tconstruct~fixture_saw~3";
+    public const string SoupBucket = "i~fixture~soup_bucket~0";
     public const string BrewCell = "i~gregtech~gt.metaitem.01~30002";
 
     public static string Create(string directory)
@@ -172,6 +174,7 @@ public static class FixtureDump
             CREATE TABLE GREG_TECH_ORE_PREFIX(ID TEXT, NAME TEXT, UNIFIABLE INTEGER,
                 SELF_REFERENCING INTEGER, MATERIAL_BASED INTEGER, CONTAINER INTEGER,
                 RECYCLABLE INTEGER, MATERIAL_AMOUNT INTEGER);
+            CREATE TABLE ITEM_CONTAINER(ID TEXT, CONTAINER_ITEM_ID TEXT, ITEM_ID TEXT);
             CREATE TABLE METADATA(ID INTEGER, CREATION_TIME_MILLIS INTEGER, VERSION TEXT);
             """);
 
@@ -257,6 +260,8 @@ public static class FixtureDump
         Item(db, CopperWire, "1x Copper Wire", "gregtech");
         Item(db, SteamGrinder, "Bronze Grinder", "gregtech");
         Item(db, SteamIngot, "Steamium Ingot", "gregtech");
+        Item(db, TinkerSaw, "Fixture Saw", "tconstruct", maxDamage: 100);
+        Item(db, SoupBucket, "Soup Bucket", "fixture");
         Item(db, BrewCell, "Brewium Cell", "gregtech");
         Item(db, ClayBlock, "Clay", "minecraft");
         Item(db, ClayBall, "Clay Ball", "minecraft");
@@ -574,6 +579,17 @@ public static class FixtureDump
         Group(db, "g_saw_or_iron", (Saw, 1), (IronIngot, 1));
         Recipe(db, "r_tool_choice", "t_shaped", inputs: [("g_saw_or_iron", 0), ("g_log", 1)],
             outputs: [(Plank, 1, 1.0)]);
+        // Tools announce themselves by crafting into their own worn selves: the GT saw keeps
+        // its damage in NBT, the fixture saw wears through its meta.
+        ItemContainer(db, Saw, Saw + "~worn");
+        ItemContainer(db, TinkerSaw, "i~tconstruct~fixture_saw~4");
+        // A soup bucket leaves a bucket behind, which is a different item: really consumed.
+        ItemContainer(db, SoupBucket, "i~minecraft~bucket~0");
+        Group(db, "g_tinker_saw", (TinkerSaw, 1));
+        Group(db, "g_soup", (SoupBucket, 1));
+        Recipe(db, "r_tinker_cut", "t_shaped", inputs: [("g_tinker_saw", 0), ("g_log", 1)],
+            outputs: [(Plank, 1, 1.0)]);
+        Recipe(db, "r_soup", "t_shaped", inputs: [("g_soup", 0)], outputs: [(Plank, 1, 1.0)]);
         // A concrete input and a choice must not share a slot number.
         Recipe(db, "r_mixed_slots", "t_shaped", inputs: [("g_log", 0), ("g_any_iron", 1)],
             outputs: [(Plank, 1, 1.0)]);
@@ -757,10 +773,16 @@ public static class FixtureDump
         return path;
     }
 
-    private static void Item(SqliteConnection db, string id, string name, string mod) =>
+    private static void Item(
+        SqliteConnection db, string id, string name, string mod, long maxDamage = 0) =>
         db.Execute(
-            "INSERT INTO ITEM VALUES (@id, 'item/x.png', @name, 0, 1, @name, 0, 64, @mod, '', @name)",
-            new { id, name, mod });
+            "INSERT INTO ITEM VALUES (@id, 'item/x.png', @name, 0, 1, @name, @maxDamage, 64, @mod, '', @name)",
+            new { id, name, mod, maxDamage });
+
+    private static void ItemContainer(SqliteConnection db, string itemId, string containerId) =>
+        db.Execute(
+            "INSERT INTO ITEM_CONTAINER VALUES (@id, @containerId, @itemId)",
+            new { id = "ic~" + itemId, containerId, itemId });
 
     private static void Fluid(SqliteConnection db, string id, string internalName, string name) =>
         db.Execute(

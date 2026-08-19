@@ -393,6 +393,16 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
+    public void AMetaWearingToolCondemnsItsSlot() =>
+        Assert.Equal(FixtureDump.TinkerSaw, _fixture.Scalar<string>(
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_tinker_cut' AND catalyst = 1"));
+
+    [Fact]
+    public void AContainerReturningItemStaysAnIngredient() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_soup' AND catalyst = 1"));
+
+    [Fact]
     public void AnUnlistedPipeGrinderStillShips() =>
         Assert.Equal(1, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_pipe_grind'"));
 
