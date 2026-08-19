@@ -195,7 +195,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
         PlannerRecipe recipe, Dictionary<string, int> era, HashSet<string> cleanroomIds,
         Dictionary<string, int> machineVoltage, Dump dump)
     {
-        var steam = recipe.Tier == 1 && recipe.Heat is null && HasSteamHandler(recipe, era, dump);
+        var steam = recipe.Tier == 1 && recipe.Heat is null && HasSteamHandler(recipe, era);
         var candidate = MachineEra(recipe, era, machineVoltage, steam);
         if (candidate == int.MaxValue)
         {
@@ -477,25 +477,8 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
     }
 
     /// <summary>Steam machines run their map's LV-and-below recipes in the steam era.</summary>
-    private bool HasSteamHandler(PlannerRecipe recipe, Dictionary<string, int> era, Dump dump)
-    {
-        foreach (var machine in recipe.Machines)
-        {
-            if (!era.ContainsKey(machine.ItemId))
-            {
-                continue;
-            }
-            if (!dump.Items.TryGetValue(machine.ItemId, out var item))
-            {
-                continue;
-            }
-            if (_config.SteamMachinePrefixes.Any(p => item.Name.StartsWith(p, StringComparison.Ordinal)))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
+    private static bool HasSteamHandler(PlannerRecipe recipe, Dictionary<string, int> era) =>
+        recipe.Machines.Any(machine => machine.Steam && era.ContainsKey(machine.ItemId));
 
     /// <summary>The cheapest producible machine gates the recipe's era: each one is floored
     /// at its own input voltage, and only a multiblock brings the hatch allowance with it.</summary>
@@ -513,10 +496,14 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
             {
                 continue;
             }
-            var voltageFloor = machine.Tier ?? machineVoltage.GetValueOrDefault(machine.ItemId, 0);
+            // A steam machine burns fuel, so its own voltage tier is no floor at all.
+            var steamHere = steam && machine.Steam;
+            var voltageFloor = steamHere
+                ? 0
+                : machine.Tier ?? machineVoltage.GetValueOrDefault(machine.ItemId, 0);
             var on = Math.Max(
                 Math.Max(machineEra, voltageFloor),
-                Intrinsic(recipe, recipe.TierOn(machine), steam));
+                Intrinsic(recipe, recipe.TierOn(machine), steamHere));
             if (on < best)
             {
                 best = on;

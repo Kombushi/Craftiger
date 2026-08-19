@@ -24,7 +24,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
                 .Where(dump.Items.ContainsKey)
                 .Select(unified.Canonical)
                 .Distinct()
-                .Select(id => new RecipeMachine(id, Multiblock: false, Tier: null))
+                .Select(id => new RecipeMachine(id, Multiblock: false, Tier: null, Steam: false))
                 .ToList();
         }
         // GregTech maps name their real machines, which the NEI handler icons only approximate.
@@ -33,7 +33,8 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             var machines = map.Machines
                 .Where(m => dump.Items.ContainsKey(m.ItemId))
                 .GroupBy(m => unified.Canonical(m.ItemId))
-                .Select(g => new RecipeMachine(g.Key, g.Any(m => m.Multiblock), g.Min(m => m.Tier)))
+                .Select(g => new RecipeMachine(
+                    g.Key, g.Any(m => m.Multiblock), g.Min(m => m.Tier), g.Any(m => m.Steam)))
                 .ToList();
             if (machines.Count > 0)
             {
@@ -51,15 +52,20 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             {
                 continue;
             }
+            // Fuel maps burn their inputs for EU; their tabs are recipes only to NEI.
+            if (dump.RecipeMapByTypeId.GetValueOrDefault(recipe.RecipeTypeId) is { IsFuel: true })
+            {
+                continue;
+            }
             if (_config.PhantomRecipeIds.ContainsKey(recipe.Id))
             {
                 continue;
             }
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
-            var tier = gt is null || gt.Voltage <= 0 || gt.Voltage == _config.WirelessSentinelVoltage
+            var tier = gt is null || gt.Voltage is not > 0
                 ? 0
-                : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage);
+                : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage.Value);
 
             var inputs = new Dictionary<string, long>();
             var choices = new List<PlannerChoice>();
@@ -239,9 +245,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
     }
 
     private bool IsExcluded(string machine) =>
-        _config.ExcludedMachines.Contains(machine) ||
-        _config.ExcludedMachineSuffixes.Any(s => machine.EndsWith(s, StringComparison.Ordinal)) ||
-        _config.ExcludedMachinePrefixes.Any(p => machine.StartsWith(p, StringComparison.Ordinal));
+        _config.ExcludedMachines.Contains(machine);
 
     /// <summary>Every member of an input slot, flagged as a catalyst when the recipe does not
     /// consume it. One catalyst condemns the whole slot on purpose: a tool slot lists every

@@ -51,7 +51,7 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
         // coil_heat metadata is authoritative; RECIPE_SPECIAL_VALUE holds the same number for EBF maps.
         var categoryColumn = HasColumn(db, "GREG_TECH_RECIPE", "RECIPE_CATEGORY") ? "g.RECIPE_CATEGORY" : "''";
         var gt = new Dictionary<string, DumpGtData>();
-        foreach (var r in db.Query<(string Id, long Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom, string? Category)>($"""
+        foreach (var r in db.Query<(string Id, long? Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom, string? Category)>($"""
             SELECT g.RECIPE_ID, g.VOLTAGE, g.AMPERAGE, g.DURATION, m.METADATA_VALUE, g.VOLTAGE_TIER, g.REQUIRES_CLEANROOM, {categoryColumn}
             FROM GREG_TECH_RECIPE g
             LEFT JOIN GREG_TECH_RECIPE_METADATA m ON m.GREG_TECH_RECIPE_ID = g.ID AND m.METADATA_KEY = 'coil_heat'
@@ -204,22 +204,23 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
         }
 
         var machinesByMapId = new Dictionary<string, List<DumpRecipeMapMachine>>();
-        foreach (var r in db.Query<(string MapId, string ItemId, long Multiblock, int? Tier)>("""
-            SELECT GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER
+        foreach (var r in db.Query<(string MapId, string ItemId, long Multiblock, int? Tier, long Steam)>("""
+            SELECT GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER, MACHINES_STEAM
             FROM GREG_TECH_RECIPE_MAP_MACHINES
             """))
         {
-            Add(machinesByMapId, r.MapId, new DumpRecipeMapMachine(r.ItemId, r.Multiblock != 0, r.Tier));
+            Add(machinesByMapId, r.MapId,
+                new DumpRecipeMapMachine(r.ItemId, r.Multiblock != 0, r.Tier, r.Steam != 0));
         }
 
         var recipeMaps = new Dictionary<string, DumpRecipeMap>();
-        foreach (var r in db.Query<(string Id, string Unlocalized, string Name, int Amperage, long Single, long Multi)>("""
-            SELECT ID, UNLOCALIZED_NAME, LOCALIZED_NAME, AMPERAGE, HAS_SINGLE_BLOCK, HAS_MULTI_BLOCK
+        foreach (var r in db.Query<(string Id, string Unlocalized, string Name, int Amperage, long Single, long Multi, long Fuel)>("""
+            SELECT ID, UNLOCALIZED_NAME, LOCALIZED_NAME, AMPERAGE, HAS_SINGLE_BLOCK, HAS_MULTI_BLOCK, IS_FUEL
             FROM GREG_TECH_RECIPE_MAP
             """))
         {
             recipeMaps[r.Unlocalized] = new DumpRecipeMap(
-                r.Unlocalized, r.Name, r.Amperage, r.Single != 0, r.Multi != 0,
+                r.Unlocalized, r.Name, r.Amperage, r.Single != 0, r.Multi != 0, r.Fuel != 0,
                 machinesByMapId.GetValueOrDefault(r.Id) ?? []);
         }
 

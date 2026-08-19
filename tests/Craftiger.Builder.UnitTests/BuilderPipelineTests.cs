@@ -571,6 +571,11 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
         Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_fuel'"));
 
     [Fact]
+    public void SteamMachinesRelaxTheirMapsRecipesToEraZero() =>
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.SteamIngot}'"));
+
+    [Fact]
     public void VoltageTiersFollowTheLadder()
     {
         Assert.Equal(1, _fixture.Scalar<int>("SELECT tier FROM recipes WHERE id = 'r_ebf'"));

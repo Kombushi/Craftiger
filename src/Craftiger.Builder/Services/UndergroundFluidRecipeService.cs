@@ -17,7 +17,7 @@ public sealed class UndergroundFluidRecipeService(
             .SelectMany(dump.ItemIdsNamed)
             .Select(unified.Canonical)
             .Distinct()
-            .Select(id => new RecipeMachine(id, Multiblock: false, Tier: null))
+            .Select(id => new RecipeMachine(id, Multiblock: false, Tier: null, Steam: false))
             .ToList();
 
         var recipes = new List<PlannerRecipe>();

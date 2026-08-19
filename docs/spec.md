@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.20
+# GTNH Crafting Planner — Specification v1.21
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -33,9 +33,9 @@ total raw-material bill as a flat grid of item-icon squares.
   machine amperage quirks (3-amp arc furnaces, 2-amp thermal centrifuges).
   Fallback when the label is absent: smallest `n ≥ 1` with
   `EU/t ≤ 32 × 4^(n−1)`. TecTech stamps its wirelessly star-powered recipes
-  (the Godforge modules) with the `RECIPE_MAX` sentinel voltage, which means
-  no hatch requirement at all and yields no tier; real MAX-tier recipes carry
-  computed voltages and keep theirs. Multiblocks are fed by two 2-amp energy hatches and
+  (the Godforge modules) with a sentinel meaning no hatch requirement at all;
+  the exporter ships those with a null voltage, which yields no tier, while
+  real MAX-tier recipes carry computed voltages and keep theirs. Multiblocks are fed by two 2-amp energy hatches and
   run recipes one tier above the hatches, so a recipe run on one tiers a step
   lower — an LV-hatched EBF legally runs 120 EU/t recipes. The allowance is a
   property of the machine, not the map: the dump names every machine serving a
@@ -257,7 +257,9 @@ Builder responsibilities, in order:
    A few machines carry a config era floor for the same reason: the Godforge
    upgrade tree gates what the Heliofusion Exoticizer can make, upgrade
    purchases are not recipes, and the quest book anchors magmatter at UMV.
-   Steam-handled maps run their LV-and-below recipes in the steam era. Crop
+   Steam machines — flagged as such in the dump, never guessed from names —
+   run their map's LV-and-below recipes in the steam era, and burning fuel
+   instead of EU, they bring no voltage floor of their own. Crop
    drops are not seeded: each non-hidden crop gets an era-only harvest recipe
    (§9) taking its seed and, when it needs one, the cheapest block it grows
    on — so an Aluminium Oreberry dates from the Moon rather than era 0. Every
@@ -635,10 +637,12 @@ All "does not / never" rules live here; other sections only reference this one.
 - **Byproduct credit** — sibling outputs never reduce a recipe's cost;
   crediting them collapses all prices toward zero through recycling loops.
 - **Pseudo-recipe sources** — bee breeding, mob drops, dungeon/chest loot,
-  and GT informational tabs (fuel values, material lists); the builder drops
-  them (§3 step 3) because they conjure matter from nothing and poison
+  and GT informational tabs (material lists); the builder drops them
+  (§3 step 3) because they conjure matter from nothing and poison
   prices — an ore-from-drill recipe forms an amplifying cycle that spirals
-  every cost to zero. Mining maps that output ore blocks from real equipment
+  every cost to zero. Fuel tabs need no list at all: a map whose backend
+  burns fuels for EU carries the dump's fuel flag, which covers every
+  generator from the Gas Turbine to all five Naquadah reactor tiers. Mining maps that output ore blocks from real equipment
   (Space Mining) are *era-only*: they gate progression in the era fixpoint
   (§3 step 6) but never reach `planner.sqlite`, so they can never price. The
   Heliofusion Exoticizer is era-only for the same reason the Replicator is
@@ -817,3 +821,6 @@ All "does not / never" rules live here; other sections only reference this one.
 32. A gem grade prices by GT's material amounts — a chipped gem a quarter of
     its gem, an exquisite four times — shipping as a fraction whose parent
     is the gem.
+33. Fuel tabs and steam relaxation follow the dump's flags: no fuel map's
+    tab ships as a recipe, and a steam machine runs its map's LV recipes in
+    the steam era with no voltage floor, whatever the machine is named.

@@ -7,4 +7,5 @@ public sealed record DumpRecipeMap(
     int Amperage,
     bool HasSingleBlock,
     bool HasMultiBlock,
+    bool IsFuel,
     List<DumpRecipeMapMachine> Machines);

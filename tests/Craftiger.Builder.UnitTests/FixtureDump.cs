@@ -102,6 +102,8 @@ public static class FixtureDump
     public const string FlawedGem = "i~gregtech~gt.metaitem.01~8501";
     public const string ExquisiteGem = "i~gregtech~gt.metaitem.01~8502";
     public const string CopperWire = "i~gregtech~gt.metaitem.02~30035";
+    public const string SteamGrinder = "i~gregtech~gt.blockmachines~104";
+    public const string SteamIngot = "i~gregtech~gt.metaitem.01~11888";
     public const string BrewCell = "i~gregtech~gt.metaitem.01~30002";
 
     public static string Create(string directory)
@@ -149,9 +151,9 @@ public static class FixtureDump
             CREATE TABLE GREG_TECH_SMALL_ORE_DROPS(GREG_TECH_SMALL_ORE_ID TEXT, DROPS_ITEM_ID TEXT);
             CREATE TABLE ITEM_TOOLTIP(ITEM_ID TEXT, TOOLTIP TEXT, TOOLTIP_ORDER INTEGER);
             CREATE TABLE GREG_TECH_RECIPE_MAP(ID TEXT, AMPERAGE INTEGER, HAS_MULTI_BLOCK INTEGER,
-                HAS_SINGLE_BLOCK INTEGER, LOCALIZED_NAME TEXT, UNLOCALIZED_NAME TEXT);
+                HAS_SINGLE_BLOCK INTEGER, IS_FUEL INTEGER, LOCALIZED_NAME TEXT, UNLOCALIZED_NAME TEXT);
             CREATE TABLE GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID TEXT, MACHINES_ITEM_ID TEXT,
-                MACHINES_MULTIBLOCK INTEGER, MACHINES_TIER INTEGER);
+                MACHINES_MULTIBLOCK INTEGER, MACHINES_TIER INTEGER, MACHINES_STEAM INTEGER);
             CREATE TABLE BLOCK_DROP(ID TEXT, BLOCK_META INTEGER, BLOCK_NAME TEXT, QUANTITY INTEGER,
                 BLOCK_ITEM_ID TEXT, DROP_ID TEXT);
             CREATE TABLE CROPS_NH_CROP(ID TEXT, CROP_ID TEXT, DROP_CHANCE REAL, GROWTH_DURATION INTEGER,
@@ -253,6 +255,8 @@ public static class FixtureDump
         Item(db, FlawedGem, "Flawed Gemium", "gregtech");
         Item(db, ExquisiteGem, "Exquisite Gemium", "gregtech");
         Item(db, CopperWire, "1x Copper Wire", "gregtech");
+        Item(db, SteamGrinder, "Bronze Grinder", "gregtech");
+        Item(db, SteamIngot, "Steamium Ingot", "gregtech");
         Item(db, BrewCell, "Brewium Cell", "gregtech");
         Item(db, ClayBlock, "Clay", "minecraft");
         Item(db, ClayBall, "Clay Ball", "minecraft");
@@ -321,6 +325,8 @@ public static class FixtureDump
         Group(db, "g_exquisite_gem", (ExquisiteGem, 1));
         Group(db, "g_copper_wire", (CopperWire, 1));
         Group(db, "g_copper_wire_pair", (CopperWire, 2));
+        Group(db, "g_steam_ingot", (SteamIngot, 1));
+        Oredict(db, "ingotSteamium", "g_steam_ingot");
         Group(db, "g_brew_cell", (BrewCell, 1));
         Oredict(db, "gemFlawedGemium", "g_flawed_gem");
         Oredict(db, "gemExquisiteGemium", "g_exquisite_gem");
@@ -450,6 +456,7 @@ public static class FixtureDump
         Unify(db, "dustGemium", GemDust);
         Unify(db, "gemFlawedGemium", FlawedGem);
         Unify(db, "gemExquisiteGemium", ExquisiteGem);
+        Unify(db, "ingotSteamium", SteamIngot);
         Unify(db, "oreAluminium", AluOre);
         Unify(db, "oreNaquadah", NaqOre);
         Unify(db, "dustNaquadah", NaqDust);
@@ -502,6 +509,7 @@ public static class FixtureDump
         RecipeType(db, "rt~gregtech~gt.recipe.macerator~ULV", "gregtech", "Macerator (ULV)");
         RecipeType(db, "rt~gregtech~gt.recipe.fluidsolidifier~MV", "gregtech", "Fluid Solidifier (MV)");
         RecipeType(db, "rt~gregtech~gt.recipe.largeboilerfakefuels~ULV", "gregtech", "Large Boiler Fuels (ULV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.fixturegrinder~LV", "gregtech", "Bronze Grinder (LV)");
         RecipeType(db, "rt~gregtech~gt.recipe.electrolyzer~MV", "gregtech", "Electrolyzer (MV)");
         RecipeType(db, "rt~gregtech~gt.recipe.arcfurnace~LV", "gregtech", "Arc Furnace (LV)");
         RecipeType(db, "rt~gregtech~gt.recipe.fluidextractor~LV", "gregtech", "Fluid Extractor (LV)");
@@ -517,10 +525,14 @@ public static class FixtureDump
         BlockDrop(db, "minecraft:clay", ClayBlock, ClayBall, 4);
         BlockDrop(db, "minecraft:obsidian", ObsidianBlock, ObsidianBlock, 1);
 
-        RecipeMap(db, "gt.recipe.blastfurnace", "Blast Furnace", [(EbfController, true, null)]);
-        RecipeMap(db, "gt.recipe.macerator", "Macerator", [(MaceratorLv, false, 1)]);
-        RecipeMap(db, "gt.recipe.mixer", "Mixer", [(MixerLv, false, 1), (MixerStack, true, null)]);
-        RecipeMap(db, "gt.recipe.dearmixer", "Dear Mixer", [(MixerLv, false, 1), (DearStack, true, null)]);
+        RecipeMap(db, "gt.recipe.blastfurnace", "Blast Furnace", [(EbfController, true, null, false)]);
+        RecipeMap(db, "gt.recipe.macerator", "Macerator", [(MaceratorLv, false, 1, false)]);
+        RecipeMap(db, "gt.recipe.mixer", "Mixer", [(MixerLv, false, 1, false), (MixerStack, true, null, false)]);
+        RecipeMap(db, "gt.recipe.dearmixer", "Dear Mixer", [(MixerLv, false, 1, false), (DearStack, true, null, false)]);
+        // The fuel flag alone drops the tab; the machine name says nothing about fuels.
+        RecipeMap(db, "gt.recipe.largeboilerfakefuels", "Large Boiler", [], isFuel: true);
+        // A steam machine relaxes its map's LV recipes; the flag decides, never the name.
+        RecipeMap(db, "gt.recipe.fixturegrinder", "Bronze Grinder", [(SteamGrinder, false, 1, true)]);
 
         // Ingot <-> block cycle, both directions on the crafting table.
         Recipe(db, "r_block", "t_shaped", inputs: [("g_bronze_ingot9", 0)], outputs: [(BronzeBlock, 1, 1.0)]);
@@ -716,10 +728,14 @@ public static class FixtureDump
         Recipe(db, "r_fluid_choice", "rt~gregtech~gt.recipe.mixer~HV", inputs: [("g_copper_dust", 0)],
             outputs: [(ChoiceBrick, 1, 1.0)], voltage: 512, duration: 100, fluidInputs: [("g_either_fluid", 0)]);
 
-        // A wirelessly powered recipe: the sentinel voltage means no hatch requirement, so
-        // the era must come from the machine and inputs, not from the MAX label.
+        // A wirelessly powered recipe: the exporter nulls the sentinel voltage, so the era
+        // must come from the machine and inputs, not from the MAX label.
         Recipe(db, "r_wireless", "rt~gregtech~gt.recipe.mixer~MAX", inputs: [("g_copper_ingot", 0)],
-            outputs: [(WirelessIngot, 1, 1.0)], voltage: 2013265912, duration: 100, label: "MAX");
+            outputs: [(WirelessIngot, 1, 1.0)], duration: 100, label: "MAX");
+        // A steam machine on the grinder map pulls its LV recipe into the steam era.
+        Recipe(db, "r_grinder_craft", "t_shaped", inputs: [("g_log", 0)], outputs: [(SteamGrinder, 1, 1.0)]);
+        Recipe(db, "r_steam_grind", "rt~gregtech~gt.recipe.fixturegrinder~LV", inputs: [("g_copper_ingot", 0)],
+            outputs: [(SteamIngot, 1, 1.0)], voltage: 32, duration: 100);
 
         // A vein in both worlds, processed only through its Mars-stone block: the block must
         // seed at Mars's era, not at the vein's cheapest world.
@@ -819,22 +835,27 @@ public static class FixtureDump
 
     /// <summary>A recipe map and the machines serving it; only a multiblock earns the tier allowance.</summary>
     private static void RecipeMap(
-        SqliteConnection db, string map, string name, (string ItemId, bool Multiblock, int? Tier)[] machines)
+        SqliteConnection db, string map, string name,
+        (string ItemId, bool Multiblock, int? Tier, bool Steam)[] machines, bool isFuel = false)
     {
         var id = $"gtrm~{map}";
         db.Execute(
-            "INSERT INTO GREG_TECH_RECIPE_MAP(ID, AMPERAGE, HAS_MULTI_BLOCK, HAS_SINGLE_BLOCK, LOCALIZED_NAME, UNLOCALIZED_NAME) VALUES (@id, 1, @multi, @single, @name, @map)",
+            "INSERT INTO GREG_TECH_RECIPE_MAP(ID, AMPERAGE, HAS_MULTI_BLOCK, HAS_SINGLE_BLOCK, IS_FUEL, LOCALIZED_NAME, UNLOCALIZED_NAME) VALUES (@id, 1, @multi, @single, @isFuel, @name, @map)",
             new
             {
-                id, name, map,
+                id, name, map, isFuel,
                 multi = machines.Any(m => m.Multiblock) ? 1 : 0,
                 single = machines.Any(m => !m.Multiblock) ? 1 : 0
             });
         foreach (var machine in machines)
         {
             db.Execute(
-                "INSERT INTO GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER) VALUES (@id, @itemId, @multiblock, @tier)",
-                new { id, itemId = machine.ItemId, multiblock = machine.Multiblock ? 1 : 0, tier = machine.Tier });
+                "INSERT INTO GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER, MACHINES_STEAM) VALUES (@id, @itemId, @multiblock, @tier, @steam)",
+                new
+                {
+                    id, itemId = machine.ItemId, multiblock = machine.Multiblock ? 1 : 0,
+                    tier = machine.Tier, steam = machine.Steam ? 1 : 0
+                });
         }
     }
 
@@ -883,7 +904,7 @@ public static class FixtureDump
         {
             db.Execute("INSERT INTO RECIPE_FLUID_GROUP VALUES (@id, @groupId, @slot)", new { id, groupId, slot });
         }
-        if (voltage is not null)
+        if (voltage is not null || label is not null)
         {
             label ??= voltage <= 32 ? "LV" : voltage <= 128 ? "MV" : "HV";
             db.Execute(
