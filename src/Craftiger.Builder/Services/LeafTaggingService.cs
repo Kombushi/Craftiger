@@ -38,11 +38,6 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
             }
 
             var oredict = unified.PrimaryOredictByCanonical.GetValueOrDefault(id);
-            if (oredict is not null && IsIntermediate(oredict))
-            {
-                continue;
-            }
-
             var leafClass = oredict is null
                 ? null
                 : Classify(oredict, unified.OredictsByCanonical.GetValueOrDefault(id), dump);
@@ -63,14 +58,16 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
     /// never reached, or a fraction of a parent that is not itself priced. They fall back to
     /// their recipes, which is honest — a placeholder weight would cap everything downstream.</summary>
     public void Prune(
-        Dictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers, UnifiedItems unified)
+        Dictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers, UnifiedItems unified,
+        Dump dump)
     {
         var untiered = classes
             .Where(c => c.Value is "ingot" or "gem" or "dust" && !tiers.ContainsKey(c.Key))
             .Select(c => c.Key)
             .ToList();
         var parentless = classes
-            .Where(c => DerivedLeaf.ByClass.ContainsKey(c.Value) && !HasPricedParent(c.Key, c.Value, unified, tiers))
+            .Where(c => DerivedLeaf.ByClass.ContainsKey(c.Value)
+                && !HasPricedParent(c.Key, c.Value, unified, dump, tiers))
             .Select(c => c.Key)
             .ToList();
 
@@ -88,20 +85,16 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
     /// same way pruning judged it, so a shipped fraction always names a priced parent.</summary>
     public Dictionary<string, ItemParent> Parents(
         IReadOnlyDictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers,
-        UnifiedItems unified)
+        UnifiedItems unified, Dump dump)
     {
         var parents = new Dictionary<string, ItemParent>();
         foreach (var (id, leafClass) in classes)
         {
-            if (!DerivedLeaf.ByClass.TryGetValue(leafClass, out var derived))
-            {
-                continue;
-            }
-
-            var parent = DerivedLeaf.ParentsOf(id, leafClass, unified).FirstOrDefault(tiers.ContainsKey);
+            var (parent, divisor) = DerivedLeaf.ParentsOf(id, leafClass, unified, dump.OrePrefixes)
+                .FirstOrDefault(p => tiers.ContainsKey(p.ParentId));
             if (parent is not null)
             {
-                parents[id] = new ItemParent(parent, derived.Divisor);
+                parents[id] = new ItemParent(parent, divisor);
             }
         }
         return parents;
@@ -114,11 +107,26 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
             .ToDictionary(f => f.Id, f => _config.WorldFluids[f.InternalName].Weight);
 
     private static bool HasPricedParent(
-        string id, string leafClass, UnifiedItems unified, IReadOnlyDictionary<string, int> tiers) =>
-        DerivedLeaf.ParentsOf(id, leafClass, unified).Any(tiers.ContainsKey);
+        string id, string leafClass, UnifiedItems unified, Dump dump,
+        IReadOnlyDictionary<string, int> tiers) =>
+        DerivedLeaf.ParentsOf(id, leafClass, unified, dump.OrePrefixes)
+            .Any(p => tiers.ContainsKey(p.ParentId));
 
-    private bool IsIntermediate(string oredict) =>
-        _config.IntermediateOredictPrefixes.Any(p => oredict.StartsWith(p, StringComparison.Ordinal));
+    /// <summary>Material leaf classes keyed by the oredict's exact GT prefix. Intermediates
+    /// (crushed, dustImpure, ingotHot) are distinct prefixes and so never match.</summary>
+    private static readonly Dictionary<string, string> ClassByPrefix = new()
+    {
+        ["dust"] = "dust",
+        ["dustSmall"] = "dust_small",
+        ["dustTiny"] = "dust_tiny",
+        ["ingot"] = "ingot",
+        ["gem"] = "gem",
+        ["gemChipped"] = "gem_chipped",
+        ["gemFlawed"] = "gem_flawed",
+        ["gemFlawless"] = "gem_flawless",
+        ["gemExquisite"] = "gem_exquisite",
+        ["nugget"] = "nugget"
+    };
 
     private string? Classify(string oredict, HashSet<string>? allOredicts, Dump dump)
     {
@@ -133,32 +141,11 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
         }
         // Material classes need a name GT itself unifies: convention names that merely start
         // with a material prefix (dustSpace*) must not hand their members a material leaf.
-        if (dump.UnifiedOredictTargets.ContainsKey(oredict))
+        if (dump.UnifiedOredictTargets.ContainsKey(oredict)
+            && dump.OrePrefixes.Match(oredict) is { } match
+            && ClassByPrefix.TryGetValue(match.Prefix.Name, out var materialClass))
         {
-            if (oredict.StartsWith("dustSmall", StringComparison.Ordinal))
-            {
-                return "dust_small";
-            }
-            if (oredict.StartsWith("dustTiny", StringComparison.Ordinal))
-            {
-                return "dust_tiny";
-            }
-            if (oredict.StartsWith("dust", StringComparison.Ordinal))
-            {
-                return "dust";
-            }
-            if (oredict.StartsWith("ingot", StringComparison.Ordinal))
-            {
-                return "ingot";
-            }
-            if (oredict.StartsWith("gem", StringComparison.Ordinal))
-            {
-                return "gem";
-            }
-            if (oredict.StartsWith("nugget", StringComparison.Ordinal))
-            {
-                return "nugget";
-            }
+            return materialClass;
         }
         if (oredict.StartsWith("logWood", StringComparison.Ordinal))
         {

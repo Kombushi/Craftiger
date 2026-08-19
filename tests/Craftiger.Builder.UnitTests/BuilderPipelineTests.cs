@@ -295,6 +295,27 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
         Assert.Equal(1, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_melt'"));
 
     [Fact]
+    public void RecyclingAWireSurvivesByGtsPrefixFlags() =>
+        Assert.Equal(1, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_wire_recycle'"));
+
+    [Fact]
+    public void RecyclingAContainerNeverReachesTheArtifact() =>
+        Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_cell_recycle'"));
+
+    [Fact]
+    public void GemGradesPriceAsFractionsOfTheirGem()
+    {
+        Assert.Equal("gem_flawed", _fixture.Scalar<string>(
+            $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.FlawedGem}'"));
+        Assert.Equal(FixtureDump.Gem, _fixture.Scalar<string>(
+            $"SELECT parent_item_id FROM item_parents WHERE item_id = '{FixtureDump.FlawedGem}'"));
+        Assert.Equal(2.0, _fixture.Scalar<double>(
+            $"SELECT divisor FROM item_parents WHERE item_id = '{FixtureDump.FlawedGem}'"));
+        Assert.Equal(0.25, _fixture.Scalar<double>(
+            $"SELECT divisor FROM item_parents WHERE item_id = '{FixtureDump.ExquisiteGem}'"));
+    }
+
+    [Fact]
     public void FallbackTiersComeFromRealRecipesNotPilePacking() =>
         Assert.Equal(2, _fixture.Scalar<int>(
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.InertDust}'"));
@@ -333,7 +354,8 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     [Fact]
     public void EveryShippedFractionHasAParentRow() =>
         Assert.Equal(0, _fixture.Scalar<int>(
-            "SELECT COUNT(*) FROM items WHERE leaf_class IN ('dust_small', 'dust_tiny', 'nugget') " +
+            "SELECT COUNT(*) FROM items WHERE leaf_class IN ('dust_small', 'dust_tiny', 'nugget', " +
+            "'gem_chipped', 'gem_flawed', 'gem_flawless', 'gem_exquisite') " +
             "AND id NOT IN (SELECT item_id FROM item_parents)"));
 
     [Fact]

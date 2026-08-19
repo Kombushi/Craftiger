@@ -26,12 +26,6 @@ public sealed record BuilderConfig
     /// melting a rod down as readily as to melting a door down.</summary>
     public required IReadOnlyList<string> RecyclingCategorySuffixes { get; init; }
 
-    /// <summary>Oredict prefixes naming a shape of one material. A reverse-crafting recipe that
-    /// consumes only these gives back exactly what went into them, so it prices honestly and
-    /// stays. Anything else it consumes is a manufactured item, whose material value can exceed
-    /// what crafting it cost — melt those and the loop drives every price to nothing.</summary>
-    public required IReadOnlyList<string> MaterialShapeOredictPrefixes { get; init; }
-
     /// <summary>Machines whose recipes gate eras but never price: real mechanics that would amplify matter.</summary>
     public required IReadOnlyList<string> EraOnlyMachines { get; init; }
 
@@ -83,10 +77,6 @@ public sealed record BuilderConfig
 
     /// <summary>Machine name for harvesting a crop.</summary>
     public required string CropHarvestMachine { get; init; }
-
-    /// <summary>Oredict prefixes of ore-processing and smelting intermediates. They are never
-    /// leaves: pricing them from a flat weight would cap every material made through them.</summary>
-    public required IReadOnlyList<string> IntermediateOredictPrefixes { get; init; }
 
     /// <summary>Oredict prefixes of farmable leaves.</summary>
     public required IReadOnlyList<string> FarmableOredictPrefixes { get; init; }

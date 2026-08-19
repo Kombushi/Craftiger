@@ -62,9 +62,9 @@ public sealed class BuilderPipeline(
         logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);
 
         // Only now are tiers known, so only now can an unpriceable leaf be told apart.
-        leafTagging.Prune(leafClasses, eraSolve.Tiers, unified);
+        leafTagging.Prune(leafClasses, eraSolve.Tiers, unified, dump);
         logger.LogInformation("  {Leaves:N0} leaves kept", leafClasses.Count);
-        var itemParents = leafTagging.Parents(leafClasses, eraSolve.Tiers, unified);
+        var itemParents = leafTagging.Parents(leafClasses, eraSolve.Tiers, unified, dump);
 
         if (_options.ExplainItem is { } query)
         {

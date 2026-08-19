@@ -21,7 +21,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
     {
         var (era, seeds) = Seed(leafClasses, unified, dump, worldgen);
         var best = Propagate(recipes, era, seeds, unified, dump);
-        var tiers = ExtractTiers(recipes, leafClasses, unified, era);
+        var tiers = ExtractTiers(recipes, leafClasses, unified, dump, era);
         return new EraSolve(tiers, era, best, seeds, MachineAvailability(recipes, era));
     }
 
@@ -286,7 +286,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
 
     private Dictionary<string, int> ExtractTiers(
         List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, UnifiedItems unified,
-        Dictionary<string, int> era)
+        Dump dump, Dictionary<string, int> era)
     {
         var tiers = new Dictionary<string, int>();
         foreach (var (id, leafClass) in leafClasses)
@@ -301,7 +301,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
             }
         }
 
-        var recycled = ApplyRecyclingFallback(tiers, recipes, leafClasses, unified);
+        var recycled = ApplyRecyclingFallback(tiers, recipes, unified, dump.OrePrefixes, leafClasses);
         InheritTwinTiers(tiers, leafClasses, unified);
 
         logger.LogInformation("  {Recycled:N0} materials tiered by recycling fallback", recycled);
@@ -310,8 +310,8 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
 
     /// <summary>Materials that never bootstrap (recycling-only) fall back to the cheapest direct recipe.</summary>
     private int ApplyRecyclingFallback(
-        Dictionary<string, int> tiers, List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses,
-        UnifiedItems unified)
+        Dictionary<string, int> tiers, List<PlannerRecipe> recipes, UnifiedItems unified,
+        OrePrefixIndex prefixes, Dictionary<string, string> leafClasses)
     {
         // Pile packing and remelting exist for every material at ULV, so a recipe that only
         // reshuffles the material's own shapes may speak only when nothing else does.
@@ -335,7 +335,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
                 {
                     continue;
                 }
-                var pool = ReshufflesOwnShapes(recipe, output.ItemId, leafClasses, unified)
+                var pool = ReshufflesOwnShapes(recipe, output.ItemId, unified, prefixes)
                     ? reshuffle
                     : fallback;
                 if (!pool.TryGetValue(output.ItemId, out var current) || intrinsic < current)
@@ -357,22 +357,20 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
 
     /// <summary>True when every item ingredient is another shape of the output's own material,
     /// as in pile packing or block cutting - conversions of the material, never sources of it.</summary>
-    private bool ReshufflesOwnShapes(
-        PlannerRecipe recipe, string outputId, Dictionary<string, string> leafClasses, UnifiedItems unified)
+    private static bool ReshufflesOwnShapes(
+        PlannerRecipe recipe, string outputId, UnifiedItems unified, OrePrefixIndex prefixes)
     {
         var oredict = unified.PrimaryOredictByCanonical.GetValueOrDefault(outputId);
-        var prefix = leafClasses[outputId];
-        if (oredict is null || !oredict.StartsWith(prefix, StringComparison.Ordinal))
+        if (oredict is null || prefixes.Match(oredict) is not { } match)
         {
             return false;
         }
-        var material = oredict[prefix.Length..];
         var found = false;
         var ingredients = recipe.Inputs.Keys.Concat(
             recipe.Choices.SelectMany(choice => choice.Alternatives.Select(a => a.ItemId)));
         foreach (var id in ingredients)
         {
-            if (!IsShapeOf(id, material, unified))
+            if (!IsShapeOf(id, match.Material, unified, prefixes))
             {
                 return false;
             }
@@ -381,15 +379,15 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
         return found;
     }
 
-    /// <summary>A shape prefix with the material as suffix also covers pile and exotic variants
-    /// (dustSmall, dustTiny), which carry the base prefix plus a size infix.</summary>
-    private bool IsShapeOf(string id, string material, UnifiedItems unified)
+    /// <summary>Any shape prefix with exactly the material behind it qualifies, which covers
+    /// piles and intermediates too: dustSmall and dustImpure are prefixes of their own.</summary>
+    private static bool IsShapeOf(string id, string material, UnifiedItems unified, OrePrefixIndex prefixes)
     {
         var oredicts = unified.OredictsByCanonical.GetValueOrDefault(id);
         return oredicts is not null && oredicts.Any(
-            oredict => oredict.EndsWith(material, StringComparison.Ordinal) &&
-                _config.MaterialShapeOredictPrefixes.Any(
-                    shape => oredict.StartsWith(shape, StringComparison.Ordinal)));
+            oredict => prefixes.Match(oredict) is { } match
+                && match.Material == material
+                && OrePrefixIndex.IsShape(match.Prefix));
     }
 
     /// <summary>A dust is the same material as its ingot or gem; it inherits that tier.</summary>

@@ -99,6 +99,10 @@ public static class FixtureDump
     public const string PureMetal = "i~gregtech~gt.metaitem.01~11901";
     public const string BlackMetal = "i~tconstruct~blackium~0";
     public const string PlanetDust = "i~GalaxySpace~planetdust~0";
+    public const string FlawedGem = "i~gregtech~gt.metaitem.01~8501";
+    public const string ExquisiteGem = "i~gregtech~gt.metaitem.01~8502";
+    public const string CopperWire = "i~gregtech~gt.metaitem.02~30035";
+    public const string BrewCell = "i~gregtech~gt.metaitem.01~30002";
 
     public static string Create(string directory)
     {
@@ -163,6 +167,9 @@ public static class FixtureDump
                 DIMENSIONS_MIN_AMOUNT INTEGER, DIMENSIONS_PROBABILITY REAL);
             CREATE TABLE GREG_TECH_ORE_DICT_UNIFICATION(ID TEXT, NAME TEXT, TARGET_ID TEXT);
             CREATE TABLE GREG_TECH_UNIFICATION_BLACKLIST(ID TEXT, ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_ORE_PREFIX(ID TEXT, NAME TEXT, UNIFIABLE INTEGER,
+                SELF_REFERENCING INTEGER, MATERIAL_BASED INTEGER, CONTAINER INTEGER,
+                RECYCLABLE INTEGER, MATERIAL_AMOUNT INTEGER);
             CREATE TABLE METADATA(ID INTEGER, CREATION_TIME_MILLIS INTEGER, VERSION TEXT);
             """);
 
@@ -243,6 +250,10 @@ public static class FixtureDump
         Item(db, GemOre, "Gemium Ore", "gregtech");
         Item(db, Gem, "Gemium", "gregtech");
         Item(db, GemDust, "Gemium Dust", "gregtech");
+        Item(db, FlawedGem, "Flawed Gemium", "gregtech");
+        Item(db, ExquisiteGem, "Exquisite Gemium", "gregtech");
+        Item(db, CopperWire, "1x Copper Wire", "gregtech");
+        Item(db, BrewCell, "Brewium Cell", "gregtech");
         Item(db, ClayBlock, "Clay", "minecraft");
         Item(db, ClayBall, "Clay Ball", "minecraft");
         Item(db, PhantomOre, "Phantomium Ore", "gregtech");
@@ -306,6 +317,15 @@ public static class FixtureDump
         Oredict(db, "oreGemium", "g_gem_ore");
         Oredict(db, "gemGemium", "g_gem");
         Oredict(db, "dustGemium", "g_gem_dust");
+        Group(db, "g_flawed_gem", (FlawedGem, 1));
+        Group(db, "g_exquisite_gem", (ExquisiteGem, 1));
+        Group(db, "g_copper_wire", (CopperWire, 1));
+        Group(db, "g_copper_wire_pair", (CopperWire, 2));
+        Group(db, "g_brew_cell", (BrewCell, 1));
+        Oredict(db, "gemFlawedGemium", "g_flawed_gem");
+        Oredict(db, "gemExquisiteGemium", "g_exquisite_gem");
+        Oredict(db, "wireGt01Copper", "g_copper_wire");
+        Oredict(db, "cellBrewium", "g_brew_cell");
         Group(db, "g_clay_ball", (ClayBall, 1));
         db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_water', 1000, '{Water}')");
 
@@ -428,6 +448,8 @@ public static class FixtureDump
         Unify(db, "oreGemium", GemOre);
         Unify(db, "gemGemium", Gem);
         Unify(db, "dustGemium", GemDust);
+        Unify(db, "gemFlawedGemium", FlawedGem);
+        Unify(db, "gemExquisiteGemium", ExquisiteGem);
         Unify(db, "oreAluminium", AluOre);
         Unify(db, "oreNaquadah", NaqOre);
         Unify(db, "dustNaquadah", NaqDust);
@@ -456,6 +478,22 @@ public static class FixtureDump
         Unify(db, "blockObsidian", ObsidianBlock);
         Unify(db, "dustByprodium", ByDust);
         Unify(db, "ingotByprodium", ByIngot);
+
+        // GT's real flags and material amounts for every prefix a fixture oredict uses.
+        OrePrefix(db, "ore", -1);
+        OrePrefix(db, "block", 32659200, recyclable: true);
+        OrePrefix(db, "stick", 1814400, recyclable: true);
+        OrePrefix(db, "ingot", 3628800);
+        OrePrefix(db, "nugget", 403200);
+        OrePrefix(db, "dust", 3628800);
+        OrePrefix(db, "dustSmall", 907200);
+        OrePrefix(db, "dustTiny", 403200);
+        OrePrefix(db, "dustImpure", 3628800);
+        OrePrefix(db, "gem", 3628800, selfReferencing: true, recyclable: true);
+        OrePrefix(db, "gemFlawed", 1814400, selfReferencing: true, recyclable: true);
+        OrePrefix(db, "gemExquisite", 14515200, selfReferencing: true, recyclable: true);
+        OrePrefix(db, "wireGt01", 1814400, recyclable: true);
+        OrePrefix(db, "cell", 3628800, container: true, selfReferencing: true, recyclable: true);
 
         RecipeType(db, "t_shaped", "minecraft", "Crafting (Shaped)");
         RecipeType(db, "t_furnace", "minecraft", "Furnace");
@@ -557,6 +595,9 @@ public static class FixtureDump
             outputs: [(Gem, 1, 1.0)], voltage: 120, duration: 100);
         Recipe(db, "r_gem_grind", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_gem", 0)],
             outputs: [(GemDust, 1, 1.0)], voltage: 4, duration: 100);
+        // Gem grades are leaves priced as fractions of their gem via GT's material amounts.
+        Recipe(db, "r_gem_crack", "t_shaped", inputs: [("g_gem", 0)], outputs: [(FlawedGem, 2, 1.0)]);
+        Recipe(db, "r_gem_polish", "t_shaped", inputs: [("g_gem", 0)], outputs: [(ExquisiteGem, 1, 1.0)]);
         // Nugium covers the derived and intermediate leaf rules: a nugget priced off its
         // ingot, and an ore-washing pile that has to price from its own recipe.
         Recipe(db, "r_nug_smelt", "t_furnace", inputs: [("g_copper_ingot", 0)], outputs: [(NugIngot, 1, 1.0)]);
@@ -577,6 +618,13 @@ public static class FixtureDump
         Recipe(db, "r_melt", "rt~gregtech~gt.recipe.fluidextractor~LV", inputs: [("g_alu_dust", 0)],
             outputs: [(AluRod, 1, 1.0)], voltage: 30, duration: 100,
             category: "fluidExtractorRecycling");
+        // A wire is half an ingot of its material, so grinding two back is honest recycling.
+        Recipe(db, "r_wire_mill", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(CopperWire, 2, 1.0)]);
+        Recipe(db, "r_wire_recycle", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_copper_wire_pair", 0)],
+            outputs: [(CopperDust, 1, 1.0)], voltage: 4, duration: 100, category: "maceratorRecycling");
+        // A cell holds its material inside a container item, so recycling it must not price.
+        Recipe(db, "r_cell_recycle", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_brew_cell", 0)],
+            outputs: [(CopperDust, 1, 1.0)], voltage: 4, duration: 100, category: "maceratorRecycling");
         Recipe(db, "r_brick", "t_furnace", inputs: [("g_clay_ball", 0)], outputs: [(IronIngot, 1, 1.0)]);
         Recipe(db, "r_ebf_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(EbfController, 1, 1.0)]);
         Recipe(db, "r_macerator_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MaceratorLv, 1, 1.0)]);
@@ -713,6 +761,19 @@ public static class FixtureDump
 
     private static void Oredict(SqliteConnection db, string name, string groupId) =>
         db.Execute("INSERT INTO ORE_DICTIONARY VALUES (@id, @name, @groupId)", new { id = $"od_{name}", name, groupId });
+
+    private static void OrePrefix(
+        SqliteConnection db, string name, long materialAmount, bool container = false,
+        bool selfReferencing = false, bool recyclable = false) =>
+        db.Execute("""
+            INSERT INTO GREG_TECH_ORE_PREFIX(ID, NAME, UNIFIABLE, SELF_REFERENCING, MATERIAL_BASED,
+                CONTAINER, RECYCLABLE, MATERIAL_AMOUNT)
+            VALUES (@id, @name, 1, @selfReferencing, 1, @container, @recyclable, @materialAmount)
+            """,
+            new
+            {
+                id = "gtop~" + name, name, selfReferencing, container, recyclable, materialAmount
+            });
 
     private static void Unify(SqliteConnection db, string name, string targetId) =>
         db.Execute(

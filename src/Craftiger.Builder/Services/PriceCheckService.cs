@@ -19,7 +19,7 @@ public sealed class PriceCheckService(IOptions<BuilderConfig> options, ILogger<P
         IReadOnlyDictionary<string, int> tiers, IReadOnlyDictionary<string, double> weights,
         UnifiedItems unified, Dump dump)
     {
-        var leafWeights = LeafWeights(leafClasses, tiers, weights, unified);
+        var leafWeights = LeafWeights(leafClasses, tiers, weights, unified, dump);
         var (cost, converged) = Solve(recipes, leafWeights);
 
         var undercut = leafWeights
@@ -29,7 +29,10 @@ public sealed class PriceCheckService(IOptions<BuilderConfig> options, ILogger<P
             .Select(leaf => (Id: leaf.Key, Weight: leaf.Value, Solved: cost[leaf.Key]))
             .OrderBy(leak => leak.Solved / leak.Weight)
             .ToList();
-        var free = cost.Count(item => item.Value <= 0 && leafWeights.GetValueOrDefault(item.Key, 1) > 0);
+        var free = cost
+            .Where(item => item.Value <= 0 && leafWeights.GetValueOrDefault(item.Key, 1) > 0)
+            .Select(item => item.Key)
+            .ToList();
 
         if (!converged)
         {
@@ -46,20 +49,24 @@ public sealed class PriceCheckService(IOptions<BuilderConfig> options, ILogger<P
                     "    {Name}: weight {Weight:N0}, priced {Solved:G3}", dump.NameOf(id), weight, solved);
             }
         }
-        if (free > 0)
+        if (free.Count > 0)
         {
-            logger.LogWarning("{Free:N0} items cost nothing at all", free);
+            logger.LogWarning("{Free:N0} items cost nothing at all, first:", free.Count);
+            foreach (var id in free.Take(5))
+            {
+                logger.LogWarning("    {Name}", dump.NameOf(id));
+            }
         }
         logger.LogInformation(
             "  {Priced:N0} of {Items:N0} items priced", cost.Count, Universe(recipes).Count);
 
-        return new PriceCheck(undercut.Count, free, converged);
+        return new PriceCheck(undercut.Count, free.Count, converged);
     }
 
     /// <summary>Leaf prices at the defaults of the cost model; the app lets the user retune them.</summary>
     private Dictionary<string, double> LeafWeights(
         Dictionary<string, string> leafClasses, IReadOnlyDictionary<string, int> tiers,
-        IReadOnlyDictionary<string, double> weights, UnifiedItems unified)
+        IReadOnlyDictionary<string, double> weights, UnifiedItems unified, Dump dump)
     {
         var leafWeights = new Dictionary<string, double>();
         foreach (var (id, leafClass) in leafClasses)
@@ -72,12 +79,13 @@ public sealed class PriceCheckService(IOptions<BuilderConfig> options, ILogger<P
             {
                 leafWeights[id] = Tiered(tier);
             }
-            else if (DerivedLeaf.ByClass.TryGetValue(leafClass, out var derived))
+            else if (DerivedLeaf.ByClass.ContainsKey(leafClass))
             {
-                var parent = DerivedLeaf.ParentsOf(id, leafClass, unified).FirstOrDefault(tiers.ContainsKey);
+                var (parent, divisor) = DerivedLeaf.ParentsOf(id, leafClass, unified, dump.OrePrefixes)
+                    .FirstOrDefault(p => tiers.ContainsKey(p.ParentId));
                 if (parent is not null)
                 {
-                    leafWeights[id] = Tiered(tiers[parent]) / derived.Divisor;
+                    leafWeights[id] = Tiered(tiers[parent]) / divisor;
                 }
             }
             else

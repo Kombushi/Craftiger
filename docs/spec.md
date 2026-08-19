@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.19
+# GTNH Crafting Planner — Specification v1.20
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -134,11 +134,16 @@ Builder responsibilities, in order:
    into cocoa beans; `dustSpace`), and item-kind conventions (`treeLeaves`,
    `fenceWood`, `record`) — registers for leaf classification and search but
    never merges identities: cherry leaves hammer into pink petals, not oak
-   leaves into tulips. Material leaf classes (`ingot`, `gem`, `dust`,
-   `nugget`, piles) additionally require the classifying name to be one GT
-   unifies, so a convention name that merely starts with `dust` cannot hand
-   its members a material leaf, and the primary-name pick prefers unified
-   names so `ingotAnyIron` never shadows `ingotIron`.
+   leaves into tulips. Oredict names resolve to their exact GT prefix by
+   longest match against `GREG_TECH_ORE_PREFIX` — GT's own prefix registry
+   with its unifiable / material-based / container flags and material
+   amounts — so `dustImpureIron` belongs to `dustImpure`, never to `dust`.
+   Material leaf classes (`ingot`, `gem` and its grades, `dust`, `nugget`,
+   piles) attach only where the exact prefix is one of theirs and the
+   classifying name is one GT unifies, so a convention name that merely
+   starts with `dust` cannot hand its members a material leaf, and the
+   primary-name pick prefers unified names so `ingotAnyIron` never shadows
+   `ingotIron`.
 2. **Normalization** — decompose every filled container (cell, bucket) into
    empty container + fluid, then net out items appearing on both sides of one
    recipe. Balanced containers vanish, so cell-only recipes become their
@@ -173,10 +178,12 @@ Builder responsibilities, in order:
    map's tier plus cumulative variants (`id~b3`, `id~b4`, …) floored at the
    slot's tier, so byproducts stay behind the right garage tier and era, and
    steam macerators grind primaries only.
-5. **Leaf tagging** — mark leaves by oredict prefix and lists (§4).
+5. **Leaf tagging** — mark leaves by exact GT prefix and lists (§4).
    Ore-washing and blast-furnace intermediates (`crushed*`, `dustImpure*`,
-   `dustPure*`, `ingotHot*`) are never leaves: they exist only inside a chain,
-   so a flat weight on one would cap every material made through it. What a
+   `dustPure*`, `ingotHot*`) are never leaves: each is a GT prefix of its
+   own, not a kind of dust or ingot, so exact matching leaves them classless
+   with no list to maintain — they exist only inside a chain, and a flat
+   weight on one would cap every material made through it. What a
    CropsNH crop drops is a leaf too, but only where farming is the one way in —
    anything another recipe also makes is priced from that recipe. Crop drops
    are claimed last so a vanilla farmable oredict always wins, and by item id
@@ -297,8 +304,9 @@ Builder responsibilities, in order:
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
 - `item_tiers(item_id, tier)` — tiered materials: ingots, gems and dusts (§4)
 - `item_parents(item_id, parent_item_id, divisor)` — fraction leaves (small and
-  tiny dusts, nuggets) name the item their weight divides from (§4), resolved
-  by the same rule that pruned them, so a shipped fraction always has a priced
+  tiny dusts, nuggets, gem grades) name the item their weight divides from
+  (§4), with the divisor the ratio of GT's material amounts, resolved by the
+  same rule that pruned them, so a shipped fraction always has a priced
   parent and the solver never re-derives the link from oredict names
 - `item_weights(item_id, weight)` — weights overriding the item's leaf class,
   where one class covers items worth different amounts (§4)
@@ -326,18 +334,22 @@ ships `ANALYZE`d so a reader's query planner sees real row counts.
 | Leaf class | Membership rule | Default weight |
 |---|---|---|
 | Minable block | explicit list, each with the era of the cheapest world it is mined in (End Stone at HV) | 1 |
-| Ingot | oredict `ingot*` | `B × 4^tier` (see below) |
-| Dust | oredict `dust*` | `B × 4^tier`, from the matching `ingot*` or `gem*` where the material has one, else from the dust's own era |
-| Small / tiny dust | `dustSmall*` / `dustTiny*` | parent dust ÷ 4 / ÷ 9 |
-| Nugget | oredict `nugget*` | parent ingot or gem ÷ 9 |
-| Gem | oredict `gem*` | `B × 4^tier`, tiered like an ingot |
+| Ingot | GT prefix `ingot` | `B × 4^tier` (see below) |
+| Dust | GT prefix `dust` | `B × 4^tier`, from the matching `ingot*` or `gem*` where the material has one, else from the dust's own era |
+| Small / tiny dust | GT prefix `dustSmall` / `dustTiny` | parent dust ÷ 4 / ÷ 9 |
+| Nugget | GT prefix `nugget` | parent ingot or gem ÷ 9 |
+| Gem | GT prefix `gem` | `B × 4^tier`, tiered like an ingot |
+| Gem grade | GT prefix `gemChipped` / `gemFlawed` / `gemFlawless` / `gemExquisite` | parent gem × ¼ / ½ / 2 / 4 |
 | Log | oredict `logWood` | 1 |
 | Farmable | explicit list: sugar cane, seeds, saplings, crops, … | 1 |
 | Crop drop | what a CropsNH crop drops, where no other class claims it | 1 |
 | World fluid | explicit list: water, lava, oil and its cuts, natural gas | per fluid, from `item_weights`: water 1, lava 2, oil and gas 8 |
 
-Ore-washing and blast-furnace intermediates (`crushed*`, `dustImpure*`,
-`dustPure*`, `ingotHot*`) are **not** leaves in any class — see §9.
+Membership goes by the oredict's exact GT prefix (§3 step 1), and every
+fraction divisor is the ratio of GT's material amounts for the two prefixes —
+a nugget is 403200 of an ingot's 3628800. Ore-washing and blast-furnace
+intermediates (`crushed*`, `dustImpure*`, `dustPure*`, `ingotHot*`) are
+**not** leaves in any class — see §9.
 
 All rules and weights live in **one editable weights table** (config UI, §7).
 An `item_weights` row overrides its item's class, for a class whose members are
@@ -657,11 +669,14 @@ All "does not / never" rules live here; other sections only reference this one.
   tag alone condemns nothing — it applies just as readily to melting a rod back
   into molten metal, which is exactly conservative and is often the only route to
   a material's molten form. The two are told apart by what is consumed: a tagged
-  recipe survives when every ingredient is one shape of a single material
-  (`ingot*`, `plate*`, `stick*`, `gear*`, `nugget*`, `dust*`, `block*`, …, or a
-  fluid), and is dropped when anything else goes in — a `doorIron`, a `signWood`,
-  an Electric Piston with no oredict at all. Storage-block cycles are safe either
-  way: nine ingots in, nine ingots back. A few reverse-crafting recipes carry no
+  recipe survives when every ingredient is one shape of a single material, and
+  is dropped when anything else goes in — a `doorIron`, a `signWood`, an
+  Electric Piston with no oredict at all. GT's own prefix flags decide what a
+  shape is: an oredict whose exact prefix is unifiable, material-based, and
+  not a container (`ingot*`, `plate*`, `wireGt*`, `toolHeadDrill*`, …, or any
+  fluid) qualifies, while a `cell*` holds its material inside a container item
+  and never does. Storage-block cycles are safe either way: nine ingots in,
+  nine ingots back. A few reverse-crafting recipes carry no
   recycling tag at all: Mining Pipes multiply matter on the way out (one fluid
   pipe extrudes into up to 32 of them as a deliberate in-game cheapening), so
   grinding or arcing them back to steel amplifies — one stainless ingot would
@@ -796,3 +811,9 @@ All "does not / never" rules live here; other sections only reference this one.
     target item, a blacklisted member keeps its identity as a slot
     alternative, a name GT does not unify never merges, and a convention
     name that merely starts with a material prefix classifies nothing.
+31. Material shapes follow GT's own prefix flags: recycling a wire survives
+    as one shape of its material, recycling a cell never ships, and no
+    config list names the shapes.
+32. A gem grade prices by GT's material amounts — a chipped gem a quarter of
+    its gem, an exquisite four times — shipping as a fraction whose parent
+    is the gem.

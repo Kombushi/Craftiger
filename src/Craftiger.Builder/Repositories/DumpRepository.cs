@@ -88,6 +88,20 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
         var unificationBlacklist = db.Query<string>(
             """SELECT ITEM_ID FROM GREG_TECH_UNIFICATION_BLACKLIST""").ToHashSet();
 
+        if (!HasTable(db, "GREG_TECH_ORE_PREFIX"))
+        {
+            throw new InvalidOperationException(
+                "dump predates GREG_TECH_ORE_PREFIX; re-export with exporter 0.6.3 or later");
+        }
+        var orePrefixes = db.Query<(string Name, bool Unifiable, bool SelfReferencing, bool MaterialBased,
+            bool Container, bool Recyclable, long MaterialAmount)>("""
+            SELECT NAME, UNIFIABLE, SELF_REFERENCING, MATERIAL_BASED, CONTAINER, RECYCLABLE, MATERIAL_AMOUNT
+            FROM GREG_TECH_ORE_PREFIX
+            """)
+            .ToDictionary(r => r.Name, r => new DumpOrePrefix(
+                r.Name, r.Unifiable, r.SelfReferencing, r.MaterialBased, r.Container, r.Recyclable,
+                r.MaterialAmount));
+
         var itemInputs = new Dictionary<string, List<(long Slot, string GroupId)>>();
         foreach (var (recipeId, slot, groupId) in db.Query<(string, long, string)>(
             """SELECT RECIPE_ID, ITEM_INPUTS_KEY, ITEM_INPUTS_ID FROM RECIPE_ITEM_GROUP"""))
@@ -278,6 +292,7 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             Oredict = oredict,
             UnifiedOredictTargets = unifiedOredictTargets,
             UnificationBlacklist = unificationBlacklist,
+            OrePrefixes = new OrePrefixIndex(orePrefixes),
             ItemInputsByRecipe = itemInputs,
             ItemOutputsByRecipe = itemOutputs,
             FluidInputsByRecipe = fluidInputs,

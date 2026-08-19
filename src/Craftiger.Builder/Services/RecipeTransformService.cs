@@ -225,8 +225,9 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
         _config.RecyclingCategorySuffixes.Any(suffix => category.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Whether an ingredient is one shape of a single material rather than something
-    /// manufactured. Fluids qualify: a molten metal is already just its material.</summary>
-    private bool IsMaterialShape(string id, Dump dump, UnifiedItems unified)
+    /// manufactured, by GT's own prefix flags. Fluids qualify: a molten metal is already just
+    /// its material.</summary>
+    private static bool IsMaterialShape(string id, Dump dump, UnifiedItems unified)
     {
         if (dump.Fluids.ContainsKey(id))
         {
@@ -234,9 +235,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
         }
 
         var oredicts = unified.OredictsByCanonical.GetValueOrDefault(id);
-        return oredicts is not null && oredicts
-            .Any(oredict => _config.MaterialShapeOredictPrefixes
-                .Any(prefix => oredict.StartsWith(prefix, StringComparison.Ordinal)));
+        return oredicts is not null && oredicts.Any(dump.OrePrefixes.IsMaterialShape);
     }
 
     private bool IsExcluded(string machine) =>
