@@ -45,7 +45,7 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
 
             var leafClass = oredict is null
                 ? null
-                : Classify(oredict, unified.OredictsByCanonical.GetValueOrDefault(id));
+                : Classify(oredict, unified.OredictsByCanonical.GetValueOrDefault(id), dump);
 
             // Farming is a leaf only where it is the one way in; anything a recipe also makes
             // is priced from that recipe. Most crop drops carry no oredict, so this comes last.
@@ -120,7 +120,7 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
     private bool IsIntermediate(string oredict) =>
         _config.IntermediateOredictPrefixes.Any(p => oredict.StartsWith(p, StringComparison.Ordinal));
 
-    private string? Classify(string oredict, HashSet<string>? allOredicts)
+    private string? Classify(string oredict, HashSet<string>? allOredicts, Dump dump)
     {
         if (_config.MinableBlockEras.ContainsKey(oredict) ||
             (allOredicts is not null && allOredicts.Any(_config.MinableBlockEras.ContainsKey)))
@@ -131,29 +131,34 @@ public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<
         {
             return "farmable";
         }
-        if (oredict.StartsWith("dustSmall", StringComparison.Ordinal))
+        // Material classes need a name GT itself unifies: convention names that merely start
+        // with a material prefix (dustSpace*) must not hand their members a material leaf.
+        if (dump.UnifiedOredictTargets.ContainsKey(oredict))
         {
-            return "dust_small";
-        }
-        if (oredict.StartsWith("dustTiny", StringComparison.Ordinal))
-        {
-            return "dust_tiny";
-        }
-        if (oredict.StartsWith("dust", StringComparison.Ordinal))
-        {
-            return "dust";
-        }
-        if (oredict.StartsWith("ingot", StringComparison.Ordinal))
-        {
-            return "ingot";
-        }
-        if (oredict.StartsWith("gem", StringComparison.Ordinal))
-        {
-            return "gem";
-        }
-        if (oredict.StartsWith("nugget", StringComparison.Ordinal))
-        {
-            return "nugget";
+            if (oredict.StartsWith("dustSmall", StringComparison.Ordinal))
+            {
+                return "dust_small";
+            }
+            if (oredict.StartsWith("dustTiny", StringComparison.Ordinal))
+            {
+                return "dust_tiny";
+            }
+            if (oredict.StartsWith("dust", StringComparison.Ordinal))
+            {
+                return "dust";
+            }
+            if (oredict.StartsWith("ingot", StringComparison.Ordinal))
+            {
+                return "ingot";
+            }
+            if (oredict.StartsWith("gem", StringComparison.Ordinal))
+            {
+                return "gem";
+            }
+            if (oredict.StartsWith("nugget", StringComparison.Ordinal))
+            {
+                return "nugget";
+            }
         }
         if (oredict.StartsWith("logWood", StringComparison.Ordinal))
         {

@@ -60,16 +60,6 @@ public sealed record BuilderConfig
     /// <summary>The cleanroom is the pack's HV progression wall; its era never resolves lower.</summary>
     public required int CleanroomMinEra { get; init; }
 
-    /// <summary>Wildcard oredict name patterns that group distinct materials and must not unify them.</summary>
-    public required IReadOnlyList<string> GroupingOredictPrefixes { get; init; }
-    public required IReadOnlyList<string> GroupingOredictInfixes { get; init; }
-    public required IReadOnlyList<string> GroupingOredictNames { get; init; }
-
-    /// <summary>Accept-list oredicts over distinct items (any log, any pink flower): they still
-    /// register for classification and search, but never merge their members' identities.</summary>
-    public required IReadOnlyList<string> AcceptListOredictNames { get; init; }
-    public required IReadOnlyList<string> AcceptListOredictPrefixes { get; init; }
-
     /// <summary>Era needed to reach each GT dimension tier (1-8 rockets, 9 mothership, 10 Deep Dark).</summary>
     public required IReadOnlyDictionary<int, int> DimensionTierEras { get; init; }
 

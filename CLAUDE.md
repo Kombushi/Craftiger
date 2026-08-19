@@ -53,13 +53,14 @@ types and identifiers.
   `Microsoft.Extensions.DependencyInjection`, xUnit.
 - Task runner: `mise`. Every build/test/run command is a named `mise` task;
   docs reference targets by name only. Targets: `build`, `test`, `builder`,
-  `api`, `web`, plus `docker:login` / `docker:build` / `docker:push` (the
-  latter two take the image version via `TAG`) for the container images.
+  `api`, `web`, `dump:convert`, plus `docker:login` / `docker:build` /
+  `docker:push` (the latter two take the image version via `TAG`) for the
+  container images.
 - The NESQL dump is an HSQLDB database (Java-only format, ~600 MB), converted
-  once into a local `dump.sqlite` by a throwaway JDBC copy (HSQLDB driver,
-  `jdbc:hsqldb:file:…`, user `sa`, empty password) — the only step that ever
-  needs a JRE, not part of the repo's task set. All code and ad-hoc queries
-  read the SQLite copy: use `sqlite3` with `LIMIT`, never dump whole tables.
+  into a local `dump.sqlite` by `mise run dump:convert` (a single-file JDBC
+  copier in `tools/dump-convert/`, the only step that ever needs a JRE). All
+  code and ad-hoc queries read the SQLite copy: use `sqlite3` with `LIMIT`,
+  never dump whole tables.
 
 ## Testing
 

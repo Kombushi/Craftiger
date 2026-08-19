@@ -94,6 +94,11 @@ public static class FixtureDump
     public const string Hydrogen = "f~hydrogen";
     public const string WaterCell = "i~gregtech~gt.metaitem.01~30001";
     public const string EmptyCell = "i~gregtech~gt.metaitem.01~32000";
+    public const string TargetVanilla = "i~minecraft~targetium~0";
+    public const string TargetGt = "i~gregtech~gt.metaitem.01~11900";
+    public const string PureMetal = "i~gregtech~gt.metaitem.01~11901";
+    public const string BlackMetal = "i~tconstruct~blackium~0";
+    public const string PlanetDust = "i~GalaxySpace~planetdust~0";
 
     public static string Create(string directory)
     {
@@ -156,6 +161,8 @@ public static class FixtureDump
             CREATE TABLE GREG_TECH_UNDERGROUND_FLUID_DIMENSIONS(GREG_TECH_UNDERGROUND_FLUID_ID TEXT,
                 DIMENSIONS_DIMENSION_ABBREVIATION TEXT, DIMENSIONS_MAX_AMOUNT INTEGER,
                 DIMENSIONS_MIN_AMOUNT INTEGER, DIMENSIONS_PROBABILITY REAL);
+            CREATE TABLE GREG_TECH_ORE_DICT_UNIFICATION(ID TEXT, NAME TEXT, TARGET_ID TEXT);
+            CREATE TABLE GREG_TECH_UNIFICATION_BLACKLIST(ID TEXT, ITEM_ID TEXT);
             CREATE TABLE METADATA(ID INTEGER, CREATION_TIME_MILLIS INTEGER, VERSION TEXT);
             """);
 
@@ -247,6 +254,11 @@ public static class FixtureDump
         Item(db, DryIngot, "Dryium Ingot", "gregtech");
         Item(db, ByDust, "Byprodium Dust", "gregtech");
         Item(db, ByIngot, "Byprodium Ingot", "gregtech");
+        Item(db, TargetVanilla, "Targetium Ingot", "minecraft");
+        Item(db, TargetGt, "Targetium Ingot", "gregtech");
+        Item(db, PureMetal, "Blackium Ingot", "gregtech");
+        Item(db, BlackMetal, "Blackium Ingot", "tconstruct");
+        Item(db, PlanetDust, "Planet Dust", "GalaxySpace");
         db.Execute($"INSERT INTO ITEM_TOOLTIP VALUES ('{Dryer}', 'Voltage IN: §e128§7 (§eMV§7)', 2)");
         db.Execute($"INSERT INTO FLUID_CONTAINER VALUES ('fc_water', 1000, '{WaterCell}', '{EmptyCell}', '{Water}')");
 
@@ -380,6 +392,71 @@ public static class FixtureDump
         Oredict(db, "ingotAnnealedCopper", "g_annealed_ingot");
         Oredict(db, "dustAnnealedCopper", "g_annealed_dust");
 
+        // GT picks the target against mod order; a blacklisted member never merges; a
+        // convention name that merely starts with dust must not classify its members.
+        Group(db, "g_targetium", (TargetVanilla, 1), (TargetGt, 1));
+        Oredict(db, "ingotTargetium", "g_targetium");
+        Group(db, "g_blackium", (PureMetal, 1), (BlackMetal, 1));
+        Oredict(db, "ingotBlackium", "g_blackium");
+        Group(db, "g_planet_dust", (PlanetDust, 1));
+        Oredict(db, "dustSpace", "g_planet_dust");
+        Blacklist(db, BlackMetal);
+
+        // GT's unification verdicts: every real material-form name, with GT's target item.
+        // Wildcards (ingotAnyIron), wood names, and minable names stay absent, as in GT.
+        Unify(db, "ingotTargetium", TargetGt);
+        Unify(db, "ingotBlackium", PureMetal);
+        Unify(db, "ingotBronze", GtBronze);
+        Unify(db, "dustBronze", BronzeDust);
+        Unify(db, "blockBronze", BronzeBlock);
+        Unify(db, "ingotAluminium", AluIngot);
+        Unify(db, "dustAluminium", AluDust);
+        Unify(db, "blockAluminium", AluBlock);
+        Unify(db, "ingotIron", IronIngot);
+        Unify(db, "ingotCastIron", CastIron);
+        Unify(db, "ingotMixium", MixIngot);
+        Unify(db, "ingotDearium", DearIngot);
+        Unify(db, "ingotBerrium", BerryIngot);
+        Unify(db, "ingotOilium", OilIngot);
+        Unify(db, "oreStonePhantomium", PhantomOre);
+        Unify(db, "ingotPhantomium", PhantomIngot);
+        Unify(db, "ingotNugium", NugIngot);
+        Unify(db, "nuggetNugium", NugNugget);
+        Unify(db, "dustImpureNugium", NugImpure);
+        Unify(db, "ingotLostium", LostIngot);
+        Unify(db, "ingotEndium", EndIngot);
+        Unify(db, "oreGemium", GemOre);
+        Unify(db, "gemGemium", Gem);
+        Unify(db, "dustGemium", GemDust);
+        Unify(db, "oreAluminium", AluOre);
+        Unify(db, "oreNaquadah", NaqOre);
+        Unify(db, "dustNaquadah", NaqDust);
+        Unify(db, "ingotNaquadah", NaqIngot);
+        Unify(db, "ingotCold", ColdIngot);
+        Unify(db, "oreCopper", CopperOre);
+        Unify(db, "dustCopper", CopperDust);
+        Unify(db, "ingotCopper", CopperIngot);
+        Unify(db, "ingotAnnealedCopper", AnnealedIngot);
+        Unify(db, "dustAnnealedCopper", AnnealedDust);
+        Unify(db, "ingotWirelessium", WirelessIngot);
+        Unify(db, "dustDualium", DualDust);
+        Unify(db, "ingotDualium", DualIngot);
+        Unify(db, "dustInertium", InertDust);
+        Unify(db, "dustSmallInertium", InertSmall);
+        Unify(db, "oreKoboldite", KobOre);
+        Unify(db, "dustKoboldite", KobDust);
+        Unify(db, "ingotKoboldite", KobIngot);
+        Unify(db, "rawOreRunite", RawRunite);
+        Unify(db, "dustRunite", RuniteDust);
+        Unify(db, "ingotRunite", RuniteIngot);
+        Unify(db, "oreComancheite", ComOre);
+        Unify(db, "dustComancheite", ComDust);
+        Unify(db, "ingotComancheite", ComIngot);
+        Unify(db, "ingotDryium", DryIngot);
+        Unify(db, "blockObsidian", ObsidianBlock);
+        Unify(db, "dustByprodium", ByDust);
+        Unify(db, "ingotByprodium", ByIngot);
+
         RecipeType(db, "t_shaped", "minecraft", "Crafting (Shaped)");
         RecipeType(db, "t_furnace", "minecraft", "Furnace");
         RecipeType(db, "rt~gregtech~gt.recipe.blastfurnace~MV", "gregtech", "Blast Furnace (MV)", handlerIcons: 2);
@@ -431,9 +508,12 @@ public static class FixtureDump
         // Distinct materials share the wildcard ingotAnyIron group but must stay separate.
         Recipe(db, "r_iron_use", "t_shaped", inputs: [("g_iron", 0)], outputs: [(Plank, 1, 1.0)]);
         Recipe(db, "r_cast_use", "t_shaped", inputs: [("g_cast_iron", 0)], outputs: [(Plank, 1, 1.0)]);
-        // Accept-list oredicts (treeLeaves) classify their members but never merge them.
+        // Names GT never unifies (treeLeaves) classify their members but never merge them.
         Recipe(db, "r_oak_leaves_use", "t_shaped", inputs: [("g_oak_leaves", 0)], outputs: [(Plank, 1, 1.0)]);
         Recipe(db, "r_petals", "t_shaped", inputs: [("g_cherry_leaves", 0)], outputs: [(Plank, 1, 1.0)]);
+        Recipe(db, "r_target_use", "t_shaped", inputs: [("g_targetium", 0)], outputs: [(Plank, 1, 1.0)]);
+        Recipe(db, "r_blackium_use", "t_shaped", inputs: [("g_blackium", 0)], outputs: [(Plank, 1, 1.0)]);
+        Recipe(db, "r_planet_use", "t_shaped", inputs: [("g_planet_dust", 0)], outputs: [(Plank, 1, 1.0)]);
         // Grinding a listed pipe is untagged recycling; its grid consumer is a real craft.
         Recipe(db, "r_pipe_grind", "rt~gregtech~gt.recipe.macerator~ULV",
             inputs: [("g_fixture_pipe", 0)], outputs: [(BronzeDust, 1, 1.0)], voltage: 4, duration: 100);
@@ -633,6 +713,16 @@ public static class FixtureDump
 
     private static void Oredict(SqliteConnection db, string name, string groupId) =>
         db.Execute("INSERT INTO ORE_DICTIONARY VALUES (@id, @name, @groupId)", new { id = $"od_{name}", name, groupId });
+
+    private static void Unify(SqliteConnection db, string name, string targetId) =>
+        db.Execute(
+            "INSERT INTO GREG_TECH_ORE_DICT_UNIFICATION VALUES (@id, @name, @targetId)",
+            new { id = $"gtodu~{name}", name, targetId });
+
+    private static void Blacklist(SqliteConnection db, string itemId) =>
+        db.Execute(
+            "INSERT INTO GREG_TECH_UNIFICATION_BLACKLIST VALUES (@id, @itemId)",
+            new { id = $"gtub~{itemId}", itemId });
 
     private static void Crop(
         SqliteConnection db, string cropId, string name, string seedId, bool hidden,

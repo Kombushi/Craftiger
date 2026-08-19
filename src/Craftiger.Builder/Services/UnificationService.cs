@@ -1,13 +1,10 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
-using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnificationService
+public sealed class UnificationService : IUnificationService
 {
-    private readonly BuilderConfig _config = options.Value;
-
     private static readonly string[] LeafPrefixes = ["ingot", "dustSmall", "dustTiny", "dust", "gem", "logWood", "block"];
 
     public UnifiedItems Run(Dump dump)
@@ -18,15 +15,13 @@ public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnifi
 
         foreach (var (name, groupId) in dump.Oredict)
         {
-            if (IsGrouping(name))
-            {
-                continue;
-            }
             if (!dump.GroupStacks.TryGetValue(groupId, out var stacks))
             {
                 continue;
             }
-            var acceptList = IsAcceptList(name);
+            // Only names GT itself unifies merge identities; every other oredict registers
+            // for classification and search but leaves its members distinct.
+            var unifies = dump.UnifiedOredictTargets.ContainsKey(name);
             string? first = null;
             foreach (var stack in stacks)
             {
@@ -44,9 +39,7 @@ public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnifi
                     oredictsByItem[stack.ItemId] = names = [];
                 }
                 names.Add(name);
-                // Accept-list oredicts register for classification and search but
-                // never merge their members' identities.
-                if (acceptList)
+                if (!unifies || dump.UnificationBlacklist.Contains(stack.ItemId))
                 {
                     continue;
                 }
@@ -72,13 +65,30 @@ public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnifi
             members.Add(itemId);
         }
 
+        // GT's substitution targets, gathered per class so the canonical is GT's own pick.
+        var targetsByRoot = new Dictionary<string, List<string>>();
+        foreach (var target in dump.UnifiedOredictTargets.Values)
+        {
+            if (!oredictsByItem.ContainsKey(target))
+            {
+                continue;
+            }
+            var root = Find(parent, target);
+            if (!targetsByRoot.TryGetValue(root, out var targets))
+            {
+                targetsByRoot[root] = targets = [];
+            }
+            targets.Add(target);
+        }
+
         var canonicalByRawId = new Dictionary<string, string>();
         var primaryOredict = new Dictionary<string, string>();
         var aliases = new Dictionary<string, HashSet<string>>();
 
-        foreach (var members in classMembers.Values)
+        foreach (var (root, members) in classMembers)
         {
-            var canonical = members.MinBy(id => SortKey(dump.Items[id]))!;
+            var canonical = (targetsByRoot.GetValueOrDefault(root) ?? members)
+                .MinBy(id => SortKey(dump.Items[id]))!;
             var names = new HashSet<string>();
             var oredicts = new SortedSet<string>();
             foreach (var id in members)
@@ -93,7 +103,7 @@ public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnifi
             names.Remove(dump.Items[canonical].Name);
             names.UnionWith(oredicts);
             aliases[canonical] = names;
-            primaryOredict[canonical] = PickPrimary(oredicts);
+            primaryOredict[canonical] = PickPrimary(oredicts, dump.UnifiedOredictTargets);
         }
 
         var canonicalByOredict = new Dictionary<string, string>();
@@ -102,7 +112,8 @@ public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnifi
         {
             if (members.Count > 0)
             {
-                canonicalByOredict[name] = canonicalByRawId.GetValueOrDefault(members[0], members[0]);
+                var representative = dump.UnifiedOredictTargets.GetValueOrDefault(name, members[0]);
+                canonicalByOredict[name] = canonicalByRawId.GetValueOrDefault(representative, representative);
             }
             foreach (var member in members)
             {
@@ -126,24 +137,22 @@ public sealed class UnificationService(IOptions<BuilderConfig> options) : IUnifi
         };
     }
 
-    private bool IsGrouping(string name) =>
-        _config.GroupingOredictNames.Contains(name) ||
-        _config.GroupingOredictPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)) ||
-        _config.GroupingOredictInfixes.Any(i => name.Contains(i, StringComparison.Ordinal));
-
-    private bool IsAcceptList(string name) =>
-        _config.AcceptListOredictNames.Contains(name) ||
-        _config.AcceptListOredictPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal));
-
-    private static string PickPrimary(SortedSet<string> oredicts)
+    /// <summary>GT-unified names outrank convention ones, so a wildcard like ingotAnyIron
+    /// can never shadow the real material name it sorts ahead of.</summary>
+    private static string PickPrimary(
+        SortedSet<string> oredicts, IReadOnlyDictionary<string, string> unifiedNames)
     {
-        foreach (var prefix in LeafPrefixes)
+        foreach (var unifiedOnly in new[] { true, false })
         {
-            foreach (var name in oredicts)
+            foreach (var prefix in LeafPrefixes)
             {
-                if (name.StartsWith(prefix, StringComparison.Ordinal))
+                foreach (var name in oredicts)
                 {
-                    return name;
+                    if ((!unifiedOnly || unifiedNames.ContainsKey(name))
+                        && name.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        return name;
+                    }
                 }
             }
         }

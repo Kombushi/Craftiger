@@ -77,6 +77,17 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
         var oredict = db.Query<(string OredictName, string GroupId)>(
             """SELECT NAME, ITEM_GROUP_ID FROM ORE_DICTIONARY""").ToList();
 
+        if (!HasTable(db, "GREG_TECH_ORE_DICT_UNIFICATION"))
+        {
+            throw new InvalidOperationException(
+                "dump predates GREG_TECH_ORE_DICT_UNIFICATION; re-export with exporter 0.6.3 or later");
+        }
+        var unifiedOredictTargets = db.Query<(string Name, string TargetId)>(
+            """SELECT NAME, TARGET_ID FROM GREG_TECH_ORE_DICT_UNIFICATION""")
+            .ToDictionary(r => r.Name, r => r.TargetId);
+        var unificationBlacklist = db.Query<string>(
+            """SELECT ITEM_ID FROM GREG_TECH_UNIFICATION_BLACKLIST""").ToHashSet();
+
         var itemInputs = new Dictionary<string, List<(long Slot, string GroupId)>>();
         foreach (var (recipeId, slot, groupId) in db.Query<(string, long, string)>(
             """SELECT RECIPE_ID, ITEM_INPUTS_KEY, ITEM_INPUTS_ID FROM RECIPE_ITEM_GROUP"""))
@@ -265,6 +276,8 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             GtByRecipeId = gt,
             GroupStacks = groupStacks,
             Oredict = oredict,
+            UnifiedOredictTargets = unifiedOredictTargets,
+            UnificationBlacklist = unificationBlacklist,
             ItemInputsByRecipe = itemInputs,
             ItemOutputsByRecipe = itemOutputs,
             FluidInputsByRecipe = fluidInputs,
@@ -281,6 +294,10 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             ExportedAt = DateTimeOffset.FromUnixTimeMilliseconds(metadata.CreatedMillis)
         };
     }
+
+    private static bool HasTable(SqliteConnection db, string table) =>
+        db.Query<string>("SELECT name FROM sqlite_master WHERE type = 'table'")
+            .Any(name => name.Equals(table, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Lets the builder read a dump taken before a column existed.</summary>
     private static bool HasColumn(SqliteConnection db, string table, string column) =>

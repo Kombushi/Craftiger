@@ -492,7 +492,7 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
-    public void WildcardGroupingOredictsDoNotUnify()
+    public void WildcardOredictsDoNotUnify()
     {
         Assert.Equal(FixtureDump.IronIngot, _fixture.Scalar<string>(
             "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_iron_use'"));
@@ -501,7 +501,30 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
-    public void AcceptListOredictsClassifyWithoutUnifying()
+    public void TheCanonicalIsGtsUnificationTarget()
+    {
+        Assert.Equal(FixtureDump.TargetGt, _fixture.Scalar<string>(
+            "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_target_use'"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM items WHERE id = '{FixtureDump.TargetVanilla}'"));
+    }
+
+    [Fact]
+    public void BlacklistedMembersKeepTheirIdentity()
+    {
+        Assert.Equal(2, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_blackium_use'"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM items WHERE id = '{FixtureDump.BlackMetal}'"));
+    }
+
+    [Fact]
+    public void ConventionPrefixesNeverClassifyMaterials() =>
+        Assert.Null(_fixture.Scalar<string?>(
+            $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.PlanetDust}'"));
+
+    [Fact]
+    public void NonUnifiedNamesClassifyWithoutMerging()
     {
         Assert.Equal(FixtureDump.CherryLeaves, _fixture.Scalar<string>(
             "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_petals'"));

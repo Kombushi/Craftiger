@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.18
+# GTNH Crafting Planner — Specification v1.19
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -107,10 +107,11 @@ Caveats:
 - The dump must be re-generated for every pack update; the builder records the
   pack version into `meta`.
 
-Stage 2 — build. The builder (`Craftiger.Builder`, a standalone console
-project — repo layout in §8) first converts the HSQLDB dump into a local
-`dump.sqlite` copy over JDBC (the only step requiring a JRE — .NET has no
-HSQLDB driver), then produces:
+Stage 2 — build. The HSQLDB dump is first converted into a local
+`dump.sqlite` copy by the `dump:convert` task (a JDBC copier in
+`tools/dump-convert/` — the only step requiring a JRE, since .NET has no
+HSQLDB driver). The builder (`Craftiger.Builder`, a standalone console
+project — repo layout in §8) then produces:
 
 - `planner.sqlite` — slim relational data (schema below)
 - `atlas.webp` — one texture atlas of all item/fluid icons
@@ -123,16 +124,21 @@ locally for builder runs and ad-hoc queries; it is never shipped.
 Builder responsibilities, in order:
 
 1. **Unification** — collapse oredict-equivalent items into one canonical item;
-   keep an alias table for search. Two kinds of oredict never drive
-   unification, each on its own editable pattern list. Wildcard grouping
-   oredicts (`ingotAnyIron`, `listAll*`, `crafting*`, `dustSpace`, `dye*` —
-   GregTech hands colored mineral dusts dye oredicts, so `dyeBrown` would
-   quietly turn limonite into cocoa beans) are ignored outright — registering
-   them would hand their members a leaf class they must not have. Accept-list oredicts (`treeLeaves`, `logWood`, `plankWood`,
-   `treeSapling`, `stickWood`, `flower*`) still register for leaf
-   classification and search — every leaf block is `farmable` through
-   `treeLeaves` — but never merge identities: cherry leaves hammer into pink
-   petals, not oak leaves into tulips.
+   keep an alias table for search. Which names unify is GT's own call, not a
+   config list: the dump's `GREG_TECH_ORE_DICT_UNIFICATION` table carries every
+   oredict name GregTech's unificator substitutes, each with GT's target item,
+   and `GREG_TECH_UNIFICATION_BLACKLIST` the items GT exempts. A name in the
+   table merges its members (minus blacklisted ones) with GT's target as the
+   canonical; every other name — wildcards (`ingotAnyIron`, `listAll*`,
+   `crafting*`), category names (`dye*`, which would quietly turn limonite
+   into cocoa beans; `dustSpace`), and item-kind conventions (`treeLeaves`,
+   `fenceWood`, `record`) — registers for leaf classification and search but
+   never merges identities: cherry leaves hammer into pink petals, not oak
+   leaves into tulips. Material leaf classes (`ingot`, `gem`, `dust`,
+   `nugget`, piles) additionally require the classifying name to be one GT
+   unifies, so a convention name that merely starts with `dust` cannot hand
+   its members a material leaf, and the primary-name pick prefers unified
+   names so `ingotAnyIron` never shadows `ingotIron`.
 2. **Normalization** — decompose every filled container (cell, bucket) into
    empty container + fluid, then net out items appearing on both sides of one
    recipe. Balanced containers vanish, so cell-only recipes become their
@@ -178,14 +184,14 @@ Builder responsibilities, in order:
    again: a tiered leaf the fixpoint never reached, and a fraction whose parent
    is not itself priced, lose their class and fall back to their recipes, so
    every leaf that ships has a weight the solver can work out. The
-   minable-block list names blocks by oredict or, where the dump gives a block
-   none at all (clay), by item id, and matches every oredict of the unified
-   item, not only its primary, since unification prefers `block*` names
-   (`blockObsidian` would otherwise hide `obsidian`). This list stays builder
-   config because the dump cannot supply it: it names the dimension each stone
-   type belongs to, but nothing ties a stone type to the block item it places,
-   and no `stone<Dimension>` oredicts exist. A block left off the list gets no
-   era at all, so off-world stone stays unreachable rather than free.
+   minable-block list names blocks by item id, never by oredict: convention
+   names like `glowstone` span every planet's variant, and matching them
+   would hand Pluto Glowstone an Overworld mining era. This list stays
+   builder config because the dump cannot supply it: it names the dimension
+   each stone type belongs to, but nothing ties a stone type to the block
+   item it places, and no `stone<Dimension>` oredicts exist. A block left
+   off the list gets no era at all, so off-world stone stays unreachable
+   rather than free.
 6. **Ingot tiering** — an ingot's tier is its production era, computed as a
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
@@ -786,3 +792,7 @@ All "does not / never" rules live here; other sections only reference this one.
 29. Two forms at an exact price plateau never point at each other: the dust
     keeps its real producer even when macerating the ingot ties the price
     with a better-ranked form.
+30. Unification follows GT's own verdicts: a name GT unifies merges to GT's
+    target item, a blacklisted member keeps its identity as a slot
+    alternative, a name GT does not unify never merges, and a convention
+    name that merely starts with a material prefix classifies nothing.

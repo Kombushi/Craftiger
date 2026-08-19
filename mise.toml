@@ -15,6 +15,10 @@ run = "dotnet test Craftiger.slnx"
 description = "Run the artifact builder (NESQL dump in, planner artifacts out)"
 run = "dotnet run --project src/Craftiger.Builder"
 
+[tasks."dump:convert"]
+description = "Convert an HSQLDB NESQL export to SQLite (args: <nesql-repository-dir> <output.sqlite>)"
+run = "tools/dump-convert/convert.sh"
+
 [tasks.api]
 description = "Run the API"
 run = "dotnet run --project src/Craftiger.Api"

@@ -9,6 +9,12 @@ public sealed class Dump
     public required Dictionary<string, DumpGtData> GtByRecipeId { get; init; }
     public required Dictionary<string, List<DumpItemStack>> GroupStacks { get; init; }
     public required List<(string OredictName, string GroupId)> Oredict { get; init; }
+
+    /// <summary>Oredict names GT unifies, each with the item GT substitutes for the name.</summary>
+    public required Dictionary<string, string> UnifiedOredictTargets { get; init; }
+
+    /// <summary>Items GT excludes from unification even inside a unified oredict.</summary>
+    public required HashSet<string> UnificationBlacklist { get; init; }
     public required Dictionary<string, List<(long Slot, string GroupId)>> ItemInputsByRecipe { get; init; }
     public required Dictionary<string, List<DumpItemOutput>> ItemOutputsByRecipe { get; init; }
     public required Dictionary<string, List<DumpFluidInput>> FluidInputsByRecipe { get; init; }
