@@ -21,6 +21,6 @@ public sealed record RecipesConfiguration
     /// <summary>Machines whose output slots 2+ open by tier; the value lists the tier per byproduct slot.</summary>
     public required IReadOnlyDictionary<string, IReadOnlyList<int>> ByproductSlotTiers { get; init; }
 
-    /// <summary>Recipe-type names mapped to canonical machine names.</summary>
+    /// <summary>Suffix-stripped recipe-type names mapped to canonical machine names.</summary>
     public required IReadOnlyDictionary<string, string> MachineRenames { get; init; }
 }

@@ -62,9 +62,9 @@ public sealed class GarageLegalityTests
     [Fact]
     public void TheBlastFurnaceGainsHeatPerHatchTierAboveMv()
     {
-        var recipe = Fx.Recipe("r", machine: "Blast Furnace", tier: 1, heat: 1900);
-        var hv = Fx.Garage(defaultTier: 3, coils: new() { ["Blast Furnace"] = 1800 });
-        var mv = Fx.Garage(defaultTier: 2, coils: new() { ["Blast Furnace"] = 1800 });
+        var recipe = Fx.Recipe("r", machine: "Electric Blast Furnace", tier: 1, heat: 1900);
+        var hv = Fx.Garage(defaultTier: 3, coils: new() { ["Electric Blast Furnace"] = 1800 });
+        var mv = Fx.Garage(defaultTier: 2, coils: new() { ["Electric Blast Furnace"] = 1800 });
 
         Assert.True(Fx.Legality().IsLegal(recipe, hv));
         Assert.False(Fx.Legality().IsLegal(recipe, mv));

@@ -9,7 +9,7 @@ internal static class Fx
     public static readonly GarageRules Rules = new(
         AlwaysOwnedMachines: new HashSet<string> { "Crafting Table", "Furnace", "Mining" },
         HeatExemptMachines: new HashSet<string> { "Helioflux Melting Core" },
-        HeatBonusMachines: new HashSet<string> { "Blast Furnace" });
+        HeatBonusMachines: new HashSet<string> { "Electric Blast Furnace" });
 
     public static readonly SolverPreferences Preferences = new(
         LeafClassPriority: ["ingot", "gem", "dust", "nugget", "dust_small", "dust_tiny"]);

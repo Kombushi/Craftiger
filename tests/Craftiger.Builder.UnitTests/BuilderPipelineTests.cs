@@ -349,14 +349,14 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
         Assert.Equal(0, _fixture.Scalar<int>(
             "SELECT era FROM machine_eras WHERE machine = 'Crafting Table'"));
         Assert.False(_fixture.Scalar<bool>(
-            "SELECT era IS NULL FROM machine_eras WHERE machine = 'Blast Furnace'"));
+            "SELECT era IS NULL FROM machine_eras WHERE machine = 'Electric Blast Furnace'"));
     }
 
     [Fact]
     public void OnlyMultiblockOnlyMapsFlagAsMultiblocks()
     {
         Assert.True(_fixture.Scalar<bool>(
-            "SELECT multiblock FROM machine_eras WHERE machine = 'Blast Furnace'"));
+            "SELECT multiblock FROM machine_eras WHERE machine = 'Electric Blast Furnace'"));
         Assert.False(_fixture.Scalar<bool>(
             "SELECT multiblock FROM machine_eras WHERE machine = 'Mixer'"));
         Assert.False(_fixture.Scalar<bool>(
@@ -603,7 +603,7 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     {
         Assert.Equal("Macerator", _fixture.Scalar<string>("SELECT machine FROM recipes WHERE id = 'r_macerate'"));
         Assert.Equal("Crafting Table", _fixture.Scalar<string>("SELECT machine FROM recipes WHERE id = 'r_block'"));
-        Assert.Equal("Blast Furnace", _fixture.Scalar<string>("SELECT machine FROM recipes WHERE id = 'r_ebf'"));
+        Assert.Equal("Electric Blast Furnace", _fixture.Scalar<string>("SELECT machine FROM recipes WHERE id = 'r_ebf'"));
     }
 
     [Fact]

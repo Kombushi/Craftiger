@@ -79,7 +79,7 @@ public sealed class ApiFixture : IDisposable
             INSERT INTO item_aliases VALUES ('ing', 'ingotIronium'), ('ing', 'Ferrum Ingot');
             INSERT INTO recipes VALUES
                 ('r_wire', 'Wiremill', 1, NULL, NULL, 100, 32),
-                ('r_ebf', 'Blast Furnace', 1, NULL, 1900, 200, 120),
+                ('r_ebf', 'Electric Blast Furnace', 1, NULL, 1900, 200, 120),
                 ('r_rod', 'Extruder', 2, NULL, NULL, 100, 96),
                 ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32);
             INSERT INTO recipe_inputs VALUES
@@ -97,7 +97,7 @@ public sealed class ApiFixture : IDisposable
             INSERT INTO item_parents VALUES ('nug', 'ing', 9.0);
             INSERT INTO machine_eras VALUES
                 ('Wiremill', 0, 0),
-                ('Blast Furnace', 1, 1),
+                ('Electric Blast Furnace', 1, 1),
                 ('Extruder', NULL, 0),
                 ('Circuit Assembly Line', 3, 0);
             """);

@@ -34,6 +34,29 @@ const defaultGarage: GarageState = {
   coils: {},
 }
 
+/** Machines the artifact renamed; stored garage keys follow so a tier or coil survives the rebuild. */
+const machineRenames: Record<string, string> = { 'Blast Furnace': 'Electric Blast Furnace' }
+
+/** Renames stored keys only once the live machine list carries the new name and not the old one. */
+function migrateGarage(garage: GarageState, live: Set<string>): GarageState {
+  const rename = (name: string) => {
+    const renamed = machineRenames[name]
+    return renamed !== undefined && live.has(renamed) && !live.has(name) ? renamed : name
+  }
+  const keys = [...Object.keys(garage.machines), ...Object.keys(garage.coils), ...garage.builtMultiblocks]
+  if (keys.every((name) => rename(name) === name)) {
+    return garage
+  }
+  const renameKeys = <T,>(record: Record<string, T>) =>
+    Object.fromEntries(Object.entries(record).map(([name, value]) => [rename(name), value]))
+  return {
+    ...garage,
+    machines: renameKeys(garage.machines),
+    coils: renameKeys(garage.coils),
+    builtMultiblocks: [...new Set(garage.builtMultiblocks.map(rename))].sort(),
+  }
+}
+
 /** Everything a solve depends on; results are stale when this drifts from the applied key. */
 function settingsKey(
   cart: CartEntry[],
@@ -119,6 +142,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [pushToast])
 
+  useEffect(() => {
+    if (meta !== null) {
+      const live = new Set(meta.machines.map((machine) => machine.name))
+      setGarage((current) => migrateGarage(current, live))
+    }
+  }, [meta])
   useEffect(() => persist('gtnhp.cart', cart), [cart])
   useEffect(() => persist('gtnhp.machines', garage), [garage])
   useEffect(() => persist('gtnhp.config', config), [config])

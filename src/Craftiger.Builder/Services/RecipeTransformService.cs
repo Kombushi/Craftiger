@@ -220,8 +220,13 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
         }
     }
 
-    private string NormalizeMachine(string type) =>
-        _config.MachineRenames.TryGetValue(type, out var renamed) ? renamed : TierSuffix().Replace(type, "");
+    /// <summary>Voltage suffix stripped first, so one configured rename covers every tiered
+    /// variant of a map.</summary>
+    private string NormalizeMachine(string type)
+    {
+        var stripped = TierSuffix().Replace(type, "");
+        return _config.MachineRenames.TryGetValue(stripped, out var renamed) ? renamed : stripped;
+    }
 
     private bool IsRecycling(string category) =>
         _config.RecyclingCategorySuffixes.Any(suffix => category.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));

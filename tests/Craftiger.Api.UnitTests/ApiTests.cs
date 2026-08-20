@@ -12,7 +12,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     private static readonly object HvGarage = new
     {
         defaultTier = 3,
-        coils = new Dictionary<string, string> { ["Blast Furnace"] = "Kanthal" }
+        coils = new Dictionary<string, string> { ["Electric Blast Furnace"] = "Kanthal" }
     };
 
     private async Task<string> SolveAsync(object? garage = null, double b = 4)
@@ -31,9 +31,9 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Equal("test-pack", meta!.PackVersion);
         Assert.Equal(["Steam", "LV", "MV", "HV"], meta.TierNames);
         Assert.Equal(2, meta.Coils.Count);
-        Assert.True(meta.Machines.Single(machine => machine.Name == "Blast Furnace").HeatGated);
+        Assert.True(meta.Machines.Single(machine => machine.Name == "Electric Blast Furnace").HeatGated);
         Assert.False(meta.Machines.Single(machine => machine.Name == "Wiremill").HeatGated);
-        Assert.True(meta.Machines.Single(machine => machine.Name == "Blast Furnace").MultiblockOnly);
+        Assert.True(meta.Machines.Single(machine => machine.Name == "Electric Blast Furnace").MultiblockOnly);
         Assert.False(meta.Machines.Single(machine => machine.Name == "Wiremill").MultiblockOnly);
         Assert.Equal(32, meta.Atlas!.Cell);
     }
@@ -66,7 +66,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         {
             defaultTier = 3,
             machines = new Dictionary<string, int?> { ["Extruder"] = null },
-            coils = new Dictionary<string, string> { ["Blast Furnace"] = "Kanthal" }
+            coils = new Dictionary<string, string> { ["Electric Blast Furnace"] = "Kanthal" }
         });
 
         var full = await Client.GetFromJsonAsync<ListResponse>(
@@ -182,7 +182,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     [Fact]
     public async Task TheHatchBonusStretchesTheEbfCoil()
     {
-        var cupronickel = new Dictionary<string, string> { ["Blast Furnace"] = "Cupronickel" };
+        var cupronickel = new Dictionary<string, string> { ["Electric Blast Furnace"] = "Cupronickel" };
         var hv = await SolveAsync(new { defaultTier = 3, coils = cupronickel });
         var mv = await SolveAsync(new { defaultTier = 2, coils = cupronickel });
 
@@ -202,7 +202,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
             garage = new
             {
                 defaultTier = 3,
-                coils = new Dictionary<string, string> { ["Blast Furnace"] = "Adamantium" }
+                coils = new Dictionary<string, string> { ["Electric Blast Furnace"] = "Adamantium" }
             },
             b = 4
         });

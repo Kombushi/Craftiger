@@ -67,20 +67,20 @@ total raw-material bill as a flat grid of item-icon squares.
   second switch, whether its multiblock is built, because the hatch allowance
   is worth a tier and belongs to whoever built the multiblock. The EBF is
   configured by two values: voltage tier and installed coil. Five maps carry
-  heat requirements: Blast Furnace, DTPF, Digester, and Vacuum Furnace take a
-  coil each — per map, since each multiblock is built with its own — while the
-  Helioflux Melting Core has no coils and skips the heat check when owned (§9).
-  The Blast Furnace alone additionally gains 100 heat per garage tier above MV,
-  the energy-hatch bonus; the other coil maps have none (both facts verified
-  against GT5-Unofficial source). Crafting table, furnace, and Mining are
+  heat requirements: Electric Blast Furnace, DTPF, Digester, and Vacuum Furnace
+  take a coil each — per map, since each multiblock is built with its own —
+  while the Helioflux Melting Core has no coils and skips the heat check when
+  owned (§9). The Electric Blast Furnace alone additionally gains 100 heat per
+  garage tier above MV, the energy-hatch bonus; the other coil maps have none
+  (both facts verified against GT5-Unofficial source). Crafting table, furnace, and Mining are
   always owned at tier 0.
 - **Garage-legal recipe**: `required ≤ effectiveTier(recipe.machine)`, where
   `required` is `recipe.tier`, or `recipe.multi_tier` when the map has one and
   the garage says the multiblock is built. Heat-gated recipes additionally
-  require `recipe.heat ≤ maxHeat(their map's installed coil)`, plus the Blast
-  Furnace's hatch bonus of 100 per garage tier above MV; Helioflux Melting
-  Core recipes skip the heat check entirely (§9). Recipes of `None` machines
-  are never legal.
+  require `recipe.heat ≤ maxHeat(their map's installed coil)`, plus the
+  Electric Blast Furnace's hatch bonus of 100 per garage tier above MV;
+  Helioflux Melting Core recipes skip the heat check entirely (§9). Recipes of
+  `None` machines are never legal.
 - **Upstream closure** of a set of items: every recipe (and its machine) that
   could take part in any production route of those items, found by walking
   "producible-by" edges tier-agnostically from the targets down to leaves.
@@ -168,9 +168,11 @@ Builder responsibilities, in order:
    where owning one actually lowers the bar. A map with nothing but multiblocks
    has no second option, so its `tier` already carries the allowance and its
    `multi_tier` stays empty. Machine names normalize by stripping the recipe
-   map's constant voltage suffix ("Macerator (ULV)" → "Macerator") and merging
-   crafting variants (shaped/shapeless → "Crafting Table"). Any recipe with a coil
-   heat requirement keeps it in `recipes.heat` (EBF and its multiblock
+   map's constant voltage suffix ("Macerator (ULV)" → "Macerator") and then
+   applying the builder's rename table: crafting variants merge
+   (shaped/shapeless → "Crafting Table") and the EBF map takes its controller's
+   name (NEI's "Blast Furnace" → "Electric Blast Furnace"). Any recipe with a
+   coil heat requirement keeps it in `recipes.heat` (EBF and its multiblock
    upgrades); the coil list (name → max heat + tier equivalent, builder
    config) is exported into `meta` for the garage UI. Macerator byproduct
    slots only exist on tiered machines (2nd slot HV, 3rd EV, 4th IV; builder
@@ -651,7 +653,9 @@ overrides, per-map coils, built multiblocks), `gtnhp.config` (B), `gtnhp.ui`
 (display caches plus the applied solve, so an unchanged reload resumes on the
 cached solve instead of asking for a recalculation), and the layout
 preferences `gtnhp.sidebarWidth`, `gtnhp.sidebarHidden`, and
-`gtnhp.chainOrientation`.
+`gtnhp.chainOrientation`. Machine keys inside `gtnhp.machines` follow the
+artifact's renames on load, so a stored tier or coil outlives a rebuild that
+renamed its map.
 
 ## 9. Exclusions, non-goals, and risks
 
@@ -834,8 +838,8 @@ All "does not / never" rules live here; other sections only reference this one.
     a material into another does, and the build reports no leaf priced below a
     millionth of its own weight — the gap between a genuinely cheap route and a
     loop that creates matter.
-21. A Blast Furnace recipe just above the installed coil's heat becomes legal
-    one hatch tier later; on the other coil maps it never does.
+21. An Electric Blast Furnace recipe just above the installed coil's heat
+    becomes legal one hatch tier later; on the other coil maps it never does.
 22. A pin that would make the BOM walk loop is ignored with a warning, and the
     result matches the unpinned plan.
 23. Where recipes tie for an item, the plan lands on the best-ranked material
