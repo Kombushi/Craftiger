@@ -161,8 +161,9 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
     }
 
     /// <summary>Solves a loop's demands as one system — fractional by elimination, whole runs
-    /// by iterating the same equations on integers until they settle — then seeds it with one
-    /// unit from outside.</summary>
+    /// by iterating the same equations on integers until they settle — with the seed's one
+    /// unit already supplied: the loop only makes what the outside demand and its own feeding
+    /// need beyond that, so a single unit is just the seed route.</summary>
     private static void ExpandLoop(WalkState walk, Component component, LoopSeed? seed)
     {
         var system = AnalyzeLoop(walk.Graph, walk.Costs, walk.Pins, component.Items);
@@ -174,15 +175,25 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             return;
         }
         var externalWhole = members.Select(id => walk.WholeDemand.GetValueOrDefault(id)).ToArray();
+        var seedIndex = seed is null ? -1 : system.Index[seed.ItemId];
+        var supply = new double[count];
+        if (seedIndex >= 0)
+        {
+            supply[seedIndex] = 1;
+        }
 
-        var totals = Eliminate(system.Gain, external)!;
+        var totals = SolveSupplied(system.Gain, external, supply);
         var runs = new double[count];
         for (var i = 0; i < count; i++)
         {
             runs[i] = totals[i] / system.Yields[i];
         }
 
-        var wholeTotals = (long[])externalWhole.Clone();
+        var wholeTotals = new long[count];
+        for (var i = 0; i < count; i++)
+        {
+            wholeTotals[i] = Math.Max(0, externalWhole[i] - (long)supply[i]);
+        }
         var wholeRuns = new long[count];
         for (var round = 0; round < MaxWholeRounds; round++)
         {
@@ -190,7 +201,11 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             {
                 wholeRuns[i] = WholeRuns(wholeTotals[i], system.Yields[i]);
             }
-            var next = (long[])externalWhole.Clone();
+            var next = new long[count];
+            for (var i = 0; i < count; i++)
+            {
+                next[i] = externalWhole[i] - (long)supply[i];
+            }
             for (var j = 0; j < count; j++)
             {
                 foreach (var input in system.Inputs[j])
@@ -200,6 +215,10 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
                         next[i] += wholeRuns[j] * input.Amount;
                     }
                 }
+            }
+            for (var i = 0; i < count; i++)
+            {
+                next[i] = Math.Max(0, next[i]);
             }
             if (next.SequenceEqual(wholeTotals))
             {
@@ -211,6 +230,10 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         var loop = walk.Loops++;
         for (var i = 0; i < count; i++)
         {
+            if (runs[i] <= 0 && wholeRuns[i] <= 0)
+            {
+                continue;
+            }
             walk.Nodes.Add(new BomNode(
                 members[i], totals[i], runs[i], wholeTotals[i], wholeRuns[i], system.Recipes[i].Id,
                 system.Inputs[i].Select(input => new BomStack(input.ItemId, input.Amount)).ToList(),
@@ -338,6 +361,35 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         return new LoopSystem(index, recipes, yields, inputs, gain);
     }
 
+    /// <summary>The loop's demands net of what the seed supplies: members the supply covers
+    /// entirely drop to zero and out of the system, and the rest is solved again, until no
+    /// member is asked for less than nothing.</summary>
+    private static double[] SolveSupplied(double[,] gain, double[] demand, double[] supply)
+    {
+        var count = demand.Length;
+        var active = Enumerable.Repeat(true, count).ToArray();
+        while (true)
+        {
+            var reduced = new double[count, count];
+            var rhs = new double[count];
+            for (var i = 0; i < count; i++)
+            {
+                rhs[i] = active[i] ? demand[i] - supply[i] : 0;
+                for (var j = 0; j < count; j++)
+                {
+                    reduced[i, j] = active[i] && active[j] ? gain[i, j] : 0;
+                }
+            }
+            var solution = Eliminate(reduced, rhs)!;
+            var negative = Array.FindIndex(solution, value => value < 0);
+            if (negative < 0)
+            {
+                return solution;
+            }
+            active[negative] = false;
+        }
+    }
+
     /// <summary>Solves <c>(I − gain) · x = demand</c> by elimination without pivoting. The
     /// matrix has non-positive off-diagonals, so every pivot stays positive exactly when the
     /// loop's gain is below one and the series converges; a pivot at or below zero means the
@@ -383,7 +435,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             {
                 sum -= matrix[i, c] * solution[c];
             }
-            solution[i] = Math.Max(0, sum / matrix[i, i]);
+            solution[i] = sum / matrix[i, i];
         }
         return solution;
     }

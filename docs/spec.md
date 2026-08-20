@@ -505,8 +505,12 @@ overlaid); the rendered grid is a projection of that result.**
    18 mB of europium. A loop is **seeded once**: one unit of the member with the
    cheapest garage-legal producer outside the loop — whose chosen inputs do not
    reach back into it — is planned through that producer, as the first chip is
-   made from the 10 % gem route in the game. The seed is an extra unit, not
-   netted against the loop's own demand (§9). A loop nothing outside can
+   made from the 10 % gem route in the game. The seed's unit counts: the loop
+   only produces what the outside demand and its own feeding need beyond it,
+   floored at zero member by member (a member the seed covers entirely drops
+   out of the system and is solved around), so one chip is the seed route
+   alone, two chips are the seed, one hammer run and two autoclave runs, and
+   nine parts are one hammer run on the seed chip. A loop nothing outside can
    produce keeps its steady-state totals and warns `loop_unseeded`. A loop whose
    gain is not below one is no plan at all: if a pin built it the pin is
    ignored with a warning (`pin_cycle`); without a pin the solve itself is
@@ -522,8 +526,8 @@ overlaid); the rendered grid is a projection of that result.**
    for the whole request, not once per consumer. Inside a loop the same
    equations iterate on integers — round each member's runs up, re-propagate,
    repeat — until nothing changes; the iteration only grows and is bounded by
-   the fractional answer, so it settles (eight chips: nine autoclave runs and
-   one hammer run). Chanced outputs still divide by chance (§4), so whole runs
+   the fractional answer, so it settles (eight chips: eight autoclave runs and
+   one hammer run beside the seed). Chanced outputs still divide by chance (§4), so whole runs
    cover their demand in expectation only. All whole-run demands are integers
    by construction.
 
@@ -842,9 +846,6 @@ All "does not / never" rules live here; other sections only reference this one.
 - Ukrainian locale; server-side profiles; settings export/import;
   pseudo-recipe sources shown as read-only "alt sources"; revisiting byproduct
   credit.
-- Netting a loop's seed against the loop's own demand (§6): the seed is a
-  fixed one-unit overhead; a plan that delivers the seed itself, or starts the
-  loop with a fraction of a unit, is not attempted.
 
 ### Risks
 
@@ -947,9 +948,10 @@ All "does not / never" rules live here; other sections only reference this one.
     tie.
 37. A loop that consumes an outside input — nine parts per chip, one part and
     europium per chip — plans as the summed series in both accountings and is
-    seeded once through the cheapest outside route; a loop nothing outside
-    produces keeps its totals and warns; a pin that builds a loop with no
-    finite plan is still ignored.
+    seeded once through the cheapest outside route, the seed's unit counting
+    toward the demand so a single chip is the seed route alone; a loop nothing
+    outside produces keeps its totals and warns; a pin that builds a loop with
+    no finite plan is still ignored.
 38. An item nothing in the pack produces and that is not a raw material reads
     `uncraftable` under every garage, while a craftable item that is merely
     unpriced at the garage keeps its `∞`.

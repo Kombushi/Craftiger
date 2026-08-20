@@ -162,25 +162,51 @@ public sealed class BomTests
     {
         var result = Compute(ChipLoop(), [new BomTarget("chip", 8)]);
 
-        // 8 chips need 9 autoclave runs (9 parts, 144 mB) and one hammer run; the seed adds the
-        // 10 % gem route once: 10 expected runs, 10 emeralds, 160 mB.
+        // The seed's chip counts: the loop delivers the other seven — 7 × 9/8 autoclave runs
+        // (8 whole, 128 mB), 7/8 of a hammer run (1 whole) — and the 10 % gem route runs once
+        // for the seed: 10 expected runs, 10 emeralds, 160 mB.
         Assert.Empty(result.Warnings);
-        Assert.Equal(144 + 160, Leaf(result, "eu"), 9);
+        Assert.Equal(7.875 * 16 + 160, Leaf(result, "eu"), 9);
         Assert.Equal(10, Leaf(result, "emerald"), 9);
         var chip = result.Nodes.Single(node => node is { ItemId: "chip", Seed: false });
         var part = result.Nodes.Single(node => node.ItemId == "part");
         var seed = result.Nodes.Single(node => node.Seed);
-        Assert.Equal(9, chip.Amount, 9);
-        Assert.Equal(9, chip.Runs, 9);
-        Assert.Equal(9, chip.WholeRuns);
-        Assert.Equal(1, part.Runs, 9);
+        Assert.Equal(7.875, chip.Amount, 9);
+        Assert.Equal(7.875, chip.Runs, 9);
+        Assert.Equal(8, chip.WholeRuns);
+        Assert.Equal(0.875, part.Runs, 9);
         Assert.Equal(1, part.WholeRuns);
         Assert.Equal(chip.Loop, part.Loop);
         Assert.Equal(chip.Loop, seed.Loop);
         Assert.Equal("gem", seed.RecipeId);
         Assert.Equal(10, seed.Runs, 9);
         Assert.Equal(10, seed.WholeRuns);
-        Assert.Equal(304, result.Leaves.Single(leaf => leaf.ItemId == "eu").WholeAmount);
+        Assert.Equal(8 * 16 + 160, result.Leaves.Single(leaf => leaf.ItemId == "eu").WholeAmount);
+    }
+
+    [Fact]
+    public void ASingleUnitOfALoopItemIsJustTheSeed()
+    {
+        var result = Compute(ChipLoop(), [new BomTarget("chip", 1)]);
+
+        Assert.Empty(result.Warnings);
+        var seed = Assert.Single(result.Nodes);
+        Assert.True(seed.Seed);
+        Assert.Equal(160, Leaf(result, "eu"), 9);
+        Assert.Equal(10, Leaf(result, "emerald"), 9);
+    }
+
+    [Fact]
+    public void ALoopPartDemandIsFedByHammeringTheSeed()
+    {
+        var result = Compute(ChipLoop(), [new BomTarget("part", 9)]);
+
+        // Nine parts are one hammer run on the seed chip; the loop never autoclaves.
+        Assert.Empty(result.Warnings);
+        Assert.DoesNotContain(result.Nodes, node => node is { ItemId: "chip", Seed: false });
+        var part = result.Nodes.Single(node => node.ItemId == "part");
+        Assert.Equal(1, part.WholeRuns);
+        Assert.Equal(160, Leaf(result, "eu"), 9);
     }
 
     [Fact]
