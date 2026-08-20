@@ -68,14 +68,31 @@ export function GaragePanel() {
     return null
   }
 
-  const setTier = (name: string, value: string) => {
+  const tierOf = (machines: Record<string, number | null>, name: string) =>
+    name in machines ? machines[name] : undefined
+
+  const setDefaultTier = (defaultTier: number) => {
+    const coils = { ...garage.coils }
+    for (const machine of meta.machines) {
+      if (notBuilt(machine, tierOf(garage.machines, machine.name), defaultTier)) {
+        delete coils[machine.name]
+      }
+    }
+    setGarage({ ...garage, defaultTier, coils })
+  }
+
+  const setTier = (machine: MachineDto, value: string) => {
     const machines = { ...garage.machines }
     if (value === 'default') {
-      delete machines[name]
+      delete machines[machine.name]
     } else {
-      machines[name] = value === 'none' ? null : Number(value)
+      machines[machine.name] = value === 'none' ? null : Number(value)
     }
-    setGarage({ ...garage, machines })
+    const coils = { ...garage.coils }
+    if (notBuilt(machine, tierOf(machines, machine.name), garage.defaultTier)) {
+      delete coils[machine.name]
+    }
+    setGarage({ ...garage, machines, coils })
   }
 
   const setCoil = (name: string, coil: string) => {
@@ -106,7 +123,7 @@ export function GaragePanel() {
         <select
           id="default-tier"
           value={garage.defaultTier}
-          onChange={(event) => setGarage({ ...garage, defaultTier: Number(event.target.value) })}
+          onChange={(event) => setDefaultTier(Number(event.target.value))}
         >
           {meta.tierNames.map((tier, index) => (
             <option key={tier} value={index}>
@@ -127,10 +144,10 @@ export function GaragePanel() {
               defaultTier={garage.defaultTier}
               tierNames={meta.tierNames}
               coils={meta.coils}
-              value={machine.name in garage.machines ? garage.machines[machine.name] : undefined}
+              value={tierOf(garage.machines, machine.name)}
               coil={garage.coils[machine.name] ?? ''}
               built={garage.builtMultiblocks.includes(machine.name)}
-              onTier={(value) => setTier(machine.name, value)}
+              onTier={(value) => setTier(machine, value)}
               onCoil={(value) => setCoil(machine.name, value)}
               onBuilt={(value) => setBuilt(machine.name, value)}
             />
@@ -162,6 +179,14 @@ export function GaragePanel() {
   )
 }
 
+/** An explicit None/Not built, or inheriting a default tier the machine is not yet craftable at. */
+function notBuilt(machine: MachineDto, value: number | null | undefined, defaultTier: number): boolean {
+  if (machine.alwaysOwned) {
+    return false
+  }
+  return value === null || (value === undefined && machine.era !== null && machine.era > defaultTier)
+}
+
 interface RowProps {
   machine: MachineDto
   defaultTier: number
@@ -180,6 +205,7 @@ function MachineRow({
 }: RowProps) {
   const lateByDefault =
     !machine.alwaysOwned && machine.era !== null && machine.era > defaultTier
+  const absent = notBuilt(machine, value, defaultTier)
   const availability =
     machine.era === null
       ? 'Availability unknown — assumed owned at the default tier'
@@ -193,7 +219,7 @@ function MachineRow({
         <span className="garage-owned">always owned</span>
       ) : (
         <select
-          className={value === null || (value === undefined && lateByDefault) ? 'garage-none' : ''}
+          className={absent ? 'garage-none' : ''}
           value={value === undefined ? 'default' : value === null ? 'none' : String(value)}
           onChange={(event) => onTier(event.target.value)}
           title={availability}
@@ -213,7 +239,7 @@ function MachineRow({
           ))}
         </select>
       )}
-      {machine.heatGated ? (
+      {machine.heatGated && !absent ? (
         <select
           className="garage-coil"
           value={coil}

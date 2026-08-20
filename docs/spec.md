@@ -560,8 +560,10 @@ show. Screens:
   that has recipes. Hidden machines inherit the global default. With an empty
   cart, the list starts empty apart from the toggle. One picker per shown
   machine (`inherit / None / Steam / LV / …`); each coil-gated map's row (§2)
-  has a coil dropdown beside its tier picker; crafting table, furnace, and
-  Mining are shown as always-owned. Multiblock-only maps
+  has a coil dropdown beside its tier picker while the machine is built —
+  once it reads None or Not built, whether picked outright or by lowering the
+  default tier below the machine's era, the dropdown hides and the coil is
+  forgotten; crafting table, furnace, and Mining are shown as always-owned. Multiblock-only maps
   (`machine_eras.multiblock`) list apart under a "Multiblocks" header, their
   picker reading `Not built / <tier> hatches` — the same tiers, named for the
   energy hatches feeding the controller. A machine first craftable beyond the
