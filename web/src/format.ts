@@ -54,3 +54,15 @@ export function fmtHeat(heat: number): string {
 function trim(value: number, decimals: number): string {
   return value.toFixed(decimals).replace(/\.?0+$/, '')
 }
+/** Item name plus the display aliases unification merged away: "Tin Nugget (aka Tin Oreberry)". */
+export function fmtAka(
+  item: { name: string; aliases?: string[] | null } | undefined,
+  fallback: string,
+): string {
+  if (!item) {
+    return fallback
+  }
+  return item.aliases && item.aliases.length > 0
+    ? `${item.name} (aka ${item.aliases.join(', ')})`
+    : item.name
+}

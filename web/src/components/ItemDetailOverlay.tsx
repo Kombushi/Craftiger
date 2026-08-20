@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as api from '../api'
 import { ApiError } from '../api'
-import { fmtAmount, fmtCost, fmtCount, fmtDuration, fmtHeat } from '../format'
+import { fmtAka, fmtAmount, fmtCost, fmtCount, fmtDuration, fmtHeat } from '../format'
 import { useStore } from '../storeContext'
 import type { ItemDetail, RecipeDto, SlotAlternative } from '../types'
 import { Slot } from './Slot'
@@ -194,13 +194,13 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
           {recipe.slots.map((slot, index) => {
             const chosen = cheapest(slot)
             const chosenItem = item(chosen.itemId)
-            const alternatives = altLines(slot, (id) => item(id)?.name ?? id)
+            const alternatives = altLines(slot, (id) => fmtAka(item(id), id))
             return (
               <span key={index} className="detail-slot">
                 <Slot
                   atlasIdx={chosenItem?.atlasIdx ?? -1}
                   badge={fmtCount(chosen.amount)}
-                  title={`${chosenItem?.name ?? chosen.itemId} · ${fmtAmount(chosen.amount, chosenItem?.isFluid ?? false)} · ${fmtCost(chosenItem?.cost ?? null)} each${alternatives}`}
+                  title={`${fmtAka(chosenItem, chosen.itemId)} · ${fmtAmount(chosen.amount, chosenItem?.isFluid ?? false)} · ${fmtCost(chosenItem?.cost ?? null)} each${alternatives}`}
                   onClick={() => openDetail(chosen.itemId)}
                 />
                 {slot.length > 1 ? <span className="alt-badge mono">+{slot.length - 1}</span> : null}
@@ -210,14 +210,14 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
           {recipe.catalysts.map((slot, index) => {
             const tool = slot[0]
             const toolItem = item(tool.itemId)
-            const alternatives = altLines(slot, (id) => item(id)?.name ?? id)
+            const alternatives = altLines(slot, (id) => fmtAka(item(id), id))
             return (
               <span key={`tool-${index}`} className="detail-slot">
                 <Slot
                   atlasIdx={toolItem?.atlasIdx ?? -1}
                   badge={fmtCount(tool.amount)}
                   dim
-                  title={`${toolItem?.name ?? tool.itemId} · needed in place — not consumed${alternatives}`}
+                  title={`${fmtAka(toolItem, tool.itemId)} · needed in place — not consumed${alternatives}`}
                   onClick={() => openDetail(tool.itemId)}
                 />
                 {slot.length > 1 ? <span className="alt-badge mono">+{slot.length - 1}</span> : null}
@@ -235,7 +235,7 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
                 atlasIdx={outputItem?.atlasIdx ?? -1}
                 badge={String(output.amount)}
                 dim={output.itemId !== detail.itemId}
-                title={`${outputItem?.name ?? output.itemId}${output.chance < 1 ? ` · ${Math.round(output.chance * 100)}%` : ''}`}
+                title={`${fmtAka(outputItem, output.itemId)}${output.chance < 1 ? ` · ${Math.round(output.chance * 100)}%` : ''}`}
                 onClick={() => openDetail(output.itemId)}
               />
             )

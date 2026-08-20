@@ -52,6 +52,7 @@ export interface ItemRef {
   isFluid: boolean
   leafClass: string | null
   cost: number | null
+  aliases?: string[] | null
 }
 
 export interface BomStack {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FOOTER, HEADER, PAD, SLOT, SLOT_GAP, layoutChain, type ChainCard } from '../chainLayout'
-import { fmtAmount, fmtCost, fmtCount, fmtDuration, fmtHeat, fmtRuns } from '../format'
+import { fmtAka, fmtAmount, fmtCost, fmtCount, fmtDuration, fmtHeat, fmtRuns } from '../format'
 import { useStore } from '../storeContext'
 import type { BomResponse } from '../types'
 import { Slot } from './Slot'
@@ -211,7 +211,7 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
               key={index}
               atlasIdx={item?.atlasIdx ?? -1}
               badge={fmtCount(total)}
-              title={`${item?.name ?? input.itemId}\n${fmtAmount(input.amount, isFluid)} per run · ${fmtAmount(total, isFluid)} total (${fmtCount(input.amount * node.runs)} expected)`}
+              title={`${fmtAka(item, input.itemId)}\n${fmtAmount(input.amount, isFluid)} per run · ${fmtAmount(total, isFluid)} total (${fmtCount(input.amount * node.runs)} expected)`}
               onClick={() => openDetail(input.itemId)}
               onHover={(hovering) => onHover(hovering ? input.itemId : null)}
             />
@@ -225,7 +225,7 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
               atlasIdx={item?.atlasIdx ?? -1}
               badge={fmtCount(tool.amount)}
               dim
-              title={`${item?.name ?? tool.itemId}\nneeded in place — not consumed`}
+              title={`${fmtAka(item, tool.itemId)}\nneeded in place — not consumed`}
               onClick={() => openDetail(tool.itemId)}
               onHover={(hovering) => onHover(hovering ? tool.itemId : null)}
             />
@@ -266,7 +266,7 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
               needBadge={own && firstOwn ? fmtCount(node.wholeAmount) : undefined}
               dim={!own}
               highlight={own}
-              title={`${item?.name ?? output.itemId}${chance}${own ? '' : '\nbyproduct — not credited'}`}
+              title={`${fmtAka(item, output.itemId)}${chance}${own ? '' : '\nbyproduct — not credited'}`}
               onClick={() => openDetail(output.itemId)}
               onHover={(hovering) => onHover(hovering ? output.itemId : null)}
             />
@@ -301,7 +301,7 @@ function EndCard({ card, bom, onHover }: CardProps) {
         onClick={() => openDetail(card.id)}
       />
       <span className="leaf-text">
-        <span className="leaf-name" title={item?.name ?? card.id}>
+        <span className="leaf-name" title={fmtAka(item, card.id)}>
           {item?.name ?? card.id}
         </span>
         <span className="leaf-sub mono">

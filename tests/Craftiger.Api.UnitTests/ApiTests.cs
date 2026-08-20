@@ -166,6 +166,18 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task ItemRefsCarryDisplayAliasesOnly()
+    {
+        var solveId = await SolveAsync();
+
+        var detail = await Client.GetFromJsonAsync<ItemDetailResponse>(
+            $"/api/item/wire?solveId={solveId}");
+
+        Assert.Equal(["Ferrum Ingot"], detail!.Items["ing"].Aliases);
+        Assert.Null(detail.Items["wire"].Aliases);
+    }
+
+    [Fact]
     public async Task TheHatchBonusStretchesTheEbfCoil()
     {
         var cupronickel = new Dictionary<string, string> { ["Blast Furnace"] = "Cupronickel" };

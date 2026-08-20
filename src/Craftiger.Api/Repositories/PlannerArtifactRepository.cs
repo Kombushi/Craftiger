@@ -33,11 +33,21 @@ public sealed class PlannerArtifactRepository(
                 $"planner.sqlite carries schema_version {version ?? "(none)"}; this build reads {SupportedSchemaVersion}");
         }
 
+        // Only display-name aliases ship to clients; oredict names never contain spaces.
+        var aliases = db.Query<(string ItemId, string Alias)>(
+                "SELECT item_id, alias FROM item_aliases WHERE alias LIKE '% %'")
+            .GroupBy(row => row.ItemId)
+            .ToDictionary(group => group.Key, group => group.Select(row => row.Alias).ToList());
+
         var items = db.Query<ItemRow>(
                 "SELECT id, name_en AS Name, oredict, is_fluid AS IsFluid, leaf_class AS LeafClass, atlas_idx AS AtlasIdx FROM items")
             .ToDictionary(
                 row => row.Id,
-                row => new ArtifactItem(row.Id, row.Name, row.Oredict, row.IsFluid != 0, row.LeafClass, row.AtlasIdx));
+                row => new ArtifactItem(
+                    row.Id, row.Name, row.Oredict, row.IsFluid != 0, row.LeafClass, row.AtlasIdx,
+                    aliases.TryGetValue(row.Id, out var names)
+                        ? names.Where(name => name != row.Name).Distinct().Order(StringComparer.Ordinal).ToList()
+                        : []));
 
         var tiers = db.Query<(string ItemId, long Tier)>("SELECT item_id, tier FROM item_tiers")
             .ToDictionary(row => row.ItemId, row => (int)row.Tier);

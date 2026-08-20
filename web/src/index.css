@@ -109,7 +109,7 @@ a:focus-visible {
 /* Segoe UI's tall ascent sinks centered caps; lift the wordmark to optical center. */
 .brand-name {
   position: relative;
-  top: -1px;
+  top: -2px;
 }
 
 .brand-pack {

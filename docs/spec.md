@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.24
+# GTNH Crafting Planner — Specification v1.25
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -496,7 +496,10 @@ notifications, never as layout-shifting inline rows; BOM warnings stay inline
 with the results they describe. The planner's sidebar (cart + garage) resizes
 by dragging its edge, double-click resetting the default, and a top-bar menu
 button hides it entirely; both preferences persist in `localStorage` like all
-user state. Screens:
+user state. Item slots' tooltips append the display names unification merged
+away — "Tin Nugget (aka Tin Oreberry)" — so a canonicalized ingredient stays
+recognizable in recipe cards and item detail; oredict-style aliases never
+show. Screens:
 
 - **Search** — type-ahead over canonical names and oredict aliases; results show
   icon, name, and cost. Search works before the first solve — costs are simply

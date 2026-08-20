@@ -153,7 +153,8 @@ public sealed class PlannerQueryService(
                 var item = artifact.Items[id];
                 return new ItemRefDto(
                     item.Name, item.AtlasIdx, item.IsFluid, item.LeafClass,
-                    entry.Table.Costs.TryGetValue(id, out var cost) ? cost : null);
+                    entry.Table.Costs.TryGetValue(id, out var cost) ? cost : null,
+                    item.Aliases.Count > 0 ? item.Aliases : null);
             });
 
     private RecipeDto ToDto(SolveEntry entry, SolverRecipe recipe, string itemId)
