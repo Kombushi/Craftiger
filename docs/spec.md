@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.30
+# GTNH Crafting Planner — Specification v1.31
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -400,7 +400,8 @@ candidate(output) = Σ over slots (min over alternatives (cost × amount))
 ## 5. Cost engine
 
 **Costs are solved by a strict-improvement worklist fixpoint; the resulting
-`bestRecipe` pointers always form a DAG, so recipe cycles need no special casing.**
+`bestRecipe` pointers form a DAG, except where a set of recipes feeds itself
+while consuming something from outside — those are loops, and §6 plans them.**
 
 Mechanism:
 
@@ -413,7 +414,14 @@ Mechanism:
 Why this shape:
 
 - A cycle can never strictly undercut itself (ingot → block → ingot re-offers the
-  same price), so loops starve instead of oscillating, and `bestRecipe` stays acyclic.
+  same price), so shape-shuffles starve instead of oscillating, and `bestRecipe`
+  stays acyclic through them. A cycle that consumes an outside input while
+  multiplying its own item — hammer a Raw Crystal Chip into nine Parts,
+  autoclave a Part with Europium back into a Chip — undercuts itself by a
+  shrinking margin each pass and converges geometrically to the right price
+  (a chip costs 9/8 of the europium one pass burns); the last pass that still
+  clears ε leaves its recipes pointing at each other. That pointer loop is not
+  an error: it is the plan's honest shape, and §6 sums it.
 - **A slot's choice is made when the recipe wins, not when the BOM walks.** The
   solve records the alternative each slot was priced with; every later reader —
   the BOM walk, the reroute guard below, the item detail — replays that record.
@@ -474,37 +482,61 @@ Caching and pins:
 
 ## 6. BOM computation
 
-**Totals are computed on the `bestRecipe` DAG (pins overlaid); the rendered grid
-is a projection of that result.**
+**Totals are computed on the chosen-edge graph of `bestRecipe` pointers (pins
+overlaid); the rendered grid is a projection of that result.**
 
 1. Seed `demand[target] += count` for every cart entry — multiple targets merge
    automatically.
-2. Walk items in reverse topological order of the DAG. For a non-leaf item:
+2. Walk the graph's strongly connected components in reverse topological
+   order — every consumer before its producers. For a lone non-leaf item:
    `runs = demand / (output_amount × chance)` of its chosen recipe — summed
    over the recipe's output rows for that item where chanced twins repeat it —
    then add `runs × amount` to each input's demand, taking the alternative the
    solve priced each slot with (§5). Runs and amounts are fractional expected
    values throughout; display rounding belongs to the UI.
-3. Leaves accumulate into the final `item → amount` map and never expand, even
+3. A component of several items, or an item whose recipe consumes its own
+   output, is a **loop**. Its members' demands are one linear system —
+   `demand = outside demand + gain · demand`, where `gain[i, j]` is how many
+   units of member *i* one unit of member *j* burns through *j*'s recipe — solved
+   exactly by elimination. The system has a finite, non-negative answer exactly
+   when the loop's gain is below one (`I − gain` is an M-matrix), which is the
+   same condition under which the cost fixpoint converged on it (§5): the
+   crystal chip loop needs 9/8 chips of autoclave runs per chip delivered, and
+   18 mB of europium. A loop is **seeded once**: one unit of the member with the
+   cheapest garage-legal producer outside the loop — whose chosen inputs do not
+   reach back into it — is planned through that producer, as the first chip is
+   made from the 10 % gem route in the game. The seed is an extra unit, not
+   netted against the loop's own demand (§9). A loop nothing outside can
+   produce keeps its steady-state totals and warns `loop_unseeded`. A loop whose
+   gain is not below one is no plan at all: if a pin built it the pin is
+   ignored with a warning (`pin_cycle`); without a pin the solve itself is
+   inconsistent and the request fails.
+4. Leaves accumulate into the final `item → amount` map and never expand, even
    where a recipe undercut their weight; fluid amounts stay in mB.
-4. The same walk carries a second, whole-run accounting: demand seeded with
+5. The same walk carries a second, whole-run accounting: demand seeded with
    the integer target counts, each item's accumulated whole demand rounded up
    once to `wholeRuns = ⌈demand / expected yield⌉`, and `wholeRuns × amount`
    propagated to the inputs. A machine takes a full recipe or nothing, so a
    plan a player can execute never contains a partial craft; because rounding
    happens after the full demand accumulates, shared intermediates round once
-   for the whole request, not once per consumer. Chanced outputs still divide
-   by chance (§4), so whole runs cover their demand in expectation only. All
-   whole-run demands are integers by construction.
+   for the whole request, not once per consumer. Inside a loop the same
+   equations iterate on integers — round each member's runs up, re-propagate,
+   repeat — until nothing changes; the iteration only grows and is bounded by
+   the fractional answer, so it settles (eight chips: nine autoclave runs and
+   one hammer run). Chanced outputs still divide by chance (§4), so whole runs
+   cover their demand in expectation only. All whole-run demands are integers
+   by construction.
 
 Output per request: per-target direct inputs (chosen recipe, `runs × amount`
 per input), merged leaf totals in both accountings, warnings (ignored pins,
-unreachable targets), and the chain nodes — one entry per expanded item, in
-topological order with targets first, carrying total demand and runs in both
-accountings, the chosen recipe with its display data, the chosen input stack
-per slot for a single run, and the recipe's full output rows. The nodes are
-the walk itself made visible: a chain renderer draws them without re-deriving
-any choice the walk already made.
+unreachable targets, unseeded loops), and the chain nodes — one entry per
+expanded item, consumers before producers with targets first, carrying total
+demand and runs in both accountings, the chosen recipe with its display data,
+the chosen input stack per slot for a single run, and the recipe's full output
+rows. Loop members carry their loop's number; a loop's seed is one more node
+for the same item, flagged as the seed, with the outside recipe and its single
+unit. The nodes are the walk itself made visible: a chain renderer draws them
+without re-deriving any choice the walk already made.
 
 ## 7. UI
 
@@ -521,9 +553,14 @@ show. Screens:
 
 - **Search** — type-ahead over canonical names and oredict aliases; results show
   icon, name, and cost. Search works before the first solve — costs are simply
-  blank until one exists.
-- **Craft list** — cost-ascending; grayed `∞` section at bottom; "hide
-  unreachable" toggle; tapping opens item detail.
+  blank until one exists. An item nothing in the pack produces and that is not
+  a raw material — a deprecated controller kept only for its conversion
+  recipe, a creative or placeholder item — reads `uncraftable` instead of a
+  cost, before and after a solve; items merely unpriced under the garage keep
+  their `∞`.
+- **Craft list** — cost-ascending; grayed `∞` section at bottom, `uncraftable`
+  items reading as such inside it; "hide unreachable" toggle; tapping opens
+  item detail.
 - **Item detail** — all garage-legal producing recipes with their candidate
   costs, current pick highlighted, pin/unpin button per recipe, and an
   add-to-cart button.
@@ -555,7 +592,10 @@ show. Screens:
      and edges leave each producer below its output squares to enter the
      column of the square that consumes them. Cards keep their inputs-left,
      outputs-right reading either way, horizontal is the default, and the
-     choice persists (§8). With two or more targets an extra `Σ` card renders
+     choice persists (§8). A loop's members sit in one layer tagged `LOOP`,
+     the edge that runs against the flow between them is dashed, and the seed
+     is its own card tagged `SEED`, feeding the loop member that consumes its
+     item. With two or more targets an extra `Σ` card renders
      every target's combined plan in one graph, and the sections above follow
      the selected card. Cards link into item detail for pinning. Catalyst slots
      (§9) render dimmed among the inputs, marked as needed in place but not
@@ -649,8 +689,8 @@ show. Screens:
   inputs: [{itemId, amount}]}], leaves: [{itemId, amount, wholeAmount}],
   warnings, nodes: [{itemId, amount, runs, wholeAmount, wholeRuns, recipeId,
   machine, tier, multiTier, heat, durationTicks, euT, inputsPerRun: [{itemId,
-  amount}], outputs: [{itemId, amount, chance}]}], items: {itemId: {name,
-  atlasIdx, isFluid, leafClass, cost}}}` — the chain nodes of §6 in both
+  amount}], outputs: [{itemId, amount, chance}], loop, seed}], items: {itemId:
+  {name, atlasIdx, isFluid, leafClass, cost, uncraftable}}}` — the chain nodes of §6 in both
   accountings plus the same display lookup, so one request feeds a whole
   chain view.
 - `GET /api/meta` → tier ladder, machine list (each with its availability
@@ -802,6 +842,9 @@ All "does not / never" rules live here; other sections only reference this one.
 - Ukrainian locale; server-side profiles; settings export/import;
   pseudo-recipe sources shown as read-only "alt sources"; revisiting byproduct
   credit.
+- Netting a loop's seed against the loop's own demand (§6): the seed is a
+  fixed one-unit overhead; a plan that delivers the seed itself, or starts the
+  loop with a fraction of a unit, is not attempted.
 
 ### Risks
 
@@ -902,3 +945,11 @@ All "does not / never" rules live here; other sections only reference this one.
     GT dye crafted from its own dye group — prices from the other alternative
     and its BOM expands to that alternative, never looping back once the two
     tie.
+37. A loop that consumes an outside input — nine parts per chip, one part and
+    europium per chip — plans as the summed series in both accountings and is
+    seeded once through the cheapest outside route; a loop nothing outside
+    produces keeps its totals and warns; a pin that builds a loop with no
+    finite plan is still ignored.
+38. An item nothing in the pack produces and that is not a raw material reads
+    `uncraftable` under every garage, while a craftable item that is merely
+    unpriced at the garage keeps its `∞`.

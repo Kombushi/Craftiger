@@ -148,6 +148,77 @@ public sealed class BomTests
         Assert.Equal(1, Leaf(result, "ore"));
     }
 
+    /// <summary>The crystal chip loop: hammer a chip into nine parts, autoclave a part with
+    /// europium back into a chip, and a 10 % gem route for the first chip.</summary>
+    private static SolverGraph ChipLoop() =>
+        Fx.Graph(
+            [Fx.Leaf("eu", weight: 1, leafClass: "fluid"), Fx.Leaf("emerald", weight: 10, leafClass: "gem")],
+            Fx.Recipe("hammer", inputs: [("chip", 1)], outputs: ("part", 9, 1.0)),
+            Fx.Recipe("clave", inputs: [("part", 1), ("eu", 16)], outputs: ("chip", 1, 1.0)),
+            Fx.Recipe("gem", inputs: [("emerald", 1), ("eu", 16)], outputs: ("chip", 1, 0.1)));
+
+    [Fact]
+    public void ALoopSumsItsSeriesAndSeedsOnce()
+    {
+        var result = Compute(ChipLoop(), [new BomTarget("chip", 8)]);
+
+        // 8 chips need 9 autoclave runs (9 parts, 144 mB) and one hammer run; the seed adds the
+        // 10 % gem route once: 10 expected runs, 10 emeralds, 160 mB.
+        Assert.Empty(result.Warnings);
+        Assert.Equal(144 + 160, Leaf(result, "eu"), 9);
+        Assert.Equal(10, Leaf(result, "emerald"), 9);
+        var chip = result.Nodes.Single(node => node is { ItemId: "chip", Seed: false });
+        var part = result.Nodes.Single(node => node.ItemId == "part");
+        var seed = result.Nodes.Single(node => node.Seed);
+        Assert.Equal(9, chip.Amount, 9);
+        Assert.Equal(9, chip.Runs, 9);
+        Assert.Equal(9, chip.WholeRuns);
+        Assert.Equal(1, part.Runs, 9);
+        Assert.Equal(1, part.WholeRuns);
+        Assert.Equal(chip.Loop, part.Loop);
+        Assert.Equal(chip.Loop, seed.Loop);
+        Assert.Equal("gem", seed.RecipeId);
+        Assert.Equal(10, seed.Runs, 9);
+        Assert.Equal(10, seed.WholeRuns);
+        Assert.Equal(304, result.Leaves.Single(leaf => leaf.ItemId == "eu").WholeAmount);
+    }
+
+    [Fact]
+    public void ALoopWithNoOutsideRouteWarnsAndKeepsItsTotals()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("eu", weight: 1, leafClass: "fluid"), Fx.Leaf("chip", weight: 4096, leafClass: "gem")],
+            Fx.Recipe("hammer", inputs: [("chip", 1)], outputs: ("part", 9, 1.0)),
+            Fx.Recipe("clave", inputs: [("part", 1), ("eu", 16)], outputs: ("chip", 1, 1.0)),
+            Fx.Recipe("use", inputs: [("part", 2)], outputs: ("gadget", 1, 1.0)));
+
+        var result = Compute(graph, [new BomTarget("gadget", 1)]);
+
+        // The chip is a leaf here: the loop never forms, the walk stops at the leaf as always.
+        Assert.Empty(result.Warnings);
+        Assert.Equal(2.0 / 9, Leaf(result, "chip"), 9);
+    }
+
+    [Fact]
+    public void ALoopWhoseOnlyOutsideRouteDrawsOnItWarnsAndKeepsItsTotals()
+    {
+        // The chip's other producer crushes dust, but the cheapest dust is milled from parts —
+        // that route starts inside the loop, so it cannot start the loop.
+        var graph = Fx.Graph(
+            [Fx.Leaf("eu", weight: 1, leafClass: "fluid"), Fx.Leaf("ore", weight: 4096, leafClass: "gem")],
+            Fx.Recipe("hammer", inputs: [("chip", 1)], outputs: ("part", 9, 1.0)),
+            Fx.Recipe("clave", inputs: [("part", 1), ("eu", 16)], outputs: ("chip", 1, 1.0)),
+            Fx.Recipe("grind", inputs: [("ore", 1)], outputs: ("dust", 1, 1.0)),
+            Fx.Recipe("mill", inputs: [("part", 1), ("eu", 100)], outputs: ("dust", 1, 1.0)),
+            Fx.Recipe("crush", inputs: [("dust", 1)], outputs: ("chip", 1, 1.0)));
+
+        var result = Compute(graph, [new BomTarget("chip", 8)]);
+
+        Assert.Contains(result.Warnings, warning => warning is { Kind: "loop_unseeded", ItemId: "chip" or "part" });
+        Assert.Equal(144, Leaf(result, "eu"), 9);
+        Assert.DoesNotContain(result.Nodes, node => node.Seed);
+    }
+
     [Fact]
     public void AnUnreachableTargetWarnsAndAddsNothing()
     {

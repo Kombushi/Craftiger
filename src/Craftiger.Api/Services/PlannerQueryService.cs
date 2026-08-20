@@ -32,7 +32,7 @@ public sealed class PlannerQueryService(
             .Select(row =>
             {
                 var item = artifact.Items[row.ItemId];
-                return new ItemSummaryDto(item.Id, item.Name, item.AtlasIdx, row.Cost);
+                return new ItemSummaryDto(item.Id, item.Name, item.AtlasIdx, row.Cost, item.Uncraftable);
             })
             .ToList();
         return new ListResponse(items, total, page, pageSize);
@@ -59,7 +59,8 @@ public sealed class PlannerQueryService(
                 item.Id, item.Name, item.AtlasIdx,
                 entry is not null && entry.Table.Costs.TryGetValue(item.Id, out var cost)
                     ? cost
-                    : null))
+                    : null,
+                item.Uncraftable))
             .OrderBy(item => item.Name.StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
             .ThenBy(item => item.Cost ?? double.PositiveInfinity)
             .ThenBy(item => item.Name, StringComparer.Ordinal)
@@ -92,6 +93,7 @@ public sealed class PlannerQueryService(
         return new ItemDetailResponse(
             item.Id, item.Name, item.AtlasIdx, item.LeafClass,
             entry.Table.Costs.TryGetValue(itemId, out var cost) ? cost : null,
+            item.Uncraftable,
             entry.Table.BestRecipes.GetValueOrDefault(itemId)?.Id,
             recipes,
             Refs(entry, ids));
@@ -143,7 +145,7 @@ public sealed class PlannerQueryService(
         return new BomNodeDto(
             node.ItemId, node.Amount, node.Runs, node.WholeAmount, node.WholeRuns, node.RecipeId,
             info.Machine, info.Tier, info.MultiTier, info.Heat, info.DurationTicks, info.EuT,
-            node.InputsPerRun, catalysts, outputs);
+            node.InputsPerRun, catalysts, outputs, node.Loop, node.Seed);
     }
 
     private IReadOnlyDictionary<string, ItemRefDto> Refs(SolveEntry entry, IEnumerable<string> ids) =>
@@ -155,6 +157,7 @@ public sealed class PlannerQueryService(
                 return new ItemRefDto(
                     item.Name, item.AtlasIdx, item.IsFluid, item.LeafClass,
                     entry.Table.Costs.TryGetValue(id, out var cost) ? cost : null,
+                    item.Uncraftable,
                     item.Aliases.Count > 0 ? item.Aliases : null);
             });
 

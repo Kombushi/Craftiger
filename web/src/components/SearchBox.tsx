@@ -85,7 +85,9 @@ export function SearchBox({ placeholder, onPick }: Props) {
             >
               <Slot atlasIdx={item.atlasIdx} size="sm" />
               <span className="search-name">{item.name}</span>
-              <span className="mono search-cost">{solveId ? fmtCost(item.cost) : ''}</span>
+              <span className={`mono search-cost${item.uncraftable ? ' cost-infinite' : ''}`}>
+                {item.uncraftable ? 'uncraftable' : solveId ? fmtCost(item.cost) : ''}
+              </span>
             </button>
           ))}
         </div>

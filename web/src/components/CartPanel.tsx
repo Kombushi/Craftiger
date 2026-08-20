@@ -21,7 +21,8 @@ export function CartPanel() {
       ) : (
         <ul className="cart">
           {cart.map((entry) => {
-            const cost = results?.cart.items[entry.itemId]?.cost ?? null
+            const ref = results?.cart.items[entry.itemId]
+            const cost = ref?.cost ?? null
             return (
               <li key={entry.itemId} className="cart-row">
                 <Slot
@@ -33,7 +34,11 @@ export function CartPanel() {
                 <span className="cart-name" title={entry.name}>
                   {entry.name}
                 </span>
-                {results ? <span className="mono cart-cost">{fmtCost(cost)}</span> : null}
+                {results ? (
+                  <span className={`mono cart-cost${ref?.uncraftable ? ' cost-infinite' : ''}`}>
+                    {ref?.uncraftable ? 'uncraftable' : fmtCost(cost)}
+                  </span>
+                ) : null}
                 <Stepper
                   className="cart-count"
                   min={1}

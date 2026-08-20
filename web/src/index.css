@@ -793,6 +793,10 @@ a:focus-visible {
   stroke-width: 2.5;
 }
 
+.edge-loop {
+  stroke-dasharray: 5 4;
+}
+
 .chain-controls {
   position: absolute;
   right: 8px;
@@ -1084,6 +1088,16 @@ a:focus-visible {
 }
 
 .tag-pinned {
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.tag-loop {
+  color: var(--dim);
+  border: 1px solid var(--dim);
+}
+
+.tag-seed {
   color: var(--accent);
   border: 1px solid var(--accent);
 }

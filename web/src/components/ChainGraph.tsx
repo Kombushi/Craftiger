@@ -149,7 +149,7 @@ export function ChainGraph({ bom }: { bom: BomResponse }) {
           {layout.edges.map((edge, index) => (
             <path
               key={index}
-              className={hovered === edge.itemId ? 'edge edge-active' : 'edge'}
+              className={`edge${edge.loop ? ' edge-loop' : ''}${hovered === edge.itemId ? ' edge-active' : ''}`}
               d={edgePath(edge, orientation)}
             />
           ))}
@@ -205,6 +205,15 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
           {tierName}
           {node.heat !== null ? ` · ${fmtHeat(node.heat)}` : ''}
         </span>
+        {node.seed ? (
+          <span className="tag tag-seed" title="The one outside unit that starts the loop">
+            SEED
+          </span>
+        ) : node.loop !== null ? (
+          <span className="tag tag-loop" title="Feeds itself: these recipes consume each other's output">
+            LOOP
+          </span>
+        ) : null}
         <span
           className="card-runs mono"
           title={`${node.wholeRuns} whole run${node.wholeRuns === 1 ? '' : 's'} (${fmtCount(node.runs)} expected)`}
@@ -325,7 +334,9 @@ function EndCard({ card, bom, onHover }: CardProps) {
         </span>
         <span className="leaf-sub mono">
           {missing
-            ? 'unreachable'
+            ? item?.uncraftable
+              ? 'uncraftable'
+              : 'unreachable'
             : `${fmtAmount(card.amount, item?.isFluid ?? false)} · ${fmtCost(item?.cost ?? null)} each`}
         </span>
       </span>

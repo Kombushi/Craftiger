@@ -102,6 +102,12 @@ public sealed class PlannerArtifactRepository(
             slotsByRecipe.GetValueOrDefault(row.Id) ?? [],
             outputsByRecipe.GetValueOrDefault(row.Id) ?? []));
         var graph = SolverGraph.Build(leaves, solverRecipes);
+        items = items.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value with
+            {
+                Uncraftable = !graph.IsLeaf(pair.Key) && !graph.Producers.ContainsKey(pair.Key),
+            });
 
         var machineEras = db.Query<(string Machine, long? Era, long Multiblock)>(
                 "SELECT machine, era, multiblock FROM machine_eras")

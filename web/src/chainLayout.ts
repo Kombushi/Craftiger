@@ -1,4 +1,4 @@
-import type { BomNode, BomResponse } from './types'
+import type { BomNode, BomResponse, BomStack } from './types'
 
 export const SLOT = 40
 export const SLOT_GAP = 4
@@ -10,6 +10,8 @@ const LAYER_GAP = 80
 const CARD_GAP = 26
 const LEAF_W = 200
 const LEAF_H = 56
+/** How far an edge running against the flow swings out before turning back. */
+const LOOP_BEND = 80
 
 export interface ChainCard {
   id: string
@@ -28,6 +30,8 @@ export interface ChainEdge {
   from: string
   to: string
   itemId: string
+  /** Runs against the flow between two members of one loop. */
+  loop: boolean
   x1: number
   y1: number
   x2: number
@@ -43,6 +47,11 @@ export interface ChainLayout {
 
 /** Which way the layers run: leaves left and target right, or leaves top and target bottom. */
 export type ChainOrientation = 'horizontal' | 'vertical'
+
+/** A seed node shares its item with a loop member, so its card needs its own key. */
+export function nodeKey(node: BomNode): string {
+  return node.seed ? `${node.itemId}#seed` : node.itemId
+}
 
 export function inputColumns(node: BomNode): number {
   const count = node.inputsPerRun.length + node.catalysts.length
@@ -78,9 +87,17 @@ function recipeSize(node: BomNode): { w: number; h: number } {
 /** Places recipe cards in topological layers from the leaves to the target, along the
 /// chosen orientation; two barycenter sweeps keep edge crossings tolerable without a real solver. */
 export function layoutChain(bom: BomResponse, orientation: ChainOrientation): ChainLayout {
-  const recipeByItem = new Map(bom.nodes.map((node) => [node.itemId, node]))
+  const recipeByItem = new Map(bom.nodes.filter((node) => !node.seed).map((node) => [node.itemId, node]))
   const consumed = new Set(bom.nodes.flatMap((node) => node.inputsPerRun.map((input) => input.itemId)))
   const leafAmounts = new Map(bom.leaves.map((leaf) => [leaf.itemId, leaf.wholeAmount]))
+  const loopMembers = new Map<number, BomNode[]>()
+  const loopSeeds = new Map<number, BomNode[]>()
+  for (const node of bom.nodes) {
+    if (node.loop !== null) {
+      const group = node.seed ? loopSeeds : loopMembers
+      group.set(node.loop, [...(group.get(node.loop) ?? []), node])
+    }
+  }
 
   const cards = new Map<string, ChainCard>()
   for (const [itemId, amount] of leafAmounts) {
@@ -115,8 +132,8 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
   }
   for (const node of bom.nodes) {
     const { w, h } = recipeSize(node)
-    cards.set(node.itemId, {
-      id: node.itemId,
+    cards.set(nodeKey(node), {
+      id: nodeKey(node),
       kind: 'recipe',
       node,
       amount: node.amount,
@@ -129,19 +146,55 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
     })
   }
 
-  // Nodes arrive targets-first, so the reversed order sees producers before consumers.
+  // Every producer→consumer link by card id: each node's inputs feed it, and a loop's seed
+  // feeds the loop members that consume its item.
+  const links: { from: string; to: string; itemId: string; slotIndex: number }[] = []
+  for (const node of bom.nodes) {
+    const seen = new Set<string>()
+    node.inputsPerRun.forEach((input, slotIndex) => {
+      if (!seen.has(input.itemId) && cards.has(input.itemId)) {
+        seen.add(input.itemId)
+        links.push({ from: input.itemId, to: nodeKey(node), itemId: input.itemId, slotIndex })
+      }
+    })
+    if (node.seed && node.loop !== null) {
+      for (const member of loopMembers.get(node.loop) ?? []) {
+        const slotIndex = member.inputsPerRun.findIndex((input) => input.itemId === node.itemId)
+        if (slotIndex !== -1) {
+          links.push({ from: nodeKey(node), to: member.itemId, itemId: node.itemId, slotIndex })
+        }
+      }
+    }
+  }
+
+  // Nodes arrive targets-first, so the reversed order sees producers before consumers. A
+  // loop's members share one layer, past every input outside the loop and past its seed.
   const layerOf = new Map<string, number>()
   for (const card of cards.values()) {
     if (card.kind !== 'recipe') {
       layerOf.set(card.id, 0)
     }
   }
+  const inputLayer = (inputs: BomStack[], except: ReadonlySet<string>) =>
+    Math.max(0, ...inputs.filter((input) => !except.has(input.itemId)).map((input) => layerOf.get(input.itemId) ?? 0))
   for (const node of bom.nodes.slice().reverse()) {
-    const deepest = Math.max(
-      0,
-      ...node.inputsPerRun.map((input) => layerOf.get(input.itemId) ?? 0),
-    )
-    layerOf.set(node.itemId, deepest + 1)
+    const key = nodeKey(node)
+    if (layerOf.has(key)) {
+      continue
+    }
+    if (node.loop === null || node.seed) {
+      layerOf.set(key, inputLayer(node.inputsPerRun, new Set()) + 1)
+      continue
+    }
+    const members = loopMembers.get(node.loop) ?? [node]
+    const memberIds = new Set(members.map((member) => member.itemId))
+    let layer = Math.max(...members.map((member) => inputLayer(member.inputsPerRun, memberIds) + 1))
+    for (const seed of loopSeeds.get(node.loop) ?? []) {
+      layer = Math.max(layer, (layerOf.get(nodeKey(seed)) ?? 0) + 1)
+    }
+    for (const member of members) {
+      layerOf.set(member.itemId, layer)
+    }
   }
 
   const layerCount = Math.max(0, ...layerOf.values()) + 1
@@ -155,23 +208,14 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
     }
   }
   for (const node of bom.nodes.slice().reverse()) {
-    layers[layerOf.get(node.itemId) ?? 0].push(node.itemId)
+    layers[layerOf.get(nodeKey(node)) ?? 0].push(nodeKey(node))
   }
 
-  const producersOf = (itemId: string): string[] => {
-    const node = recipeByItem.get(itemId)
-    if (!node) {
-      return []
-    }
-    return [...new Set(node.inputsPerRun.map((input) => input.itemId))]
-  }
+  const producersOf = new Map<string, string[]>()
   const consumersOf = new Map<string, string[]>()
-  for (const node of bom.nodes) {
-    for (const input of new Set(node.inputsPerRun.map((i) => i.itemId))) {
-      const list = consumersOf.get(input) ?? []
-      list.push(node.itemId)
-      consumersOf.set(input, list)
-    }
+  for (const link of links) {
+    producersOf.set(link.to, [...(producersOf.get(link.to) ?? []), link.from])
+    consumersOf.set(link.from, [...(consumersOf.get(link.from) ?? []), link.to])
   }
 
   const position = new Map<string, number>()
@@ -187,7 +231,7 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
   reindex()
   for (let layer = 1; layer < layers.length; layer++) {
     layers[layer] = layers[layer]
-      .map((id, index) => ({ id, key: barycenter(producersOf(id), index) }))
+      .map((id, index) => ({ id, key: barycenter(producersOf.get(id) ?? [], index) }))
       .toSorted((a, b) => a.key - b.key)
       .map((entry) => entry.id)
     reindex()
@@ -203,28 +247,25 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
   const { width, height } =
     orientation === 'vertical' ? placeRows(layers, cards) : placeColumns(layers, cards)
 
-  const edges: ChainEdge[] = []
-  for (const node of bom.nodes) {
-    const to = cards.get(node.itemId)!
-    const seen = new Set<string>()
-    node.inputsPerRun.forEach((input, slotIndex) => {
-      if (seen.has(input.itemId)) {
-        return
-      }
-      seen.add(input.itemId)
-      const from = cards.get(input.itemId)
-      if (!from) {
-        return
-      }
-      edges.push(
-        orientation === 'vertical'
-          ? verticalEdge(from, to, input.itemId, slotIndex)
-          : horizontalEdge(from, to, input.itemId, slotIndex),
-      )
-    })
-  }
+  const edges: ChainEdge[] = links.map((link) => {
+    const from = cards.get(link.from)!
+    const to = cards.get(link.to)!
+    const loop =
+      from.node !== null && to.node !== null && !from.node.seed && !to.node.seed &&
+      from.node.loop !== null && from.node.loop === to.node.loop
+    return orientation === 'vertical'
+      ? verticalEdge(from, to, link.itemId, link.slotIndex, loop)
+      : horizontalEdge(from, to, link.itemId, link.slotIndex, loop)
+  })
 
-  return { cards: [...cards.values()], edges, width, height }
+  // Loop arcs swing out past the last layer; the extent must include them or fit clips them.
+  const hasLoop = edges.some((edge) => edge.loop)
+  return {
+    cards: [...cards.values()],
+    edges,
+    width: width + (hasLoop && orientation === 'horizontal' ? LOOP_BEND : 0),
+    height: height + (hasLoop && orientation === 'vertical' ? LOOP_BEND : 0),
+  }
 }
 
 /** One column per layer, left to right; each column is centered on the tallest one. */
@@ -276,12 +317,15 @@ function placeRows(layers: string[][], cards: Map<string, ChainCard>): { width: 
 }
 
 /** Leaves the producer's right edge at its body's middle and enters the consuming slot's row. */
-function horizontalEdge(from: ChainCard, to: ChainCard, itemId: string, slotIndex: number): ChainEdge {
+function horizontalEdge(
+  from: ChainCard, to: ChainCard, itemId: string, slotIndex: number, loop: boolean,
+): ChainEdge {
   const row = Math.floor(slotIndex / to.inCols)
   return {
     from: from.id,
     to: to.id,
     itemId,
+    loop,
     x1: from.x + from.w,
     y1: from.y + (from.kind === 'recipe' ? HEADER + (from.h - HEADER - FOOTER) / 2 : from.h / 2),
     x2: to.x,
@@ -290,12 +334,15 @@ function horizontalEdge(from: ChainCard, to: ChainCard, itemId: string, slotInde
 }
 
 /** Leaves the producer's bottom edge under its output grid and enters the consuming slot's column. */
-function verticalEdge(from: ChainCard, to: ChainCard, itemId: string, slotIndex: number): ChainEdge {
+function verticalEdge(
+  from: ChainCard, to: ChainCard, itemId: string, slotIndex: number, loop: boolean,
+): ChainEdge {
   const column = slotIndex % to.inCols
   return {
     from: from.id,
     to: to.id,
     itemId,
+    loop,
     x1: from.x + (from.kind === 'recipe' ? from.w - PAD - gridWidth(from.outCols) / 2 : from.w / 2),
     y1: from.y + from.h,
     x2: to.x + PAD + column * (SLOT + SLOT_GAP) + SLOT / 2,
@@ -303,12 +350,13 @@ function verticalEdge(from: ChainCard, to: ChainCard, itemId: string, slotIndex:
   }
 }
 
-/** A cubic curve that leaves and arrives along the flow axis. */
+/** A cubic curve that leaves and arrives along the flow axis; an edge running against the
+ * flow (one loop member feeding another) swings out and back instead of folding flat. */
 export function edgePath(edge: ChainEdge, orientation: ChainOrientation): string {
   if (orientation === 'vertical') {
-    const bend = Math.min(60, (edge.y2 - edge.y1) / 2)
+    const bend = edge.y2 > edge.y1 ? Math.min(60, (edge.y2 - edge.y1) / 2) : LOOP_BEND
     return `M ${edge.x1} ${edge.y1} C ${edge.x1} ${edge.y1 + bend}, ${edge.x2} ${edge.y2 - bend}, ${edge.x2} ${edge.y2}`
   }
-  const bend = Math.min(60, (edge.x2 - edge.x1) / 2)
+  const bend = edge.x2 > edge.x1 ? Math.min(60, (edge.x2 - edge.x1) / 2) : LOOP_BEND
   return `M ${edge.x1} ${edge.y1} C ${edge.x1 + bend} ${edge.y1}, ${edge.x2 - bend} ${edge.y2}, ${edge.x2} ${edge.y2}`
 }

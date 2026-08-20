@@ -6,6 +6,6 @@ namespace Craftiger.Api.Models;
 /// and names without extra lookups. Aliases are the display names unification merged away,
 /// shown so a canonicalized ingredient stays recognizable.</summary>
 public sealed record ItemRefDto(
-    string Name, long AtlasIdx, bool IsFluid, string? LeafClass, double? Cost,
+    string Name, long AtlasIdx, bool IsFluid, string? LeafClass, double? Cost, bool Uncraftable,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     IReadOnlyList<string>? Aliases = null);

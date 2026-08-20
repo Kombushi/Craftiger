@@ -91,7 +91,7 @@ export function ItemDetailOverlay() {
               <span className="detail-title">
                 <span className="detail-name">{detail.name}</span>
                 <span className="detail-sub mono">
-                  {fmtCost(detail.cost)}
+                  {detail.uncraftable ? 'uncraftable' : fmtCost(detail.cost)}
                   {detail.leafClass ? ` · ${detail.leafClass}` : ''}
                 </span>
               </span>

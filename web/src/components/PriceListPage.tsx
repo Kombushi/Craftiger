@@ -90,7 +90,7 @@ export function PriceListPage() {
               <Slot atlasIdx={item.atlasIdx} size="sm" />
               <span className="search-name">{item.name}</span>
               <span className={`mono search-cost${item.cost === null ? ' cost-infinite' : ''}`}>
-                {fmtCost(item.cost)}
+                {item.uncraftable ? 'uncraftable' : fmtCost(item.cost)}
               </span>
             </button>
           </li>

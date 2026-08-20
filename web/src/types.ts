@@ -38,6 +38,7 @@ export interface ItemSummary {
   name: string
   atlasIdx: number
   cost: number | null
+  uncraftable: boolean
 }
 
 export interface ListResponse {
@@ -53,6 +54,7 @@ export interface ItemRef {
   isFluid: boolean
   leafClass: string | null
   cost: number | null
+  uncraftable: boolean
   aliases?: string[] | null
 }
 
@@ -89,6 +91,8 @@ export interface BomNode {
   inputsPerRun: BomStack[]
   catalysts: BomStack[]
   outputs: OutputRow[]
+  loop: number | null
+  seed: boolean
 }
 
 export interface BomWarning {
@@ -138,6 +142,7 @@ export interface ItemDetail {
   atlasIdx: number
   leafClass: string | null
   cost: number | null
+  uncraftable: boolean
   bestRecipeId: string | null
   recipes: RecipeDto[]
   items: Record<string, ItemRef>

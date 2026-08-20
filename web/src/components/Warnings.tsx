@@ -1,11 +1,19 @@
-import type { BomResponse } from '../types'
+import type { BomResponse, ItemRef } from '../types'
 
-const messages: Record<string, (name: string) => string> = {
+const messages: Record<string, (name: string, item: ItemRef | undefined) => string> = {
   pin_unknown: (name) => `The pinned recipe for ${name} no longer exists — pin ignored.`,
   pin_illegal: (name) => `The pinned recipe for ${name} is not legal in this garage — pin ignored.`,
-  pin_cycle: (name) => `The pin on ${name} would loop the chain — pin ignored.`,
-  unreachable_target: (name) => `${name} cannot be crafted with this garage.`,
-  unreachable_input: (name) => `${name} is needed but cannot be crafted — the chain is incomplete.`,
+  pin_cycle: (name) => `The pin on ${name} would loop the chain without end — pin ignored.`,
+  unreachable_target: (name, item) =>
+    item?.uncraftable
+      ? `${name} is uncraftable — nothing in the pack produces it.`
+      : `${name} cannot be crafted with this garage.`,
+  unreachable_input: (name, item) =>
+    item?.uncraftable
+      ? `${name} is needed but nothing in the pack produces it — the chain is incomplete.`
+      : `${name} is needed but cannot be crafted — the chain is incomplete.`,
+  loop_unseeded: (name) =>
+    `${name} is made in a loop that nothing outside it can start — the plan assumes a first unit exists.`,
 }
 
 export function Warnings({ bom }: { bom: BomResponse }) {
@@ -15,8 +23,9 @@ export function Warnings({ bom }: { bom: BomResponse }) {
   return (
     <ul className="warnings">
       {bom.warnings.map((warning, index) => {
-        const name = bom.items[warning.itemId]?.name ?? warning.itemId
-        const text = messages[warning.kind]?.(name) ?? `${warning.kind}: ${name}`
+        const item = bom.items[warning.itemId]
+        const name = item?.name ?? warning.itemId
+        const text = messages[warning.kind]?.(name, item) ?? `${warning.kind}: ${name}`
         return (
           <li key={index} className="warning-row">
             {text}

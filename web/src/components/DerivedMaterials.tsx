@@ -15,10 +15,22 @@ interface Derived {
  * longest-path layering so the sections line up with the graph's columns. */
 function levelsOf(bom: BomResponse, excluded: ReadonlySet<string>): Derived[][] {
   const level = new Map<string, number>()
-  const nodes = new Map(bom.nodes.map((node) => [node.itemId, node]))
+  // A loop's seed node shares its item with a loop member: its unit adds to that item.
+  const produced = new Map<string, { wholeAmount: number; amount: number }>()
+  for (const node of bom.nodes) {
+    const sum = produced.get(node.itemId) ?? { wholeAmount: 0, amount: 0 }
+    produced.set(node.itemId, {
+      wholeAmount: sum.wholeAmount + node.wholeAmount,
+      amount: sum.amount + node.amount,
+    })
+  }
   // Nodes arrive targets-first in topological order, so the reverse walk sees
-  // every input's level before the recipe that consumes it.
+  // every input's level before the recipe that consumes it; inside a loop the
+  // members take whichever comes first, which keeps the pass finite.
   for (const node of bom.nodes.toReversed()) {
+    if (node.seed) {
+      continue
+    }
     let deepest = 0
     for (const input of node.inputsPerRun) {
       deepest = Math.max(deepest, level.get(input.itemId) ?? 0)
@@ -31,11 +43,11 @@ function levelsOf(bom: BomResponse, excluded: ReadonlySet<string>): Derived[][] 
     if (excluded.has(itemId)) {
       continue
     }
-    const node = nodes.get(itemId)!
+    const sum = produced.get(itemId)!
     while (groups.length < depth) {
       groups.push([])
     }
-    groups[depth - 1].push({ itemId, wholeAmount: node.wholeAmount, amount: node.amount })
+    groups[depth - 1].push({ itemId, wholeAmount: sum.wholeAmount, amount: sum.amount })
   }
   while (groups.length > 0 && groups[groups.length - 1].length === 0) {
     groups.pop()

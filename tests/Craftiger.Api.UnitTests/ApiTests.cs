@@ -145,6 +145,18 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task AnItemNothingProducesReadsAsUncraftable()
+    {
+        var saw = Assert.Single(await Client.GetFromJsonAsync<List<ItemSummaryDto>>("/api/search?q=Test%20Saw") ?? []);
+        var wire = Assert.Single(await Client.GetFromJsonAsync<List<ItemSummaryDto>>("/api/search?q=Iron%20Wire") ?? []);
+        var silver = Assert.Single(await Client.GetFromJsonAsync<List<ItemSummaryDto>>("/api/search?q=Silver%20Ingot") ?? []);
+
+        Assert.True(saw.Uncraftable);
+        Assert.False(wire.Uncraftable);
+        Assert.False(silver.Uncraftable);
+    }
+
+    [Fact]
     public async Task ItemDetailShowsLegalRecipesWithCandidates()
     {
         var solveId = await SolveAsync();
