@@ -1,4 +1,4 @@
-import { fmtAmount, fmtCost, fmtCount } from '../format'
+import { fmtAka, fmtAmount, fmtCost, fmtCount } from '../format'
 import { useStore } from '../storeContext'
 import type { BomResponse } from '../types'
 
@@ -30,7 +30,7 @@ export function MaterialsGrid({ bom }: { bom: BomResponse }) {
             size="lg"
             atlasIdx={item.atlasIdx}
             badge={fmtCount(leaf.wholeAmount)}
-            title={`${item.name}\n${fmtAmount(leaf.wholeAmount, item.isFluid)} to gather (${fmtCount(leaf.amount)} expected) · ${fmtCost(item.cost)} each · ${fmtCost(total)} total`}
+            title={`${fmtAka(item, leaf.itemId)}\n${fmtAmount(leaf.wholeAmount, item.isFluid)} to gather (${fmtCount(leaf.amount)} expected) · ${fmtCost(item.cost)} each · ${fmtCost(total)} total`}
             onClick={() => openDetail(leaf.itemId)}
           />
         )

@@ -1,0 +1,119 @@
+import { useEffect, useMemo, useState } from 'react'
+import { fmtAka, fmtAmount, fmtCost, fmtCount } from '../format'
+import { useStore } from '../storeContext'
+import type { BomResponse } from '../types'
+import { Slot } from './Slot'
+import { Stepper } from './Stepper'
+
+interface Derived {
+  itemId: string
+  wholeAmount: number
+  amount: number
+}
+
+/** Intermediates by distance from the leaves: level 1 is crafted straight from raw
+ * materials, each further level from the ones before it. Mirrors the chain layout's
+ * longest-path layering so the sections line up with the graph's columns. */
+function levelsOf(bom: BomResponse, excluded: ReadonlySet<string>): Derived[][] {
+  const level = new Map<string, number>()
+  const nodes = new Map(bom.nodes.map((node) => [node.itemId, node]))
+  // Nodes arrive targets-first in topological order, so the reverse walk sees
+  // every input's level before the recipe that consumes it.
+  for (const node of bom.nodes.toReversed()) {
+    let deepest = 0
+    for (const input of node.inputsPerRun) {
+      deepest = Math.max(deepest, level.get(input.itemId) ?? 0)
+    }
+    level.set(node.itemId, deepest + 1)
+  }
+
+  const groups: Derived[][] = []
+  for (const [itemId, depth] of level) {
+    if (excluded.has(itemId)) {
+      continue
+    }
+    const node = nodes.get(itemId)!
+    while (groups.length < depth) {
+      groups.push([])
+    }
+    groups[depth - 1].push({ itemId, wholeAmount: node.wholeAmount, amount: node.amount })
+  }
+  while (groups.length > 0 && groups[groups.length - 1].length === 0) {
+    groups.pop()
+  }
+  return groups
+}
+
+/** The craft's intermediates, revealed cumulatively up to the stepper's level. The level
+ * resets with each calculation and the grids follow the stepper after a short debounce. */
+export function DerivedMaterials({
+  bom, excluded, calcKey,
+}: {
+  bom: BomResponse
+  excluded: string[]
+  calcKey: unknown
+}) {
+  const { openDetail } = useStore()
+  const [selected, setSelected] = useState(0)
+  const [shown, setShown] = useState(0)
+
+  useEffect(() => {
+    setSelected(0)
+    setShown(0)
+  }, [calcKey])
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(selected), 300)
+    return () => clearTimeout(timer)
+  }, [selected])
+
+  const groups = useMemo(() => levelsOf(bom, new Set(excluded)), [bom, excluded])
+  const maxLevel = groups.length
+  if (maxLevel === 0) {
+    return null
+  }
+  const visible = Math.min(shown, maxLevel)
+
+  return (
+    <section className="results-section">
+      <header className="panel-title results-head">
+        <span>Derived materials</span>
+        <span className="derived-stepper">
+          <span className="derived-stepper-label">up to level</span>
+          <Stepper value={Math.min(selected, maxLevel)} min={0} max={maxLevel} onChange={setSelected} />
+          <span className="derived-stepper-label mono">/ {maxLevel}</span>
+        </span>
+      </header>
+      {groups.slice(0, visible).map((group, index) => (
+        <div key={index} className="derived-level">
+          <header className="derived-level-title mono">Level {index + 1}</header>
+          <div className="materials">
+            {group
+              .toSorted((a, b) => {
+                const costA = (bom.items[a.itemId]?.cost ?? 0) * a.wholeAmount
+                const costB = (bom.items[b.itemId]?.cost ?? 0) * b.wholeAmount
+                return costB - costA
+              })
+              .map((derived) => {
+                const item = bom.items[derived.itemId]
+                if (!item) {
+                  return null
+                }
+                const total = item.cost === null ? null : item.cost * derived.wholeAmount
+                return (
+                  <Slot
+                    key={derived.itemId}
+                    size="lg"
+                    atlasIdx={item.atlasIdx}
+                    badge={fmtCount(derived.wholeAmount)}
+                    title={`${fmtAka(item, derived.itemId)}\n${fmtAmount(derived.wholeAmount, item.isFluid)} produced (${fmtCount(derived.amount)} expected) · ${fmtCost(item.cost)} each · ${fmtCost(total)} total`}
+                    onClick={() => openDetail(derived.itemId)}
+                  />
+                )
+              })}
+          </div>
+        </div>
+      ))}
+    </section>
+  )
+}

@@ -1,6 +1,7 @@
 interface Props {
   value: number
   min: number
+  max?: number
   step?: number
   id?: string
   className?: string
@@ -8,9 +9,9 @@ interface Props {
 }
 
 /** Number input with its own arrow pair — native spinners overlap right-aligned digits. */
-export function Stepper({ value, min, step = 1, id, className, onChange }: Props) {
+export function Stepper({ value, min, max, step = 1, id, className, onChange }: Props) {
   const accept = (next: number) => {
-    if (Number.isFinite(next) && next >= min) {
+    if (Number.isFinite(next) && next >= min && next <= (max ?? Number.POSITIVE_INFINITY)) {
       onChange(next)
     }
   }
@@ -24,6 +25,7 @@ export function Stepper({ value, min, step = 1, id, className, onChange }: Props
         className="mono stepper-input"
         type="number"
         min={min}
+        max={max}
         step={step}
         value={value}
         onChange={(event) => accept(Number(event.target.value))}

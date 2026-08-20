@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.25
+# GTNH Crafting Planner — Specification v1.26
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -517,14 +517,23 @@ show. Screens:
 - **Result** — built from one square component (CSS offsets into `atlas.webp`,
   count badge per square, `1.2k`-style formatting; fluids render as their cell
   icon with mB amounts):
-  1. *Raw materials* — the merged leaf totals for the whole cart, with the
-     cart's total cost.
-  2. *Crafting chain* — one flow graph per cart target on a pan/zoom canvas,
+  1. *Raw materials* — the merged leaf totals of the selected chain card,
+     with that selection's total cost shown behind a `₴` sign; the warnings
+     row always stays cart-wide.
+  2. *Derived materials* — the selection's intermediates grouped by distance
+     from the leaves: level 1 is crafted straight from raw materials, each
+     further level from the ones before it, cost-sorted within a level. A
+     stepper reveals levels cumulatively up to the chosen one (debounced
+     ~300 ms) and resets to zero on each calculation; the selection's own
+     targets never appear.
+  3. *Crafting chain* — one flow graph per cart target on a pan/zoom canvas,
      rendered straight from the BOM chain nodes (§6): every expanded item is a
      recipe card (machine, tier, heat, runs, chosen input stacks, output rows,
      duration, EU/t) laid out in topological layers, edges running from each
      producer to the slots that consume it; leaves close the left edge as
-     material cards. Cards link into item detail for pinning. Catalyst slots
+     material cards. With two or more targets an extra `Σ` card renders every
+     target's combined plan in one graph, and the sections above follow the
+     selected card. Cards link into item detail for pinning. Catalyst slots
      (§9) render dimmed among the inputs, marked as needed in place but not
      consumed, in both recipe cards and item detail.
   Displayed runs and amounts are the whole-run plan (§6) — a machine takes a
