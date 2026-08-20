@@ -35,9 +35,12 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
       : activeKey === ALL
         ? results.cart
         : (results.perTarget[activeKey] ?? null)
-  // Every cart target stays out of the derived lists, whichever chain is shown —
-  // a target that feeds another target is still something the user asked for whole.
-  const excluded = useMemo(() => cart.map((entry) => entry.itemId), [cart])
+  // Only the viewed chain's own targets are hidden from the derived lists: another
+  // cart target genuinely inside this chain is a real intermediate of it.
+  const excluded = useMemo(
+    () => (activeKey === ALL ? cart.map((entry) => entry.itemId) : activeKey !== null ? [activeKey] : []),
+    [activeKey, cart],
+  )
   const plannerRef = useRef<HTMLDivElement | null>(null)
   const [sidebarWidth, setSidebarWidth] = usePersistent('gtnhp.sidebarWidth', SIDEBAR_DEFAULT)
 

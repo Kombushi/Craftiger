@@ -524,8 +524,9 @@ show. Screens:
      from the leaves: level 1 is crafted straight from raw materials, each
      further level from the ones before it, cost-sorted within a level with
      fluids last. A range slider reveals levels cumulatively up to the chosen
-     one (debounced ~300 ms) and resets to zero on each calculation; cart
-     targets never appear, whichever chain is selected.
+     one (debounced ~300 ms) and resets to zero on each calculation; the
+     selection's own targets never appear, while another cart target sitting
+     inside the viewed chain shows at its level like any intermediate.
   3. *Crafting chain* — one flow graph per cart target on a pan/zoom canvas,
      rendered straight from the BOM chain nodes (§6): every expanded item is a
      recipe card (machine, tier, heat, runs, chosen input stacks, output rows,
