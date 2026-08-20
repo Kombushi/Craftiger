@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.22
+# GTNH Crafting Planner — Specification v1.23
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -685,10 +685,28 @@ All "does not / never" rules live here; other sections only reference this one.
   pipe extrudes into up to 32 of them as a deliberate in-game cheapening), so
   grinding or arcing them back to steel amplifies — one stainless ingot would
   return sixteen ingots of steel and drag the whole ferrous family onto that
-  loop's fixpoint. GT recipes consuming an item on the editable
-  untagged-recycling list face the same material-shape test as tagged ones and
-  drop; the item's crafting-grid consumers (the Block Breaker really is built
-  from a Mining Pipe) are untouched.
+  loop's fixpoint. These are caught by matter conservation, with no list to
+  maintain: a recipe that takes exactly one kind of item — not itself a
+  material shape — apart into nothing but material shapes is a claim about
+  how much matter that item holds, and the claim is checked against GT's own
+  composition record (`GREG_TECH_ITEM_DATA`, byproducts included, the
+  per-item truth outranking the prefix default — a quartz block holds four
+  gems, not nine ingots) or, for an unrecorded item, against every fully
+  accountable recipe producing it — when every such route puts less total
+  matter into the item than the recipe hands out, the recipe amplifies and
+  drops. Conservation is of volume, never of identity: GT transmutes freely —
+  alloying mixes new materials, implosion leaves ashes, granite grinds to
+  thorium — so outputs may be materials the inputs never contained, as long
+  as the total adds up. Recipes mixing several ingredients are production,
+  however lopsided the matter: the primitive blast furnace really does boost
+  two dusts and coke into three ingots. Everything unprovable is innocent
+  and stays: world-obtained inputs (cobblestone really does grind to stone
+  dust, whatever the rock breaker paid for it), containers, farmables,
+  fluids, compositions with an undefined amount (−1 is unknown, never zero),
+  and items no accountable recipe produces (mob drops, bee products). Exact
+  reverse-crafts survive too — a casing that grinds back to precisely the
+  metal it was rolled from is honest — and crafting-grid consumers (the Block
+  Breaker really is built from a Mining Pipe) are untouched either way.
 - **Phantom registrations** — a recipe the game registers but the machine never
   performs is excluded by its dump id in `PhantomRecipeIds`, each entry carrying
   the in-game observation that condemned it. The one known case: the canner
@@ -827,3 +845,8 @@ All "does not / never" rules live here; other sections only reference this one.
 34. A crafting tool of any mod ships as a catalyst through its container
     item, a bucket-returning item stays an ingredient, and no prefix list
     names either.
+35. Matter conservation is derived, not configured, and counts volume, not
+    identity: the Mining Pipe grinds drop with no list naming them, exact
+    grinds and grinds of unproducible or world-minable items survive, GT's
+    composition record bounds an untagged grind with byproducts counted,
+    and an undefined amount is unknown, never zero.

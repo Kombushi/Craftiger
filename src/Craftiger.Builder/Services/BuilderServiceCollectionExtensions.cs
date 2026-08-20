@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging.Console;
 
 namespace Craftiger.Builder.Services;
 
-/// <summary>The single composition root shared by the console entry point and the tests.</summary>
 public static class BuilderServiceCollectionExtensions
 {
     public static IServiceCollection AddBuilderServices(
@@ -25,6 +24,7 @@ public static class BuilderServiceCollectionExtensions
             .AddSingleton<IPlannerRepository, PlannerRepository>()
             .AddSingleton<IUnificationService, UnificationService>()
             .AddSingleton<IRecipeTransformService, RecipeTransformService>()
+            .AddSingleton<IConservationService, ConservationService>()
             .AddSingleton<ILeafTaggingService, LeafTaggingService>()
             .AddSingleton<IBlockBreakRecipeService, BlockBreakRecipeService>()
             .AddSingleton<IUndergroundFluidRecipeService, UndergroundFluidRecipeService>()

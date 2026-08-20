@@ -160,13 +160,7 @@ public sealed partial class RecipeTransformService(IOptions<BuilderConfig> optio
             var ingredients = inputs.Keys
                 .Concat(choices.SelectMany(choice => choice.Alternatives.Select(a => a.ItemId)))
                 .ToList();
-            if (ingredients.Any(id => _config.ExcludedInputItems.Contains(dump.NameOf(id))))
-            {
-                continue;
-            }
-            var recycling = gt is not null
-                && (IsRecycling(gt.Category)
-                    || ingredients.Any(id => _config.UntaggedRecyclingInputItems.Contains(dump.NameOf(id))));
+            var recycling = gt is not null && IsRecycling(gt.Category);
             if (recycling && !ingredients.All(id => IsMaterialShape(id, dump, unified)))
             {
                 continue;

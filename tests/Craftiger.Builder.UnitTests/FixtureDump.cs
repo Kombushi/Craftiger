@@ -107,6 +107,13 @@ public static class FixtureDump
     public const string TinkerSaw = "i~tconstruct~fixture_saw~3";
     public const string SoupBucket = "i~fixture~soup_bucket~0";
     public const string BrewCell = "i~gregtech~gt.metaitem.01~30002";
+    public const string BronzeSmall = "i~gregtech~gt.metaitem.01~1300";
+    public const string FixtureShard = "i~fixture~shard~0";
+    public const string ShardDust = "i~fixture~shard_dust~0";
+    public const string ClayDust = "i~fixture~clay_dust~0";
+    public const string DataBox = "i~fixture~databox~0";
+    public const string DataGhost = "i~fixture~dataghost~0";
+    public const string FixtureWidget = "i~fixture~widget~0";
 
     public static string Create(string directory)
     {
@@ -175,6 +182,10 @@ public static class FixtureDump
                 SELF_REFERENCING INTEGER, MATERIAL_BASED INTEGER, CONTAINER INTEGER,
                 RECYCLABLE INTEGER, MATERIAL_AMOUNT INTEGER);
             CREATE TABLE ITEM_CONTAINER(ID TEXT, CONTAINER_ITEM_ID TEXT, ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_ITEM_DATA(ID TEXT, MATERIAL_AMOUNT INTEGER, MATERIAL_NAME TEXT,
+                PREFIX_NAME TEXT, ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_ITEM_DATA_BY_PRODUCTS(GREG_TECH_ITEM_DATA_ID TEXT,
+                BY_PRODUCTS_AMOUNT INTEGER, BY_PRODUCTS_MATERIAL_NAME TEXT, BY_PRODUCTS_ORDER INTEGER);
             CREATE TABLE METADATA(ID INTEGER, CREATION_TIME_MILLIS INTEGER, VERSION TEXT);
             """);
 
@@ -279,6 +290,13 @@ public static class FixtureDump
         Item(db, PureMetal, "Blackium Ingot", "gregtech");
         Item(db, BlackMetal, "Blackium Ingot", "tconstruct");
         Item(db, PlanetDust, "Planet Dust", "GalaxySpace");
+        Item(db, BronzeSmall, "Small Pile of Bronze Dust", "gregtech");
+        Item(db, FixtureShard, "Fixture Shard", "fixture");
+        Item(db, ShardDust, "Shardium Dust", "fixture");
+        Item(db, ClayDust, "Clay Dust", "fixture");
+        Item(db, DataBox, "Fixture Data Box", "fixture");
+        Item(db, DataGhost, "Fixture Data Ghost", "fixture");
+        Item(db, FixtureWidget, "Fixture Widget", "fixture");
         db.Execute($"INSERT INTO ITEM_TOOLTIP VALUES ('{Dryer}', 'Voltage IN: §e128§7 (§eMV§7)', 2)");
         db.Execute($"INSERT INTO FLUID_CONTAINER VALUES ('fc_water', 1000, '{WaterCell}', '{EmptyCell}', '{Water}')");
 
@@ -338,6 +356,17 @@ public static class FixtureDump
         Oredict(db, "wireGt01Copper", "g_copper_wire");
         Oredict(db, "cellBrewium", "g_brew_cell");
         Group(db, "g_clay_ball", (ClayBall, 1));
+        Group(db, "g_clay_block", (ClayBlock, 1));
+        Group(db, "g_bronze_small", (BronzeSmall, 1));
+        Oredict(db, "dustSmallBronze", "g_bronze_small");
+        Group(db, "g_shard", (FixtureShard, 1));
+        Group(db, "g_shard_dust", (ShardDust, 1));
+        Oredict(db, "dustShardium", "g_shard_dust");
+        Group(db, "g_clay_dust", (ClayDust, 1));
+        Oredict(db, "dustClay", "g_clay_dust");
+        Group(db, "g_databox", (DataBox, 1));
+        Group(db, "g_dataghost", (DataGhost, 1));
+        Group(db, "g_widget", (FixtureWidget, 1));
         db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_water', 1000, '{Water}')");
 
         Oredict(db, "ingotBronze", "g_bronze_ingot");
@@ -490,6 +519,9 @@ public static class FixtureDump
         Unify(db, "blockObsidian", ObsidianBlock);
         Unify(db, "dustByprodium", ByDust);
         Unify(db, "ingotByprodium", ByIngot);
+        Unify(db, "dustSmallBronze", BronzeSmall);
+        Unify(db, "dustShardium", ShardDust);
+        Unify(db, "dustClay", ClayDust);
 
         // GT's real flags and material amounts for every prefix a fixture oredict uses.
         OrePrefix(db, "ore", -1);
@@ -569,10 +601,44 @@ public static class FixtureDump
         Recipe(db, "r_target_use", "t_shaped", inputs: [("g_targetium", 0)], outputs: [(Plank, 1, 1.0)]);
         Recipe(db, "r_blackium_use", "t_shaped", inputs: [("g_blackium", 0)], outputs: [(Plank, 1, 1.0)]);
         Recipe(db, "r_planet_use", "t_shaped", inputs: [("g_planet_dust", 0)], outputs: [(Plank, 1, 1.0)]);
-        // Grinding a listed pipe is untagged recycling; its grid consumer is a real craft.
+        // The pipe extrudes four to the ingot, so grinding one back to a full dust amplifies
+        // fourfold; shaving it to a small pile is exact and survives, as does the grid consumer.
+        Recipe(db, "r_pipe_extrude", "rt~gregtech~gt.recipe.extruder~MV",
+            inputs: [("g_bronze_ingot", 0), ("g_mold", 1)], outputs: [(FixturePipe, 4, 1.0)], voltage: 96, duration: 200);
         Recipe(db, "r_pipe_grind", "rt~gregtech~gt.recipe.macerator~ULV",
             inputs: [("g_fixture_pipe", 0)], outputs: [(BronzeDust, 1, 1.0)], voltage: 4, duration: 100);
+        Recipe(db, "r_pipe_shave", "rt~gregtech~gt.recipe.macerator~ULV",
+            inputs: [("g_fixture_pipe", 0)], outputs: [(BronzeSmall, 1, 1.0)], voltage: 4, duration: 100);
         Recipe(db, "r_pipe_block", "t_shaped", inputs: [("g_fixture_pipe", 0)], outputs: [(Plank, 1, 1.0)]);
+        // A shard nothing produces has unprovable content, so its grind is innocent.
+        Recipe(db, "r_shard_grind", "rt~gregtech~gt.recipe.macerator~ULV",
+            inputs: [("g_shard", 0)], outputs: [(ShardDust, 1, 1.0)], voltage: 4, duration: 100);
+        // Fluids count at molten density: a whiff of gas cannot launder the grind, while
+        // a full molten measure honestly carries its matter in.
+        db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_whiff', 4, '{Oxygen}')");
+        db.Execute($"INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_molten', 144, '{Water}')");
+        Recipe(db, "r_pipe_gasarc", "rt~gregtech~gt.recipe.arcfurnace~LV",
+            inputs: [("g_fixture_pipe", 0)], outputs: [(BronzeSmall, 2, 1.0)], voltage: 30, duration: 100,
+            fluidInputs: [("g_whiff", 0)]);
+        Recipe(db, "r_pipe_infuse", "rt~gregtech~gt.recipe.fluidsolidifier~MV",
+            inputs: [("g_fixture_pipe", 0)], outputs: [(ShardDust, 1, 1.0)], voltage: 24, duration: 100,
+            fluidInputs: [("g_molten", 0)]);
+        // Clay is world-minable: grinding it is primary production even though its one
+        // crafting recipe holds half the matter the grind hands out.
+        Recipe(db, "r_clay_make", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(ClayBlock, 1, 1.0)]);
+        Recipe(db, "r_clay_grind", "rt~gregtech~gt.recipe.macerator~ULV",
+            inputs: [("g_clay_block", 0)], outputs: [(ClayDust, 2, 1.0)], voltage: 4, duration: 100);
+        // GT's own composition record bounds the box: two ingots and a byproduct in, so
+        // four dusts out is a lie while two dusts plus the byproduct is honest.
+        ItemData(db, DataBox, "Bronze", 7257600, ("Shardium", 3628800));
+        ItemData(db, DataGhost, "Bronze", -1);
+        Recipe(db, "r_databox_grind", "rt~gregtech~gt.recipe.arcfurnace~LV",
+            inputs: [("g_databox", 0)], outputs: [(BronzeDust, 4, 1.0)], voltage: 30, duration: 100);
+        Recipe(db, "r_databox_shred", "rt~gregtech~gt.recipe.macerator~ULV",
+            inputs: [("g_databox", 0)], outputs: [(BronzeDust, 2, 1.0), (ShardDust, 1, 1.0)], voltage: 4, duration: 100);
+        // An undefined amount is unknown, never zero: the ghost's grind stays.
+        Recipe(db, "r_ghost_grind", "rt~gregtech~gt.recipe.macerator~ULV",
+            inputs: [("g_dataghost", 0)], outputs: [(BronzeDust, 1, 1.0)], voltage: 4, duration: 100);
         // A slot that takes either iron must ship both, not whichever sorts first.
         Recipe(db, "r_any_iron_use", "t_shaped", inputs: [("g_any_iron", 0)], outputs: [(Plank, 1, 1.0)]);
         // A tool anywhere in a slot marks the whole slot as tools, third-party ones included.
@@ -637,9 +703,13 @@ public static class FixtureDump
         Recipe(db, "r_lost_use", "t_furnace", inputs: [("g_lost_ingot", 0)], outputs: [(IronIngot, 1, 1.0)]);
         // Clay balls are also farmed, but breaking the block already prices them.
         Crop(db, "clayCrop", "Clay Crop", BerrySeed, hidden: false, drops: [ClayBall], underBlocks: []);
-        // Melting a manufactured item down gives back more than crafting it cost. The rod
-        // carries no material-shape oredict, so it stands in for a door or a piston.
-        Recipe(db, "r_recycle", "rt~gregtech~gt.recipe.arcfurnace~LV", inputs: [("g_alu_rod", 0)],
+        // Melting a manufactured item down gives back more than crafting it cost. The widget
+        // carries no oredict, and its recipe takes either form of aluminium — a choice the
+        // conservation bound cannot price — so only the recycling tag stands between it and
+        // a leak.
+        Group(db, "g_alu_either", (AluIngot, 1), (AluBlock, 1));
+        Recipe(db, "r_widget", "t_shaped", inputs: [("g_alu_either", 0)], outputs: [(FixtureWidget, 1, 1.0)]);
+        Recipe(db, "r_recycle", "rt~gregtech~gt.recipe.arcfurnace~LV", inputs: [("g_widget", 0)],
             outputs: [(AluIngot, 6, 1.0)], voltage: 30, duration: 100, category: "arcFurnaceRecycling");
         // Melting one shape of a material into another gives back exactly what went in, and is
         // often the only route to the molten form, so it survives the same category.
@@ -783,6 +853,22 @@ public static class FixtureDump
         db.Execute(
             "INSERT INTO ITEM_CONTAINER VALUES (@id, @containerId, @itemId)",
             new { id = "ic~" + itemId, containerId, itemId });
+
+    private static void ItemData(
+        SqliteConnection db, string itemId, string material, long amount,
+        params (string Material, long Amount)[] byproducts)
+    {
+        db.Execute(
+            "INSERT INTO GREG_TECH_ITEM_DATA VALUES (@id, @amount, @material, NULL, @itemId)",
+            new { id = "gtid~" + itemId, amount, material, itemId });
+        var order = 0;
+        foreach (var (byMaterial, byAmount) in byproducts)
+        {
+            db.Execute(
+                "INSERT INTO GREG_TECH_ITEM_DATA_BY_PRODUCTS VALUES (@id, @byAmount, @byMaterial, @order)",
+                new { id = "gtid~" + itemId, byAmount, byMaterial, order = order++ });
+        }
+    }
 
     private static void Fluid(SqliteConnection db, string id, string internalName, string name) =>
         db.Execute(

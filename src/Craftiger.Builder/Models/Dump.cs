@@ -21,6 +21,9 @@ public sealed class Dump
 
     /// <summary>Forge container items: what using this item in a craft leaves behind.</summary>
     public required Dictionary<string, string> ItemContainers { get; init; }
+
+    /// <summary>GT's item composition records behind an id-segment matcher.</summary>
+    public required ItemDataIndex ItemData { get; init; }
     public required Dictionary<string, List<(long Slot, string GroupId)>> ItemInputsByRecipe { get; init; }
     public required Dictionary<string, List<DumpItemOutput>> ItemOutputsByRecipe { get; init; }
     public required Dictionary<string, List<DumpFluidInput>> FluidInputsByRecipe { get; init; }

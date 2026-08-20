@@ -39,4 +39,7 @@ public sealed class OrePrefixIndex
         _byName.TryGetValue(name, out var prefix) && prefix.MaterialAmount > 0
             ? prefix.MaterialAmount
             : 0;
+
+    public bool IsShapeName(string name) =>
+        _byName.TryGetValue(name, out var prefix) && IsShape(prefix);
 }
