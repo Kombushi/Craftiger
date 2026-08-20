@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.23
+# GTNH Crafting Planner — Specification v1.24
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -493,7 +493,10 @@ any choice the walk already made.
 Single-page app, English item names (dump locale). Transient errors — an
 unreachable API, a failed solve — surface as self-dismissing toast
 notifications, never as layout-shifting inline rows; BOM warnings stay inline
-with the results they describe. Screens:
+with the results they describe. The planner's sidebar (cart + garage) resizes
+by dragging its edge, double-click resetting the default, and a top-bar menu
+button hides it entirely; both preferences persist in `localStorage` like all
+user state. Screens:
 
 - **Search** — type-ahead over canonical names and oredict aliases; results show
   icon, name, and cost. Search works before the first solve — costs are simply

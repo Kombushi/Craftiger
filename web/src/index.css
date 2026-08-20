@@ -144,7 +144,34 @@ a:focus-visible {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: var(--sidebar-width, 380px) 1fr;
+  position: relative;
+}
+
+.planner-collapsed {
+  grid-template-columns: 1fr;
+}
+
+.planner-collapsed .sidebar,
+.planner-collapsed .sidebar-handle {
+  display: none;
+}
+
+.sidebar-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--sidebar-width, 380px) - 4px);
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  z-index: 5;
+}
+
+.sidebar-handle:hover {
+  background: var(--accent);
+  opacity: 0.4;
 }
 
 .sidebar {
@@ -1070,12 +1097,30 @@ a:focus-visible {
   color: var(--accent);
 }
 
+.menu-button {
+  background: var(--panel-raised);
+  border: 2px solid;
+  border-color: var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1;
+  padding: 6px 10px;
+}
+
+.menu-button:hover {
+  color: var(--accent);
+}
+
 /* ---- responsive ---- */
 
 @media (max-width: 900px) {
   .planner {
     grid-template-columns: 1fr;
     overflow-y: auto;
+  }
+
+  .sidebar-handle {
+    display: none;
   }
 
   .sidebar {

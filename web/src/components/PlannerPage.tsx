@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { fmtCost } from '../format'
 import { useStore } from '../storeContext'
+import { usePersistent } from '../usePersistent'
 import { CartPanel } from './CartPanel'
 import { ChainGraph } from './ChainGraph'
 import { GaragePanel } from './GaragePanel'
@@ -8,9 +10,51 @@ import { MaterialsGrid } from './MaterialsGrid'
 import { Slot } from './Slot'
 import { Warnings } from './Warnings'
 
-export function PlannerPage() {
+const SIDEBAR_MIN = 280
+const SIDEBAR_MAX = 640
+const SIDEBAR_DEFAULT = 380
+
+const clampSidebar = (width: number) => Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, width))
+
+export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
   const { cart, results, status, stale, calculate } = useStore()
   const [selected, setSelected] = useState<string | null>(null)
+  const plannerRef = useRef<HTMLDivElement | null>(null)
+  const [sidebarWidth, setSidebarWidth] = usePersistent('gtnhp.sidebarWidth', SIDEBAR_DEFAULT)
+
+  // The drag writes the CSS variable directly so the chain graph is not re-rendered
+  // per pointer move; React state catches up once on release.
+  const dragSidebar = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const planner = plannerRef.current
+    if (planner === null) {
+      return
+    }
+    event.preventDefault()
+    const handle = event.currentTarget
+    handle.setPointerCapture(event.pointerId)
+    const left = planner.getBoundingClientRect().left
+    document.body.style.cursor = 'col-resize'
+    let width = sidebarWidth
+    const move = (moveEvent: PointerEvent) => {
+      width = clampSidebar(Math.round(moveEvent.clientX - left))
+      planner.style.setProperty('--sidebar-width', `${width}px`)
+    }
+    const stop = () => {
+      handle.removeEventListener('pointermove', move)
+      handle.removeEventListener('pointerup', stop)
+      handle.removeEventListener('pointercancel', stop)
+      document.body.style.cursor = ''
+      setSidebarWidth(width)
+    }
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', stop)
+    handle.addEventListener('pointercancel', stop)
+  }
+
+  const resetSidebar = () => {
+    plannerRef.current?.style.removeProperty('--sidebar-width')
+    setSidebarWidth(SIDEBAR_DEFAULT)
+  }
   const activeTarget =
     selected !== null && cart.some((entry) => entry.itemId === selected)
       ? selected
@@ -28,7 +72,11 @@ export function PlannerPage() {
     : null
 
   return (
-    <div className="planner">
+    <div
+      ref={plannerRef}
+      className={`planner${sidebarHidden ? ' planner-collapsed' : ''}`}
+      style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
+    >
       <aside className="sidebar">
         <CartPanel />
         <GaragePanel />
@@ -41,6 +89,12 @@ export function PlannerPage() {
           {status.phase === 'solving' ? 'CALCULATING…' : stale ? 'RECALCULATE' : 'CALCULATE'}
         </button>
       </aside>
+      <div
+        className="sidebar-handle"
+        title="Drag to resize; double-click to reset"
+        onPointerDown={dragSidebar}
+        onDoubleClick={resetSidebar}
+      />
       <main className="results">
         {results === null ? (
           <div className="results-empty">

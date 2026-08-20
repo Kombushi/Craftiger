@@ -6,6 +6,7 @@ import { Toasts } from './components/Toasts'
 import { WeightsModal } from './components/WeightsModal'
 import { StoreProvider } from './store'
 import { useStore } from './storeContext'
+import { usePersistent } from './usePersistent'
 
 function useHashRoute(): string {
   const [hash, setHash] = useState(window.location.hash)
@@ -21,10 +22,21 @@ function Shell() {
   const { meta, results, status } = useStore()
   const hash = useHashRoute()
   const [weightsOpen, setWeightsOpen] = useState(false)
+  const [sidebarHidden, setSidebarHidden] = usePersistent('gtnhp.sidebarHidden', false)
 
   return (
     <div className="app">
       <header className="topbar">
+        {hash !== '#/list' ? (
+          <button
+            type="button"
+            className="menu-button"
+            title={sidebarHidden ? 'Show the sidebar' : 'Hide the sidebar'}
+            onClick={() => setSidebarHidden((hidden) => !hidden)}
+          >
+            ☰
+          </button>
+        ) : null}
         <span className="brand">
           <img className="brand-logo" src="/favicon.png" alt="" />
           CRAFTIGER
@@ -49,7 +61,7 @@ function Shell() {
           Weights
         </button>
       </header>
-      {hash === '#/list' ? <PriceListPage /> : <PlannerPage />}
+      {hash === '#/list' ? <PriceListPage /> : <PlannerPage sidebarHidden={sidebarHidden} />}
       <ItemDetailOverlay />
       {weightsOpen ? <WeightsModal onClose={() => setWeightsOpen(false)} /> : null}
       <Toasts />
