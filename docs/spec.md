@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.28
+# GTNH Crafting Planner — Specification v1.29
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -535,9 +535,14 @@ show. Screens:
      recipe card (machine, tier, heat, runs, chosen input stacks, output rows,
      duration, EU/t) laid out in topological layers, edges running from each
      producer to the slots that consume it; leaves close the left edge as
-     material cards. With two or more targets an extra `Σ` card renders every
-     target's combined plan in one graph, and the sections above follow the
-     selected card. Cards link into item detail for pinning. Catalyst slots
+     material cards. A toggle beside the fit button turns the graph vertical:
+     leaves line the top edge, layers stack down to the target at the bottom,
+     and edges leave each producer below its output squares to enter the
+     column of the square that consumes them. Cards keep their inputs-left,
+     outputs-right reading either way, horizontal is the default, and the
+     choice persists (§8). With two or more targets an extra `Σ` card renders
+     every target's combined plan in one graph, and the sections above follow
+     the selected card. Cards link into item detail for pinning. Catalyst slots
      (§9) render dimmed among the inputs, marked as needed in place but not
      consumed, in both recipe cards and item detail.
   Displayed runs and amounts are the whole-run plan (§6) — a machine takes a
@@ -642,7 +647,9 @@ show. Screens:
 `gtnhp.cart`, `gtnhp.pins`, `gtnhp.weights`, `gtnhp.machines` (default tier,
 overrides, per-map coils, built multiblocks), `gtnhp.config` (B), `gtnhp.ui`
 (display caches plus the applied solve, so an unchanged reload resumes on the
-cached solve instead of asking for a recalculation).
+cached solve instead of asking for a recalculation), and the layout
+preferences `gtnhp.sidebarWidth`, `gtnhp.sidebarHidden`, and
+`gtnhp.chainOrientation`.
 
 ## 9. Exclusions, non-goals, and risks
 

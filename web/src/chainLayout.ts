@@ -41,6 +41,9 @@ export interface ChainLayout {
   height: number
 }
 
+/** Which way the layers run: leaves left and target right, or leaves top and target bottom. */
+export type ChainOrientation = 'horizontal' | 'vertical'
+
 export function inputColumns(node: BomNode): number {
   const count = node.inputsPerRun.length + node.catalysts.length
   if (count === 0) {
@@ -72,9 +75,9 @@ function recipeSize(node: BomNode): { w: number; h: number } {
   }
 }
 
-/** Places recipe cards in topological layers, leaves on the left, the target rightmost;
-/// two barycenter sweeps keep edge crossings tolerable without a real solver. */
-export function layoutChain(bom: BomResponse): ChainLayout {
+/** Places recipe cards in topological layers from the leaves to the target, along the
+/// chosen orientation; two barycenter sweeps keep edge crossings tolerable without a real solver. */
+export function layoutChain(bom: BomResponse, orientation: ChainOrientation): ChainLayout {
   const recipeByItem = new Map(bom.nodes.map((node) => [node.itemId, node]))
   const consumed = new Set(bom.nodes.flatMap((node) => node.inputsPerRun.map((input) => input.itemId)))
   const leafAmounts = new Map(bom.leaves.map((leaf) => [leaf.itemId, leaf.wholeAmount]))
@@ -197,6 +200,35 @@ export function layoutChain(bom: BomResponse): ChainLayout {
     reindex()
   }
 
+  const { width, height } =
+    orientation === 'vertical' ? placeRows(layers, cards) : placeColumns(layers, cards)
+
+  const edges: ChainEdge[] = []
+  for (const node of bom.nodes) {
+    const to = cards.get(node.itemId)!
+    const seen = new Set<string>()
+    node.inputsPerRun.forEach((input, slotIndex) => {
+      if (seen.has(input.itemId)) {
+        return
+      }
+      seen.add(input.itemId)
+      const from = cards.get(input.itemId)
+      if (!from) {
+        return
+      }
+      edges.push(
+        orientation === 'vertical'
+          ? verticalEdge(from, to, input.itemId, slotIndex)
+          : horizontalEdge(from, to, input.itemId, slotIndex),
+      )
+    })
+  }
+
+  return { cards: [...cards.values()], edges, width, height }
+}
+
+/** One column per layer, left to right; each column is centered on the tallest one. */
+function placeColumns(layers: string[][], cards: Map<string, ChainCard>): { width: number; height: number } {
   const columnWidths = layers.map((layer) =>
     Math.max(0, ...layer.map((id) => cards.get(id)!.w)),
   )
@@ -216,33 +248,67 @@ export function layoutChain(bom: BomResponse): ChainLayout {
     }
     x += columnWidths[index] + LAYER_GAP
   })
-  const width = Math.max(0, x - LAYER_GAP)
+  return { width: Math.max(0, x - LAYER_GAP), height }
+}
 
-  const edges: ChainEdge[] = []
-  for (const node of bom.nodes) {
-    const to = cards.get(node.itemId)!
-    const seen = new Set<string>()
-    node.inputsPerRun.forEach((input, slotIndex) => {
-      if (seen.has(input.itemId)) {
-        return
-      }
-      seen.add(input.itemId)
-      const from = cards.get(input.itemId)
-      if (!from) {
-        return
-      }
-      const row = Math.floor(slotIndex / to.inCols)
-      edges.push({
-        from: from.id,
-        to: to.id,
-        itemId: input.itemId,
-        x1: from.x + from.w,
-        y1: from.y + (from.kind === 'recipe' ? HEADER + (from.h - HEADER - FOOTER) / 2 : from.h / 2),
-        x2: to.x,
-        y2: to.y + HEADER + PAD + row * (SLOT + SLOT_GAP) + SLOT / 2,
-      })
-    })
+/** One row per layer, top to bottom; each row is centered on the widest one. */
+function placeRows(layers: string[][], cards: Map<string, ChainCard>): { width: number; height: number } {
+  const rowHeights = layers.map((layer) =>
+    Math.max(0, ...layer.map((id) => cards.get(id)!.h)),
+  )
+  const rowWidths = layers.map((layer) =>
+    layer.reduce((sum, id) => sum + cards.get(id)!.w, 0) + Math.max(0, layer.length - 1) * CARD_GAP,
+  )
+  const width = Math.max(0, ...rowWidths)
+
+  let y = 0
+  layers.forEach((layer, index) => {
+    let x = (width - rowWidths[index]) / 2
+    for (const id of layer) {
+      const card = cards.get(id)!
+      card.x = x
+      card.y = y
+      x += card.w + CARD_GAP
+    }
+    y += rowHeights[index] + LAYER_GAP
+  })
+  return { width, height: Math.max(0, y - LAYER_GAP) }
+}
+
+/** Leaves the producer's right edge at its body's middle and enters the consuming slot's row. */
+function horizontalEdge(from: ChainCard, to: ChainCard, itemId: string, slotIndex: number): ChainEdge {
+  const row = Math.floor(slotIndex / to.inCols)
+  return {
+    from: from.id,
+    to: to.id,
+    itemId,
+    x1: from.x + from.w,
+    y1: from.y + (from.kind === 'recipe' ? HEADER + (from.h - HEADER - FOOTER) / 2 : from.h / 2),
+    x2: to.x,
+    y2: to.y + HEADER + PAD + row * (SLOT + SLOT_GAP) + SLOT / 2,
   }
+}
 
-  return { cards: [...cards.values()], edges, width, height }
+/** Leaves the producer's bottom edge under its output grid and enters the consuming slot's column. */
+function verticalEdge(from: ChainCard, to: ChainCard, itemId: string, slotIndex: number): ChainEdge {
+  const column = slotIndex % to.inCols
+  return {
+    from: from.id,
+    to: to.id,
+    itemId,
+    x1: from.x + (from.kind === 'recipe' ? from.w - PAD - gridWidth(from.outCols) / 2 : from.w / 2),
+    y1: from.y + from.h,
+    x2: to.x + PAD + column * (SLOT + SLOT_GAP) + SLOT / 2,
+    y2: to.y,
+  }
+}
+
+/** A cubic curve that leaves and arrives along the flow axis. */
+export function edgePath(edge: ChainEdge, orientation: ChainOrientation): string {
+  if (orientation === 'vertical') {
+    const bend = Math.min(60, (edge.y2 - edge.y1) / 2)
+    return `M ${edge.x1} ${edge.y1} C ${edge.x1} ${edge.y1 + bend}, ${edge.x2} ${edge.y2 - bend}, ${edge.x2} ${edge.y2}`
+  }
+  const bend = Math.min(60, (edge.x2 - edge.x1) / 2)
+  return `M ${edge.x1} ${edge.y1} C ${edge.x1 + bend} ${edge.y1}, ${edge.x2 - bend} ${edge.y2}, ${edge.x2} ${edge.y2}`
 }

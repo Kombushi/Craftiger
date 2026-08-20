@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FOOTER, HEADER, PAD, SLOT, SLOT_GAP, layoutChain, type ChainCard } from '../chainLayout'
+import {
+  FOOTER,
+  HEADER,
+  PAD,
+  SLOT,
+  SLOT_GAP,
+  edgePath,
+  layoutChain,
+  type ChainCard,
+  type ChainOrientation,
+} from '../chainLayout'
 import { fmtAka, fmtAmount, fmtCost, fmtCount, fmtDuration, fmtHeat, fmtRuns } from '../format'
 import { useStore } from '../storeContext'
 import type { BomResponse } from '../types'
+import { usePersistent } from '../usePersistent'
 import { Slot } from './Slot'
 
 const MARGIN = 40
@@ -14,7 +25,11 @@ interface View {
 }
 
 export function ChainGraph({ bom }: { bom: BomResponse }) {
-  const layout = useMemo(() => layoutChain(bom), [bom])
+  const [orientation, setOrientation] = usePersistent<ChainOrientation>(
+    'gtnhp.chainOrientation',
+    'horizontal',
+  )
+  const layout = useMemo(() => layoutChain(bom, orientation), [bom, orientation])
   const viewport = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<View>({ x: MARGIN, y: MARGIN, k: 1 })
   const [hovered, setHovered] = useState<string | null>(null)
@@ -131,17 +146,13 @@ export function ChainGraph({ bom }: { bom: BomResponse }) {
           height={layout.height}
           viewBox={`0 0 ${Math.max(1, layout.width)} ${Math.max(1, layout.height)}`}
         >
-          {layout.edges.map((edge, index) => {
-            const bend = Math.min(60, (edge.x2 - edge.x1) / 2)
-            const active = hovered === edge.itemId
-            return (
-              <path
-                key={index}
-                className={active ? 'edge edge-active' : 'edge'}
-                d={`M ${edge.x1} ${edge.y1} C ${edge.x1 + bend} ${edge.y1}, ${edge.x2 - bend} ${edge.y2}, ${edge.x2} ${edge.y2}`}
-              />
-            )
-          })}
+          {layout.edges.map((edge, index) => (
+            <path
+              key={index}
+              className={hovered === edge.itemId ? 'edge edge-active' : 'edge'}
+              d={edgePath(edge, orientation)}
+            />
+          ))}
         </svg>
         {layout.cards.map((card) =>
           card.kind === 'recipe' ? (
@@ -152,6 +163,14 @@ export function ChainGraph({ bom }: { bom: BomResponse }) {
         )}
       </div>
       <div className="chain-controls">
+        <button
+          type="button"
+          className="ghost-button"
+          title={orientation === 'vertical' ? 'Horizontal layout' : 'Vertical layout'}
+          onClick={() => setOrientation(orientation === 'vertical' ? 'horizontal' : 'vertical')}
+        >
+          {orientation === 'vertical' ? '⇄' : '⇅'}
+        </button>
         <button type="button" className="ghost-button" title="Fit to view" onClick={fit}>
           ⤢
         </button>
