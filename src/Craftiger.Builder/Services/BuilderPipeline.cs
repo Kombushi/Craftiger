@@ -112,12 +112,19 @@ public sealed class BuilderPipeline(
             logger.LogWarning("image.zip not found at {ImagesPath}; skipping atlas", _options.ImagesPath);
         }
 
+        // A map every recipe of which lacks a single block only ever runs as a multiblock.
+        var multiblockMachines = recipes
+            .GroupBy(recipe => recipe.Machine)
+            .Where(group => group.All(recipe => !recipe.HasSingleBlock))
+            .Select(group => group.Key)
+            .ToHashSet();
+
         var plannerPath = Path.Combine(_options.OutputDir, "planner.sqlite");
         Stage("write planner.sqlite", () =>
         {
             plannerRepository.Write(plannerPath, new PlannerData(
                 dump, unified, solverRecipes, orderedItemIds, leafClasses, eraSolve.Tiers,
-                itemParents, leafWeights, eraSolve.MachineEras, meta));
+                itemParents, leafWeights, eraSolve.MachineEras, multiblockMachines, meta));
             return 0;
         });
 

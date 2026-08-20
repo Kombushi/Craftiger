@@ -33,6 +33,8 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Equal(2, meta.Coils.Count);
         Assert.True(meta.Machines.Single(machine => machine.Name == "Blast Furnace").HeatGated);
         Assert.False(meta.Machines.Single(machine => machine.Name == "Wiremill").HeatGated);
+        Assert.True(meta.Machines.Single(machine => machine.Name == "Blast Furnace").MultiblockOnly);
+        Assert.False(meta.Machines.Single(machine => machine.Name == "Wiremill").MultiblockOnly);
         Assert.Equal(32, meta.Atlas!.Cell);
     }
 

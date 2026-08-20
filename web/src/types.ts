@@ -10,6 +10,7 @@ export interface MachineDto {
   heatGated: boolean
   alwaysOwned: boolean
   era: number | null
+  multiblockOnly: boolean
 }
 
 export interface AtlasDto {

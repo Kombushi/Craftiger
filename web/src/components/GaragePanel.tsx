@@ -119,21 +119,36 @@ export function GaragePanel() {
         <p className="hint">Machines used by your craft list appear here.</p>
       ) : null}
       <ul className="garage-list">
-        {rows.map((machine) => (
-          <MachineRow
-            key={machine.name}
-            machine={machine}
-            defaultTier={garage.defaultTier}
-            tierNames={meta.tierNames}
-            coils={meta.coils}
-            value={machine.name in garage.machines ? garage.machines[machine.name] : undefined}
-            coil={garage.coils[machine.name] ?? ''}
-            built={garage.builtMultiblocks.includes(machine.name)}
-            onTier={(value) => setTier(machine.name, value)}
-            onCoil={(value) => setCoil(machine.name, value)}
-            onBuilt={(value) => setBuilt(machine.name, value)}
-          />
-        ))}
+        {(() => {
+          const row = (machine: MachineDto) => (
+            <MachineRow
+              key={machine.name}
+              machine={machine}
+              defaultTier={garage.defaultTier}
+              tierNames={meta.tierNames}
+              coils={meta.coils}
+              value={machine.name in garage.machines ? garage.machines[machine.name] : undefined}
+              coil={garage.coils[machine.name] ?? ''}
+              built={garage.builtMultiblocks.includes(machine.name)}
+              onTier={(value) => setTier(machine.name, value)}
+              onCoil={(value) => setCoil(machine.name, value)}
+              onBuilt={(value) => setBuilt(machine.name, value)}
+            />
+          )
+          const multis = rows.filter((machine) => machine.multiblockOnly)
+          if (multis.length === 0) {
+            return rows.map(row)
+          }
+          const singles = rows.filter((machine) => !machine.multiblockOnly)
+          return (
+            <>
+              {singles.length > 0 ? <li className="garage-group-title">Machines</li> : null}
+              {singles.map(row)}
+              <li className="garage-group-title">Multiblocks</li>
+              {multis.map(row)}
+            </>
+          )
+        })()}
       </ul>
       <label className="garage-toggle">
         <input
@@ -183,11 +198,17 @@ function MachineRow({
           onChange={(event) => onTier(event.target.value)}
           title={availability}
         >
-          <option value="default">{lateByDefault ? 'Not built' : 'Default'}</option>
-          <option value="none">None</option>
+          <option value="default">
+            {lateByDefault
+              ? 'Not built'
+              : machine.multiblockOnly
+                ? `Built (${tierNames[defaultTier] ?? defaultTier} hatches)`
+                : 'Default'}
+          </option>
+          <option value="none">{machine.multiblockOnly ? 'Not built' : 'None'}</option>
           {tierNames.map((tier, index) => (
             <option key={tier} value={index}>
-              {tier}
+              {machine.multiblockOnly ? `${tier} hatches` : tier}
             </option>
           ))}
         </select>

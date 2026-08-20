@@ -17,7 +17,7 @@ public sealed class ApiFixture : IDisposable
     {
         Dir = Path.Combine(Path.GetTempPath(), "craftiger-api-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Dir);
-        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 4);
+        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 5);
         File.WriteAllText(Path.Combine(Dir, "atlas-offsets.json"), "{}");
         _factory = Create(Dir);
         Client = _factory.CreateClient();
@@ -62,7 +62,7 @@ public sealed class ApiFixture : IDisposable
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
             CREATE TABLE item_parents(item_id TEXT PRIMARY KEY, parent_item_id TEXT NOT NULL, divisor REAL NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
-            CREATE TABLE machine_eras(machine TEXT PRIMARY KEY, era INTEGER);
+            CREATE TABLE machine_eras(machine TEXT PRIMARY KEY, era INTEGER, multiblock INTEGER NOT NULL);
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             """);
 
@@ -96,10 +96,10 @@ public sealed class ApiFixture : IDisposable
             INSERT INTO item_tiers VALUES ('ing', 0), ('sil', 1);
             INSERT INTO item_parents VALUES ('nug', 'ing', 9.0);
             INSERT INTO machine_eras VALUES
-                ('Wiremill', 0),
-                ('Blast Furnace', 1),
-                ('Extruder', NULL),
-                ('Circuit Assembly Line', 3);
+                ('Wiremill', 0, 0),
+                ('Blast Furnace', 1, 1),
+                ('Extruder', NULL, 0),
+                ('Circuit Assembly Line', 3, 0);
             """);
         db.Execute(
             "INSERT INTO meta VALUES ('schema_version', @Version), " +

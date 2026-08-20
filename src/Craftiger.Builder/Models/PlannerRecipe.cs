@@ -36,7 +36,7 @@ public sealed record PlannerRecipe(
             ? BestCaseTier
             : null;
 
-    private bool HasSingleBlock =>
+    public bool HasSingleBlock =>
         Machines.Count == 0 || Machines.Any(machine => !machine.Multiblock);
 
     /// <summary>The voltage tier this recipe runs at on one machine. The coil gate of a

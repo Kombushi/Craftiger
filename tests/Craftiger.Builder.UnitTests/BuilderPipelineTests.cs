@@ -353,6 +353,19 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
+    public void OnlyMultiblockOnlyMapsFlagAsMultiblocks()
+    {
+        Assert.True(_fixture.Scalar<bool>(
+            "SELECT multiblock FROM machine_eras WHERE machine = 'Blast Furnace'"));
+        Assert.False(_fixture.Scalar<bool>(
+            "SELECT multiblock FROM machine_eras WHERE machine = 'Mixer'"));
+        Assert.False(_fixture.Scalar<bool>(
+            "SELECT multiblock FROM machine_eras WHERE machine = 'Macerator'"));
+        Assert.False(_fixture.Scalar<bool>(
+            "SELECT multiblock FROM machine_eras WHERE machine = 'Crafting Table'"));
+    }
+
+    [Fact]
     public void ArtifactStampsItsSchemaVersion() =>
         Assert.Equal(Craftiger.Builder.Repositories.PlannerRepository.SchemaVersion.ToString(),
             _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));

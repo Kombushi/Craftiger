@@ -11,4 +11,5 @@ public sealed record PlannerData(
     IReadOnlyDictionary<string, ItemParent> ItemParents,
     IReadOnlyDictionary<string, double> LeafWeights,
     IReadOnlyDictionary<string, int?> MachineEras,
+    IReadOnlySet<string> MultiblockMachines,
     IReadOnlyDictionary<string, string> Meta);

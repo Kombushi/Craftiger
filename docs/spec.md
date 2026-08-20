@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.27
+# GTNH Crafting Planner — Specification v1.28
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -312,10 +312,13 @@ Builder responsibilities, in order:
   parent and the solver never re-derives the link from oredict names
 - `item_weights(item_id, weight)` — weights overriding the item's leaf class,
   where one class covers items worth different amounts (§4)
-- `machine_eras(machine, era)` — per map, the era solve's era of its cheapest
-  serving machine block, floored by any configured gate; null where no block
-  ever becomes craftable, 0 for maps served without machine blocks (crafting
-  grid, synthesized world recipes). Drives the garage's default-ownership
+- `machine_eras(machine, era, multiblock)` — per map, the era solve's era of
+  its cheapest serving machine block, floored by any configured gate; null
+  where no block ever becomes craftable, 0 for maps served without machine
+  blocks (crafting grid, synthesized world recipes). `multiblock` marks maps
+  every recipe of which lacks a single block — they only ever run as
+  multiblocks, and the garage lists them apart (§7). Drives the
+  garage's default-ownership
   gate (§2).
 - `meta(key, value)` — `schema_version` first of all: the version of this
   contract, bumped on any schema change, so a reader can refuse an artifact
@@ -553,7 +556,10 @@ show. Screens:
   cart, the list starts empty apart from the toggle. One picker per shown
   machine (`inherit / None / Steam / LV / …`); each coil-gated map's row (§2)
   has a coil dropdown beside its tier picker; crafting table, furnace, and
-  Mining are shown as always-owned. A machine first craftable beyond the
+  Mining are shown as always-owned. Multiblock-only maps
+  (`machine_eras.multiblock`) list apart under a "Multiblocks" header, their
+  picker reading `Not built / <tier> hatches` — the same tiers, named for the
+  energy hatches feeding the controller. A machine first craftable beyond the
   default tier (§2) is dropped from the relevance list entirely — the default
   garage cannot own it, so it only appears under "show all" or once the user
   has configured it explicitly; there its inherit state reads "Not built",
