@@ -1,14 +1,18 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<EraSolveService> logger)
-    : IEraSolveService
+public sealed class EraSolveService(
+    IOptions<ErasConfiguration> eras,
+    IOptions<WorldConfiguration> world,
+    ILogger<EraSolveService> logger) : IEraSolveService
 {
-    private readonly BuilderConfig _config = options.Value;
+    private readonly ErasConfiguration _eras = eras.Value;
+    private readonly WorldConfiguration _world = world.Value;
 
     private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log"];
 
@@ -50,7 +54,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
             }
             availability[recipe.Machine] = cheapest;
         }
-        foreach (var (machine, floor) in _config.MachineEraFloors)
+        foreach (var (machine, floor) in _eras.MachineEraFloors)
         {
             if (availability.TryGetValue(machine, out var value) && value is { } known)
             {
@@ -100,7 +104,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
         foreach (var fluid in dump.Fluids.Values)
         {
             // A null era means the fluid is pumped, and its own recipe decides when.
-            if (_config.WorldFluids.TryGetValue(fluid.InternalName, out var worldFluid) &&
+            if (_world.WorldFluids.TryGetValue(fluid.InternalName, out var worldFluid) &&
                 worldFluid.Era is { } free)
             {
                 era.TryAdd(fluid.Id, free);
@@ -124,10 +128,10 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
     /// <summary>The cheapest world a block can be mined in, by item id or any of its oredicts.</summary>
     private int MinableEra(string id, UnifiedItems unified)
     {
-        var cheapest = _config.MinableBlockEras.GetValueOrDefault(id, int.MaxValue);
+        var cheapest = _world.MinableBlockEras.GetValueOrDefault(id, int.MaxValue);
         foreach (var oredict in unified.OredictsByCanonical.GetValueOrDefault(id) ?? [])
         {
-            if (_config.MinableBlockEras.TryGetValue(oredict, out var era) && era < cheapest)
+            if (_world.MinableBlockEras.TryGetValue(oredict, out var era) && era < cheapest)
             {
                 cheapest = era;
             }
@@ -141,7 +145,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
         UnifiedItems unified, Dump dump)
     {
         var cleanroomIds = dump.Items.Values
-            .Where(i => i.Name == _config.CleanroomItemName)
+            .Where(i => i.Name == _eras.CleanroomItemName)
             .Select(i => unified.Canonical(i.Id))
             .ToHashSet();
         var consumers = BuildConsumers(recipes, cleanroomIds);
@@ -167,7 +171,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
                     continue;
                 }
                 var floored = cleanroomIds.Contains(output.ItemId)
-                    ? Math.Max(candidate, _config.CleanroomMinEra)
+                    ? Math.Max(candidate, _eras.CleanroomMinEra)
                     : candidate;
                 if (era.TryGetValue(output.ItemId, out var current) && current <= floored)
                 {
@@ -222,7 +226,7 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
             candidate = Math.Max(candidate, slotEra);
         }
 
-        if (_config.MachineEraFloors.TryGetValue(recipe.Machine, out var floor))
+        if (_eras.MachineEraFloors.TryGetValue(recipe.Machine, out var floor))
         {
             candidate = Math.Max(candidate, floor);
         }
@@ -522,13 +526,13 @@ public sealed class EraSolveService(IOptions<BuilderConfig> options, ILogger<Era
 
     private int CoilTier(int heat)
     {
-        foreach (var coil in _config.Coils)
+        foreach (var coil in _eras.Coils)
         {
             if (heat <= coil.MaxHeat)
             {
                 return coil.Tier;
             }
         }
-        return _config.Coils[^1].Tier + 1;
+        return _eras.Coils[^1].Tier + 1;
     }
 }

@@ -1,14 +1,16 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
 public sealed class CropHarvestRecipeService(
-    IOptions<BuilderConfig> options, ILogger<CropHarvestRecipeService> logger) : ICropHarvestRecipeService
+    IOptions<SynthesizedMachinesConfiguration> options,
+    ILogger<CropHarvestRecipeService> logger) : ICropHarvestRecipeService
 {
-    private readonly BuilderConfig _config = options.Value;
+    private readonly SynthesizedMachinesConfiguration _config = options.Value;
 
     public List<PlannerRecipe> Run(Dump dump, UnifiedItems unified)
     {

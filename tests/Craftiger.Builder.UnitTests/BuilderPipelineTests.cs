@@ -70,7 +70,7 @@ public sealed class LeakyPipelineFixture : IDisposable
 {
     private readonly FixtureRun _run =
         new(new KeyValuePair<string, string?>(
-            "BuilderConfig:RecyclingCategorySuffixes:0", "matches-no-category"));
+            "RecipesConfiguration:RecyclingCategorySuffixes:0", "matches-no-category"));
 
     public void Dispose() => _run.Dispose();
     public T Scalar<T>(string sql) => _run.Scalar<T>(sql);
@@ -82,7 +82,7 @@ public sealed class PhantomRecipeFixture : IDisposable
 {
     private readonly FixtureRun _run =
         new(new KeyValuePair<string, string?>(
-            "BuilderConfig:PhantomRecipeIds:r_melt", "fixture-only condemnation"));
+            "RecipesConfiguration:PhantomRecipeIds:r_melt", "fixture-only condemnation"));
 
     public void Dispose() => _run.Dispose();
     public T Scalar<T>(string sql) => _run.Scalar<T>(sql);
@@ -144,7 +144,7 @@ public sealed class ConservationTests(BuilderPipelineFixture fixture) : IClassFi
 public sealed class EraFloorFixture : IDisposable
 {
     private readonly FixtureRun _run =
-        new(new KeyValuePair<string, string?>("BuilderConfig:MachineEraFloors:Mixer", "5"));
+        new(new KeyValuePair<string, string?>("ErasConfiguration:MachineEraFloors:Mixer", "5"));
 
     public void Dispose() => _run.Dispose();
     public T Scalar<T>(string sql) => _run.Scalar<T>(sql);

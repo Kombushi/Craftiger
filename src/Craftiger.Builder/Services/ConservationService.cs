@@ -1,5 +1,6 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -14,7 +15,7 @@ namespace Craftiger.Builder.Services;
 /// Anything unprovable is innocent: world-obtained items, containers, farmables, fluids,
 /// and items with no accountable producer all stay.</summary>
 public sealed class ConservationService(
-    IOptions<BuilderConfig> options,
+    IOptions<WorldConfiguration> options,
     ILogger<ConservationService> logger) : IConservationService
 {
     private const double Tolerance = 1e-9;
@@ -24,7 +25,7 @@ public sealed class ConservationService(
     /// molten measure honestly carries its matter.</summary>
     private const double MatterPerLiter = 3628800.0 / 144;
 
-    private readonly BuilderConfig _config = options.Value;
+    private readonly WorldConfiguration _config = options.Value;
 
     public List<PlannerRecipe> Run(List<PlannerRecipe> recipes, Dump dump, UnifiedItems unified)
     {

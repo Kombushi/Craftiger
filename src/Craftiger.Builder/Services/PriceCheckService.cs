@@ -1,5 +1,6 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -9,10 +10,10 @@ namespace Craftiger.Builder.Services;
 /// artifacts make sense. A leaf weight is a ceiling the solver may undercut, so a route that
 /// beats one is normal — a route that beats one by orders of magnitude means matter is being
 /// created somewhere, and every price downstream of it is fiction.</summary>
-public sealed class PriceCheckService(IOptions<BuilderConfig> options, ILogger<PriceCheckService> logger)
+public sealed class PriceCheckService(IOptions<PricingConfiguration> options, ILogger<PriceCheckService> logger)
     : IPriceCheckService
 {
-    private readonly BuilderConfig _config = options.Value;
+    private readonly PricingConfiguration _config = options.Value;
 
     public PriceCheck Run(
         List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses,

@@ -1,13 +1,14 @@
 using System.Text.RegularExpressions;
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed partial class RecipeTransformService(IOptions<BuilderConfig> options) : IRecipeTransformService
+public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration> options) : IRecipeTransformService
 {
-    private readonly BuilderConfig _config = options.Value;
+    private readonly RecipesConfiguration _config = options.Value;
 
     [GeneratedRegex(@" \((ULV|LV|MV|HV|EV|IV|LuV|ZPM|UV|UHV|UEV|UIV|UMV|UXV|MAX)\)$")]
     private static partial Regex TierSuffix();

@@ -1,12 +1,13 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class WorldgenErasService(IOptions<BuilderConfig> options) : IWorldgenErasService
+public sealed class WorldgenErasService(IOptions<ErasConfiguration> options) : IWorldgenErasService
 {
-    private readonly BuilderConfig _config = options.Value;
+    private readonly ErasConfiguration _config = options.Value;
 
     public WorldgenEras Run(Dump dump, UnifiedItems unified)
     {

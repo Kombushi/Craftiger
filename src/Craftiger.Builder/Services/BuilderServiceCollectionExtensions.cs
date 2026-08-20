@@ -1,5 +1,5 @@
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Craftiger.Builder.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +19,12 @@ public static class BuilderServiceCollectionExtensions
                 .AddConsoleFormatter<BuilderConsoleFormatter, ConsoleFormatterOptions>()
                 .AddConsole(options => options.FormatterName = BuilderConsoleFormatter.FormatterName))
             .Configure<BuilderOptions>(configuration.GetSection(nameof(BuilderOptions)))
-            .Configure<BuilderConfig>(configuration.GetSection(nameof(BuilderConfig)))
+            .Configure<RecipesConfiguration>(configuration.GetSection(nameof(RecipesConfiguration)))
+            .Configure<ErasConfiguration>(configuration.GetSection(nameof(ErasConfiguration)))
+            .Configure<WorldConfiguration>(configuration.GetSection(nameof(WorldConfiguration)))
+            .Configure<SynthesizedMachinesConfiguration>(
+                configuration.GetSection(nameof(SynthesizedMachinesConfiguration)))
+            .Configure<PricingConfiguration>(configuration.GetSection(nameof(PricingConfiguration)))
             .AddSingleton<IDumpRepository, DumpRepository>()
             .AddSingleton<IPlannerRepository, PlannerRepository>()
             .AddSingleton<IUnificationService, UnificationService>()

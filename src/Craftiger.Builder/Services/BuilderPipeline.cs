@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -22,11 +23,11 @@ public sealed class BuilderPipeline(
     IAtlasBuilder atlasBuilder,
     IPlannerRepository plannerRepository,
     IOptions<BuilderOptions> options,
-    IOptions<BuilderConfig> config,
+    IOptions<ErasConfiguration> eras,
     ILogger<BuilderPipeline> logger) : IBuilderPipeline
 {
     private readonly BuilderOptions _options = options.Value;
-    private readonly BuilderConfig _config = config.Value;
+    private readonly ErasConfiguration _eras = eras.Value;
 
     public int Run()
     {
@@ -88,7 +89,7 @@ public sealed class BuilderPipeline(
             ["exporter_version"] = dump.ExporterVersion,
             ["dump_date"] = dump.ExportedAt.ToString("O"),
             ["tier_names"] = JsonSerializer.Serialize(TierLadder.Names.Take(Math.Min(maxTier + 1, TierLadder.Names.Count))),
-            ["coils"] = JsonSerializer.Serialize(_config.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier })),
+            ["coils"] = JsonSerializer.Serialize(_eras.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier })),
             ["price_leaks"] = prices.Undercut.ToString(),
             ["price_free_items"] = prices.Free.ToString(),
             ["price_converged"] = prices.Converged ? "1" : "0"

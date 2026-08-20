@@ -1,4 +1,4 @@
-namespace Craftiger.Builder.Models;
+namespace Craftiger.Builder.Models.Options;
 
 /// <summary>A fluid the world hands over, and what a millibucket of it costs.</summary>
 public sealed record WorldFluid

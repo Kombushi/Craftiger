@@ -1,14 +1,15 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-public sealed class LeafTaggingService(IOptions<BuilderConfig> options, ILogger<LeafTaggingService> logger)
+public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILogger<LeafTaggingService> logger)
     : ILeafTaggingService
 {
-    private readonly BuilderConfig _config = options.Value;
+    private readonly WorldConfiguration _config = options.Value;
 
     public Dictionary<string, string> Run(
         IEnumerable<string> canonicalIds, IReadOnlySet<string> produced, Dump dump, UnifiedItems unified)

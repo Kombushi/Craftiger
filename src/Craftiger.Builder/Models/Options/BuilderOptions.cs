@@ -1,4 +1,4 @@
-namespace Craftiger.Builder.Models;
+namespace Craftiger.Builder.Models.Options;
 
 /// <summary>Inputs and outputs of one builder run.</summary>
 public sealed record BuilderOptions

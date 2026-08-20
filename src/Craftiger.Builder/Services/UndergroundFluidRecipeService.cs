@@ -1,15 +1,17 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
 public sealed class UndergroundFluidRecipeService(
-    IOptions<BuilderConfig> options, ILogger<UndergroundFluidRecipeService> logger)
+    IOptions<SynthesizedMachinesConfiguration> options,
+    ILogger<UndergroundFluidRecipeService> logger)
     : IUndergroundFluidRecipeService
 {
-    private readonly BuilderConfig _config = options.Value;
+    private readonly SynthesizedMachinesConfiguration _config = options.Value;
 
     public List<PlannerRecipe> Run(Dump dump, UnifiedItems unified, WorldgenEras worldgen)
     {
