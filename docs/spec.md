@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.26
+# GTNH Crafting Planner — Specification v1.27
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -518,14 +518,14 @@ show. Screens:
   count badge per square, `1.2k`-style formatting; fluids render as their cell
   icon with mB amounts):
   1. *Raw materials* — the merged leaf totals of the selected chain card,
-     with that selection's total cost shown behind a `₴` sign; the warnings
-     row always stays cart-wide.
+     with that selection's total cost shown behind a `₴` sign; fluids close
+     the list, and the warnings row always stays cart-wide.
   2. *Derived materials* — the selection's intermediates grouped by distance
      from the leaves: level 1 is crafted straight from raw materials, each
-     further level from the ones before it, cost-sorted within a level. A
-     stepper reveals levels cumulatively up to the chosen one (debounced
-     ~300 ms) and resets to zero on each calculation; the selection's own
-     targets never appear.
+     further level from the ones before it, cost-sorted within a level with
+     fluids last. A range slider reveals levels cumulatively up to the chosen
+     one (debounced ~300 ms) and resets to zero on each calculation; cart
+     targets never appear, whichever chain is selected.
   3. *Crafting chain* — one flow graph per cart target on a pan/zoom canvas,
      rendered straight from the BOM chain nodes (§6): every expanded item is a
      recipe card (machine, tier, heat, runs, chosen input stacks, output rows,

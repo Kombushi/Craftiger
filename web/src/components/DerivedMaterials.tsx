@@ -3,7 +3,6 @@ import { fmtAka, fmtAmount, fmtCost, fmtCount } from '../format'
 import { useStore } from '../storeContext'
 import type { BomResponse } from '../types'
 import { Slot } from './Slot'
-import { Stepper } from './Stepper'
 
 interface Derived {
   itemId: string
@@ -44,8 +43,8 @@ function levelsOf(bom: BomResponse, excluded: ReadonlySet<string>): Derived[][] 
   return groups
 }
 
-/** The craft's intermediates, revealed cumulatively up to the stepper's level. The level
- * resets with each calculation and the grids follow the stepper after a short debounce. */
+/** The craft's intermediates, revealed cumulatively up to the slider's level. The level
+ * resets with each calculation and the grids follow the slider after a short debounce. */
 export function DerivedMaterials({
   bom, excluded, calcKey,
 }: {
@@ -80,8 +79,18 @@ export function DerivedMaterials({
         <span>Derived materials</span>
         <span className="derived-stepper">
           <span className="derived-stepper-label">up to level</span>
-          <Stepper value={Math.min(selected, maxLevel)} min={0} max={maxLevel} onChange={setSelected} />
-          <span className="derived-stepper-label mono">/ {maxLevel}</span>
+          <input
+            type="range"
+            className="derived-range"
+            min={0}
+            max={maxLevel}
+            step={1}
+            value={Math.min(selected, maxLevel)}
+            onChange={(event) => setSelected(Number(event.target.value))}
+          />
+          <span className="derived-stepper-label mono">
+            {Math.min(selected, maxLevel)} / {maxLevel}
+          </span>
         </span>
       </header>
       {groups.slice(0, visible).map((group, index) => (
@@ -90,6 +99,11 @@ export function DerivedMaterials({
           <div className="materials">
             {group
               .toSorted((a, b) => {
+                const fluidA = bom.items[a.itemId]?.isFluid ? 1 : 0
+                const fluidB = bom.items[b.itemId]?.isFluid ? 1 : 0
+                if (fluidA !== fluidB) {
+                  return fluidA - fluidB
+                }
                 const costA = (bom.items[a.itemId]?.cost ?? 0) * a.wholeAmount
                 const costB = (bom.items[b.itemId]?.cost ?? 0) * b.wholeAmount
                 return costB - costA

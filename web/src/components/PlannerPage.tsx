@@ -35,10 +35,9 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
       : activeKey === ALL
         ? results.cart
         : (results.perTarget[activeKey] ?? null)
-  const excluded = useMemo(
-    () => (activeKey === ALL ? cart.map((entry) => entry.itemId) : activeKey !== null ? [activeKey] : []),
-    [activeKey, cart],
-  )
+  // Every cart target stays out of the derived lists, whichever chain is shown —
+  // a target that feeds another target is still something the user asked for whole.
+  const excluded = useMemo(() => cart.map((entry) => entry.itemId), [cart])
   const plannerRef = useRef<HTMLDivElement | null>(null)
   const [sidebarWidth, setSidebarWidth] = usePersistent('gtnhp.sidebarWidth', SIDEBAR_DEFAULT)
 
@@ -155,7 +154,7 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
                       title="All targets combined"
                       onClick={() => setSelected(ALL)}
                     >
-                      <span className="slot slot-sum">Σ</span>
+                      <span className="slot slot-lg slot-sum">Σ</span>
                     </button>
                   ) : null}
                   {cart.map((entry) => (
@@ -166,7 +165,7 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
                       title={entry.name}
                       onClick={() => setSelected(entry.itemId)}
                     >
-                      <Slot atlasIdx={entry.atlasIdx} badge={String(entry.count)} />
+                      <Slot size="lg" atlasIdx={entry.atlasIdx} badge={String(entry.count)} />
                     </button>
                   ))}
                 </span>

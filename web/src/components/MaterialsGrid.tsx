@@ -6,7 +6,13 @@ import { Slot } from './Slot'
 
 export function MaterialsGrid({ bom }: { bom: BomResponse }) {
   const { openDetail } = useStore()
+  // Fluids close the list; solids sort by what they cost the plan.
   const leaves = bom.leaves.toSorted((a, b) => {
+    const fluidA = bom.items[a.itemId]?.isFluid ? 1 : 0
+    const fluidB = bom.items[b.itemId]?.isFluid ? 1 : 0
+    if (fluidA !== fluidB) {
+      return fluidA - fluidB
+    }
     const costA = (bom.items[a.itemId]?.cost ?? 0) * a.wholeAmount
     const costB = (bom.items[b.itemId]?.cost ?? 0) * b.wholeAmount
     return costB - costA

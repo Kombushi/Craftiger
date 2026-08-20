@@ -251,11 +251,11 @@ a:focus-visible {
 
 .results-total {
   color: var(--accent);
-  font-size: 14px;
+  font-size: 18px;
 }
 
 .slot-sum {
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--text);
 }
@@ -264,6 +264,11 @@ a:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.derived-range {
+  width: 160px;
+  accent-color: var(--accent);
 }
 
 .derived-stepper-label {
