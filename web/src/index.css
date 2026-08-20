@@ -555,10 +555,13 @@ a:focus-visible {
   min-height: 0;
 }
 
+/* Overlay scrollbars float over the content, so the pickers stay clear of the right edge. */
 .garage-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  padding-right: 10px;
+  scrollbar-width: thin;
 }
 
 .garage-default {
@@ -566,6 +569,7 @@ a:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding-right: 10px;
 }
 
 .garage-row {
@@ -586,7 +590,15 @@ a:focus-visible {
   font-size: 13px;
 }
 
+/* Pickers and the always-owned label share one control height so the list keeps one rhythm. */
+.garage-row select,
 .garage-owned {
+  height: 33px;
+}
+
+.garage-owned {
+  display: inline-flex;
+  align-items: center;
   color: var(--dim);
   font-size: 11px;
   font-style: italic;
