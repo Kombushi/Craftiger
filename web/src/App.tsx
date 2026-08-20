@@ -39,7 +39,7 @@ function Shell() {
         ) : null}
         <span className="brand">
           <img className="brand-logo" src="/favicon.png" alt="" />
-          CRAFTIGER
+          <span className="brand-name">CRAFTIGER</span>
           {meta ? <span className="brand-pack mono">{meta.packVersion}</span> : null}
         </span>
         <nav className="nav">
