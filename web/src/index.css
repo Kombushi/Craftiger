@@ -571,12 +571,15 @@ a:focus-visible {
 .garage-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
   padding: 3px 0;
 }
 
 .garage-name {
   flex: 1;
+  min-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
