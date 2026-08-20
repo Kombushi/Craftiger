@@ -27,6 +27,20 @@ public sealed class CostSolverTests
     }
 
     [Fact]
+    public void TheSolveRecordsTheAlternativeEachWinningRecipeWasPricedWith()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("circuit", tier: 0)],
+            Fx.Recipe("wrap", slots: [[("anyCircuit", 1), ("circuit", 1)]], outputs: ("anyCircuit", 1, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal(table.Costs["circuit"], table.Costs["anyCircuit"]);
+        Assert.Equal("circuit", Assert.Single(table.ChosenInputs["anyCircuit"]).ItemId);
+        Assert.Equal("anyCircuit", Assert.Single(table.BestRecipes["anyCircuit"].Slots).Alternatives[0].ItemId);
+    }
+
+    [Fact]
     public void ChancedOutputsDivideByTheirChance()
     {
         var graph = Fx.Graph(

@@ -3,6 +3,7 @@ using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
 using Craftiger.Solver.Interfaces;
 using Craftiger.Solver.Models;
+using Craftiger.Solver.Services;
 using Dapper;
 using Microsoft.Data.Sqlite;
 
@@ -174,6 +175,7 @@ public sealed class PlannerQueryService(
                             : null))
                     .ToList())
                 .ToList(),
+            SlotChoice.Inputs(entry.Table, itemId, recipe).Select(input => input.ItemId).ToList(),
             info.Catalysts
                 .Select(slot => (IReadOnlyList<SlotAlternativeDto>)slot.Alternatives
                     .Select(alternative => new SlotAlternativeDto(alternative.ItemId, alternative.Amount, null))

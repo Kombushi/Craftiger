@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.29
+# GTNH Crafting Planner — Specification v1.30
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -386,7 +386,9 @@ candidate(output) = Σ over slots (min over alternatives (cost × amount))
 - **A slot with alternatives costs its cheapest one.** Some 3,600 recipes accept
   any of several items in a slot — `listAllmeatraw`, `ingotAnyIron` — and which
   one is cheapest depends on the garage and the weights table, so it cannot be
-  decided at build time.
+  decided at build time. The alternative a recipe was priced with is recorded
+  when it wins an item (§5); that stack is what the BOM walk expands and the
+  item detail shows.
 - **Chanced outputs use expected value** — dividing by `chance` prices the average
   number of runs needed. It also keeps otherwise-chance-only items reachable.
 - **Each output is priced independently** from the full input cost of its
@@ -412,6 +414,17 @@ Why this shape:
 
 - A cycle can never strictly undercut itself (ingot → block → ingot re-offers the
   same price), so loops starve instead of oscillating, and `bestRecipe` stays acyclic.
+- **A slot's choice is made when the recipe wins, not when the BOM walks.** The
+  solve records the alternative each slot was priced with; every later reader —
+  the BOM walk, the reroute guard below, the item detail — replays that record.
+  Recomputing "cheapest" at walk time would reopen the choice on exact ties,
+  and ties arrive after the win: the circuit wrapper's oredict slot lists the
+  wrapper itself, a GT dye's crafting slot lists that very dye, and once the
+  output is priced it ties the alternative it was priced from. Taking it would
+  point the item at itself and break the DAG the fixpoint proved. Only the
+  recorded edges carry the acyclicity argument. Recipes that never won an item
+  (a pin, a candidate in the detail view) still resolve to the cheapest
+  alternative, first on ties.
 - Costs only decrease and are bounded below by 0, so termination is guaranteed.
 - **Better routes win exact ties.** Recycling shape-shuffles equalize every
   form of a material at one price, with dust as the entry form (maceration
@@ -469,9 +482,9 @@ is a projection of that result.**
 2. Walk items in reverse topological order of the DAG. For a non-leaf item:
    `runs = demand / (output_amount × chance)` of its chosen recipe — summed
    over the recipe's output rows for that item where chanced twins repeat it —
-   then add `runs × amount` to each input's demand, taking a choice slot's
-   cheapest alternative. Runs and amounts are fractional expected values
-   throughout; display rounding belongs to the UI.
+   then add `runs × amount` to each input's demand, taking the alternative the
+   solve priced each slot with (§5). Runs and amounts are fractional expected
+   values throughout; display rounding belongs to the UI.
 3. Leaves accumulate into the final `item → amount` map and never expand, even
    where a recipe undercut their weight; fluid amounts stay in mB.
 4. The same walk carries a second, whole-run accounting: demand seeded with
@@ -885,3 +898,7 @@ All "does not / never" rules live here; other sections only reference this one.
     grinds and grinds of unproducible or world-minable items survive, GT's
     composition record bounds an untagged grind with byproducts counted,
     and an undefined amount is unknown, never zero.
+36. A recipe whose oredict slot lists its own output — the circuit wrapper, a
+    GT dye crafted from its own dye group — prices from the other alternative
+    and its BOM expands to that alternative, never looping back once the two
+    tie.

@@ -68,9 +68,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             var yield = ExpectedYield(recipe, itemId);
             var runs = demanded / yield;
             var wholeRuns = WholeRuns(wholeDemanded, yield);
-            var chosen = recipe.Slots
-                .Select(slot => SlotChoice.Cheapest(slot, costs.Costs))
-                .ToList();
+            var chosen = SlotChoice.Inputs(costs, itemId, recipe);
             nodes.Add(new BomNode(
                 itemId, demanded, runs, wholeDemanded, wholeRuns, recipe.Id,
                 chosen.Select(alternative => new BomStack(alternative.ItemId, alternative.Amount)).ToList()));
@@ -177,7 +175,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         {
             return [];
         }
-        return recipe.Slots.Select(slot => SlotChoice.Cheapest(slot, costs.Costs).ItemId).ToList();
+        return SlotChoice.Inputs(costs, itemId, recipe).Select(input => input.ItemId).ToList();
     }
 
     private static SolverRecipe? Chosen(
@@ -209,9 +207,8 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
 
         var runs = target.Count / ExpectedYield(recipe, target.ItemId);
         var inputs = new Dictionary<string, double>();
-        foreach (var slot in recipe.Slots)
+        foreach (var alternative in SlotChoice.Inputs(costs, target.ItemId, recipe))
         {
-            var alternative = SlotChoice.Cheapest(slot, costs.Costs);
             inputs[alternative.ItemId] = inputs.GetValueOrDefault(alternative.ItemId) + runs * alternative.Amount;
         }
         return new BomTargetResult(

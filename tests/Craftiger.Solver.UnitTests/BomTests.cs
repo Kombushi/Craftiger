@@ -35,6 +35,22 @@ public sealed class BomTests
     }
 
     [Fact]
+    public void ASlotListingTheRecipesOwnOutputExpandsToTheOtherAlternative()
+    {
+        // The circuit wrapper: an oredict slot that includes the wrapper itself; once the wrapper
+        // is priced, both alternatives tie exactly and the wrapper comes first in the slot.
+        var graph = Fx.Graph(
+            [Fx.Leaf("circuit", tier: 0)],
+            Fx.Recipe("wrap", slots: [[("anyCircuit", 1), ("circuit", 1)]], outputs: ("anyCircuit", 1, 1.0)));
+
+        var result = Compute(graph, [new BomTarget("anyCircuit", 2)]);
+
+        Assert.Equal(2, Leaf(result, "circuit"));
+        Assert.Equal("circuit", Assert.Single(result.Nodes).InputsPerRun.Single().ItemId);
+        Assert.Empty(result.Warnings);
+    }
+
+    [Fact]
     public void RunsAreFractionalExpectedValues()
     {
         var graph = Fx.Graph(

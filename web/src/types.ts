@@ -127,6 +127,7 @@ export interface RecipeDto {
   euT: number
   candidateCost: number | null
   slots: SlotAlternative[][]
+  chosen: string[]
   catalysts: SlotAlternative[][]
   outputs: OutputRow[]
 }

@@ -153,14 +153,6 @@ interface DetailRecipeProps {
   onPin: (pin: boolean) => void
 }
 
-function cheapest(slot: SlotAlternative[]): SlotAlternative {
-  return slot.reduce((chosen, alternative) => {
-    const chosenCost = chosen.cost ?? Number.POSITIVE_INFINITY
-    const cost = alternative.cost ?? Number.POSITIVE_INFINITY
-    return cost < chosenCost ? alternative : chosen
-  })
-}
-
 function altLines(slot: SlotAlternative[], name: (id: string) => string): string {
   if (slot.length <= 1) {
     return ''
@@ -192,7 +184,7 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
       <div className="detail-body">
         <div className="detail-slots">
           {recipe.slots.map((slot, index) => {
-            const chosen = cheapest(slot)
+            const chosen = slot.find((alternative) => alternative.itemId === recipe.chosen[index]) ?? slot[0]
             const chosenItem = item(chosen.itemId)
             const alternatives = altLines(slot, (id) => fmtAka(item(id), id))
             return (
