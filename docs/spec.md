@@ -701,10 +701,11 @@ show. Screens:
   reachable count and converged flag — Brotli-compressed at the fastest
   level behind a clear magic and format version, about 0.7 MB for a full
   solve; a value in any other format is recomputed, never served. A solve checks the
-  store before computing, and writes behind the response — the client never
-  waits for Valkey, and a failed write costs a later process one recompute;
-  every read endpoint reads through on an in-process miss, so a 404 means no
-  replica ever solved it. Values carry no expiry: the server must evict by
+  store before computing and writes the result to the store before answering
+  — a few milliseconds on a solve of a second, so the request that follows
+  may land on any replica and find it; a failed write is logged and costs a
+  later process one recompute, never the response; every read endpoint reads
+  through on an in-process miss, so a 404 means no replica ever solved it. Values carry no expiry: the server must evict by
   LRU (`maxmemory` with `allkeys-lru`; the repo's `docker-compose.yaml` runs a
   local one that way, `task valkey`). The connection string
   (`ApiOptions:Valkey:ConnectionString`) is mandatory — the API refuses to

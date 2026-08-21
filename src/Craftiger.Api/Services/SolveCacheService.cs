@@ -17,7 +17,8 @@ namespace Craftiger.Api.Services;
 /// recency is a tick per entry and eviction drops the stalest settled one, so no lock is held
 /// anywhere. Behind it, the store keeps every solved entry for any replica and across
 /// restarts: an id this process does not hold is fetched before it is computed, and a fresh
-/// solve is written behind the response.</summary>
+/// solve is written to the store before the response leaves, so the request that follows
+/// may land on any replica.</summary>
 public sealed class SolveCacheService(
     PlannerArtifact artifact,
     ICostSolverService solver,
@@ -89,7 +90,7 @@ public sealed class SolveCacheService(
             return stored;
         }
         var entry = Compute(solveId, garage, weights);
-        _ = StoreAsync(solveId, entry);
+        await StoreAsync(solveId, entry);
         return entry;
     }
 
@@ -108,8 +109,9 @@ public sealed class SolveCacheService(
         return entry;
     }
 
-    /// <summary>Write-behind: the response never waits for the store, and a failed write only
-    /// costs the next process a recompute.</summary>
+    /// <summary>The response waits for the write — a few milliseconds on a solve of a second —
+    /// so a follow-up request on another replica finds the entry; a failed write is logged and
+    /// only costs a later process a recompute, the solve itself still stands.</summary>
     private async Task StoreAsync(string solveId, SolveEntry entry)
     {
         try

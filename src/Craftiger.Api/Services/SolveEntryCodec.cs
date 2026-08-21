@@ -10,9 +10,7 @@ namespace Craftiger.Api.Services;
 
 /// <summary>A compact little-endian layout: the magic and format version in the clear, then —
 /// Brotli-compressed — the artifact identity (schema, pack, build), the garage and weights, the
-/// table's arrays as raw bytes and the craft-list ranks. The fastest Brotli level takes a
-/// 2.5 MB solve to about 0.7 MB in a few milliseconds; the slower levels buy almost nothing
-/// more and cost up to seconds.</summary>
+/// table's arrays as raw bytes and the craft-list ranks.</summary>
 public sealed class SolveEntryCodec(PlannerArtifact artifact) : ISolveEntryCodec
 {
     private const int Magic = 0x45534643;
