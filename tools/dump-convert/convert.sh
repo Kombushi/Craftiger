@@ -19,4 +19,5 @@ slf4japi="$lib/slf4j-api-2.0.13.jar"
 [ -f "$slf4j" ] || curl -fsSL -o "$slf4j" \
     "https://repo1.maven.org/maven2/org/slf4j/slf4j-nop/2.0.13/slf4j-nop-2.0.13.jar"
 
-exec mise x java@temurin-17 -- java -cp "$hsqldb:$sqlite:$slf4japi:$slf4j" "$dir/Convert.java" "$@"
+# Needs a Java 17+ runtime on PATH — the only step of the whole pipeline that does.
+exec java -cp "$hsqldb:$sqlite:$slf4japi:$slf4j" "$dir/Convert.java" "$@"

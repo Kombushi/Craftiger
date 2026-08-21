@@ -1,0 +1,89 @@
+version: '3'
+
+# Every build, test and run command of the repo is a task here; docs refer to them by name.
+# Tasks run from the repo root, so the relative paths in appsettings (artifacts/…) resolve.
+
+vars:
+  CRAFTIGER_API_IMAGE: ghcr.io/kombushi/craftiger-api
+  CRAFTIGER_WEB_IMAGE: ghcr.io/kombushi/craftiger-web
+
+tasks:
+  build:
+    desc: Build the .NET solution
+    cmds:
+      - dotnet build Craftiger.slnx
+
+  test:
+    desc: Run all tests
+    cmds:
+      - dotnet test Craftiger.slnx
+
+  builder:
+    desc: Run the artifact builder (artifacts/dump.sqlite and artifacts/image.zip in, planner artifacts out)
+    cmds:
+      - dotnet run --project src/Craftiger.Builder
+
+  dump:convert:
+    desc: "Convert an HSQLDB NESQL export into artifacts/dump.sqlite (NESQL=<nesql-repository-dir>; needs Java 17+)"
+    requires:
+      vars: [NESQL]
+    cmds:
+      - tools/dump-convert/convert.sh "{{.NESQL}}" artifacts/dump.sqlite
+
+  valkey:
+    desc: Start the local Valkey the API needs (docker compose)
+    cmds:
+      - docker compose up -d valkey
+
+  api:
+    desc: Run the API (Development settings point at the local Valkey)
+    cmds:
+      - dotnet run --project src/Craftiger.Api
+
+  web:
+    desc: Run the web dev server
+    dir: web
+    cmds:
+      - npm run dev
+
+  docker:login:
+    desc: Log docker in to GHCR with the gh CLI token
+    cmds:
+      - gh auth token | docker login ghcr.io -u Kombushi --password-stdin
+
+  docker:build:
+    desc: Build both container images (TAG=<version>)
+    deps: [docker:build:api, docker:build:web]
+
+  docker:build:api:
+    desc: Build the API image from the repo root (planner artifacts baked in; TAG=<version>)
+    requires:
+      vars: [TAG]
+    cmds:
+      - docker build -f src/Craftiger.Api/Dockerfile -t "{{.CRAFTIGER_API_IMAGE}}:{{.TAG}}" .
+
+  docker:build:web:
+    desc: Build the web image (TAG=<version>)
+    requires:
+      vars: [TAG]
+    dir: web
+    cmds:
+      - docker build -t "{{.CRAFTIGER_WEB_IMAGE}}:{{.TAG}}" .
+
+  docker:push:
+    desc: Push both container images to GHCR (TAG=<version>)
+    deps: [docker:push:api, docker:push:web]
+
+  docker:push:api:
+    desc: Push the API image (TAG=<version>)
+    requires:
+      vars: [TAG]
+    cmds:
+      - docker push "{{.CRAFTIGER_API_IMAGE}}:{{.TAG}}"
+
+  docker:push:web:
+    desc: Push the web image (TAG=<version>)
+    requires:
+      vars: [TAG]
+    cmds:
+      - docker push "{{.CRAFTIGER_WEB_IMAGE}}:{{.TAG}}"

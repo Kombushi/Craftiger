@@ -52,14 +52,15 @@ types and identifiers.
 
 - .NET 10, `Microsoft.Data.Sqlite` with Dapper for all database access,
   `Microsoft.Extensions.DependencyInjection`, xUnit.
-- Task runner: `mise`. Every build/test/run command is a named `mise` task;
-  docs reference targets by name only. Targets: `build`, `test`, `builder`,
-  `api`, `web`, `valkey` (the local Valkey the API needs, via
-  `docker-compose.yaml`), `dump:convert`, plus `docker:login` / `docker:build` /
-  `docker:push` (the latter two take the image version via `TAG`) for the
-  container images.
+- Task runner: go-task (`Taskfile.yaml` at the root). Every build/test/run
+  command is a named task; docs reference targets by name only. Targets:
+  `build`, `test`, `builder`, `api`, `web`, `valkey` (the local Valkey the API
+  needs, via `docker-compose.yaml`), `dump:convert` (takes the export
+  directory as `NESQL=…`), plus `docker:login` / `docker:build` /
+  `docker:push` (the latter two take the image version via `TAG=…`) for the
+  container images. Tasks run from the repo root.
 - The NESQL dump is an HSQLDB database (Java-only format, ~600 MB), converted
-  into a local `artifacts/dump.sqlite` by `mise run dump:convert` (a single-file JDBC
+  into a local `artifacts/dump.sqlite` by `task dump:convert` (a single-file JDBC
   copier in `tools/dump-convert/`, the only step that ever needs a JRE). All
   code and ad-hoc queries read the SQLite copy: use `sqlite3` with `LIMIT`,
   never dump whole tables.

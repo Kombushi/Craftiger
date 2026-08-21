@@ -704,7 +704,7 @@ show. Screens:
   every read endpoint reads through on an in-process miss, so a 404 means no
   replica ever solved it. Values carry no expiry: the server must evict by
   LRU (`maxmemory` with `allkeys-lru`; the repo's `docker-compose.yaml` runs a
-  local one that way, `mise run valkey`). The connection string
+  local one that way, `task valkey`). The connection string
   (`ApiOptions:Valkey:ConnectionString`) is mandatory — the API refuses to
   start without it or without reaching the server — and a store error at
   request time surfaces as an error, never as a silent fallback.
