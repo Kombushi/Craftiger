@@ -10,16 +10,18 @@ using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<ApiOptions>(builder.Configuration.GetSection("ApiOptions"));
+
 builder.Services.AddSingleton(
-    builder.Configuration.GetSection("GarageRules").Get<GarageRulesOptions>()?.ToRules()
-    ?? new GarageRulesOptions().ToRules());
+    builder.Configuration.GetSection("GarageRules").Get<GarageRulesOptions>()?.ToRules() ?? new GarageRulesOptions().ToRules());
+
 builder.Services.AddSingleton(
-    builder.Configuration.GetSection("SolverPreferences").Get<SolverPreferencesOptions>()?.ToPreferences()
-    ?? new SolverPreferencesOptions().ToPreferences());
+    builder.Configuration.GetSection("SolverPreferences").Get<SolverPreferencesOptions>()?.ToPreferences() ?? new SolverPreferencesOptions().ToPreferences());
+
 builder.Services.AddSingleton<IPlannerArtifactRepository, PlannerArtifactRepository>();
 builder.Services.AddSingleton(provider => provider
     .GetRequiredService<IPlannerArtifactRepository>()
     .Load(provider.GetRequiredService<IOptions<ApiOptions>>().Value.ArtifactsDir));
+
 builder.Services.AddSingleton<ILeafWeightService, LeafWeightService>();
 builder.Services.AddSingleton<IGarageLegalityService, GarageLegalityService>();
 builder.Services.AddSingleton<ICostSolverService, CostSolverService>();
@@ -34,7 +36,6 @@ var app = builder.Build();
 // Load the artifact eagerly so a wrong schema_version refuses at startup, not first request.
 app.Services.GetRequiredService<PlannerArtifact>();
 
-// Validation problems surface as 400s rather than 500s.
 app.Use(async (context, next) =>
 {
     try
@@ -84,17 +85,15 @@ app.MapPost("/api/bom", (
         ? Results.Ok(query.Bom(entry, request))
         : Results.NotFound());
 
-app.MapGet("/atlas.webp", (IOptions<ApiOptions> options) =>
-    StaticArtifact(options.Value.ArtifactsDir, "atlas.webp", "image/webp"));
+app.MapGet("/atlas.webp", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas.webp", "image/webp"));
+app.MapGet("/atlas-offsets.json", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas-offsets.json", "application/json"));
 
-app.MapGet("/atlas-offsets.json", (IOptions<ApiOptions> options) =>
-    StaticArtifact(options.Value.ArtifactsDir, "atlas-offsets.json", "application/json"));
-
-// Both probes are bare: the artifact loads eagerly at startup, so a live process is ready.
 app.MapHealthChecks("/livez");
 app.MapHealthChecks("/readyz");
 
-app.Run();
+await app.RunAsync();
+
+return;
 
 static IResult StaticArtifact(string artifactsDir, string name, string contentType)
 {
