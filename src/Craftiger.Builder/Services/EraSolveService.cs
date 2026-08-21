@@ -14,10 +14,10 @@ public sealed class EraSolveService(
     private readonly ErasConfiguration _eras = eras.Value;
     private readonly WorldConfiguration _world = world.Value;
 
-    private static readonly HashSet<string> WorldOriginClasses = ["minable_block", "farmable", "log"];
+    private static readonly HashSet<string> _worldOriginClasses = ["minable_block", "farmable", "log"];
 
     /// <summary>Leaf classes priced by production era rather than a flat weight.</summary>
-    private static readonly HashSet<string> TieredClasses = ["ingot", "gem", "dust"];
+    private static readonly HashSet<string> _tieredClasses = ["ingot", "gem", "dust"];
 
     public EraSolve Run(
         List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses, UnifiedItems unified,
@@ -78,7 +78,7 @@ public sealed class EraSolveService(
             {
                 era[id] = MinableEra(id, unified);
             }
-            else if (WorldOriginClasses.Contains(leafClass))
+            else if (_worldOriginClasses.Contains(leafClass))
             {
                 era[id] = 0;
             }
@@ -158,7 +158,7 @@ public sealed class EraSolveService(
         {
             queued.Remove(recipe.Id);
 
-            var candidate = RecipeEra(recipe, era, cleanroomIds, machineVoltage, dump);
+            var candidate = RecipeEra(recipe, era, cleanroomIds, machineVoltage);
             if (candidate == int.MaxValue)
             {
                 continue;
@@ -196,10 +196,12 @@ public sealed class EraSolveService(
     /// <summary>The era a recipe can first run at, or int.MaxValue while any of its
     /// inputs, machines or the cleanroom is still unreachable.</summary>
     private int RecipeEra(
-        PlannerRecipe recipe, Dictionary<string, int> era, HashSet<string> cleanroomIds,
-        Dictionary<string, int> machineVoltage, Dump dump)
+        PlannerRecipe recipe,
+        Dictionary<string, int> era,
+        HashSet<string> cleanroomIds,
+        Dictionary<string, int> machineVoltage)
     {
-        var steam = recipe.Tier == 1 && recipe.Heat is null && HasSteamHandler(recipe, era);
+        var steam = recipe is { Tier: 1, Heat: null } && HasSteamHandler(recipe, era);
         var candidate = MachineEra(recipe, era, machineVoltage, steam);
         if (candidate == int.MaxValue)
         {
@@ -295,7 +297,7 @@ public sealed class EraSolveService(
         var tiers = new Dictionary<string, int>();
         foreach (var (id, leafClass) in leafClasses)
         {
-            if (!TieredClasses.Contains(leafClass))
+            if (!_tieredClasses.Contains(leafClass))
             {
                 continue;
             }
@@ -331,7 +333,7 @@ public sealed class EraSolveService(
             var intrinsic = Intrinsic(recipe, recipe.BestCaseTier);
             foreach (var output in recipe.Outputs)
             {
-                if (!TieredClasses.Contains(leafClasses.GetValueOrDefault(output.ItemId) ?? ""))
+                if (!_tieredClasses.Contains(leafClasses.GetValueOrDefault(output.ItemId) ?? ""))
                 {
                     continue;
                 }

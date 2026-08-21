@@ -9,7 +9,7 @@ public static class TierLadder
         "UV", "UHV", "UEV", "UIV", "UMV", "UXV", "MAX"
     ];
 
-    private static readonly Dictionary<string, int> LabelTiers = new()
+    private static readonly Dictionary<string, int> _labelTiers = new()
     {
         ["ULV"] = 1, ["LV"] = 1, ["MV"] = 2, ["HV"] = 3, ["EV"] = 4, ["IV"] = 5,
         ["LuV"] = 6, ["ZPM"] = 7, ["UV"] = 8, ["UHV"] = 9, ["UEV"] = 10,
@@ -18,7 +18,7 @@ public static class TierLadder
 
     /// <summary>GT's own per-recipe tier label; it already accounts for machine amperage.</summary>
     public static int? LabelTier(string? label) =>
-        label is not null && LabelTiers.TryGetValue(label, out var tier) ? tier : null;
+        label is not null && _labelTiers.TryGetValue(label, out var tier) ? tier : null;
 
     /// <summary>Fallback when the dump carries no tier label.</summary>
     public static int VoltageTier(long euT)

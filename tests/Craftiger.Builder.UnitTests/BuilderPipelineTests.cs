@@ -5,7 +5,6 @@ using Craftiger.Builder.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace Craftiger.Builder.UnitTests;
 
@@ -367,7 +366,7 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
 
     [Fact]
     public void ArtifactStampsItsSchemaVersion() =>
-        Assert.Equal(Craftiger.Builder.Repositories.PlannerRepository.SchemaVersion.ToString(),
+        Assert.Equal(Repositories.PlannerRepository.SchemaVersion.ToString(),
             _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));
 
     [Fact]

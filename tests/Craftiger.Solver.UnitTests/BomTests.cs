@@ -4,8 +4,7 @@ namespace Craftiger.Solver.UnitTests;
 
 public sealed class BomTests
 {
-    private static readonly IReadOnlyDictionary<string, string> NoPins =
-        new Dictionary<string, string>();
+    private static readonly IReadOnlyDictionary<string, string> _noPins = new Dictionary<string, string>();
 
     private static BomResult Compute(
         SolverGraph graph, IReadOnlyList<BomTarget> targets,
@@ -13,7 +12,7 @@ public sealed class BomTests
     {
         garage ??= Fx.Garage();
         var table = Fx.Solver().Solve(graph, garage, Fx.Weights());
-        return Fx.Bom().Compute(graph, table, garage, targets, pins ?? NoPins);
+        return Fx.Bom().Compute(graph, table, garage, targets, pins ?? _noPins);
     }
 
     private static double Leaf(BomResult result, string itemId) =>
@@ -296,8 +295,8 @@ public sealed class BomTests
         var cheap = Fx.Solver().Solve(graph, garage, Fx.Weights());
         var flipped = Fx.Solver().Solve(graph, garage, Fx.Weights(items: new() { ["silver"] = 1 }));
 
-        var byCopper = Fx.Bom().Compute(graph, cheap, garage, [new BomTarget("wire", 1)], NoPins);
-        var bySilver = Fx.Bom().Compute(graph, flipped, garage, [new BomTarget("wire", 1)], NoPins);
+        var byCopper = Fx.Bom().Compute(graph, cheap, garage, [new BomTarget("wire", 1)], _noPins);
+        var bySilver = Fx.Bom().Compute(graph, flipped, garage, [new BomTarget("wire", 1)], _noPins);
 
         Assert.Equal(1, Leaf(byCopper, "copper"));
         Assert.Equal(1, Leaf(bySilver, "silver"));
@@ -445,7 +444,7 @@ public sealed class BomTests
             Fx.Recipe("cut", inputs: [("block", 1)], outputs: ("slab", 2, 1.0)));
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
-        var result = Fx.Bom().Compute(graph, table, Fx.Garage(), [new BomTarget("slab", 2)], NoPins);
+        var result = Fx.Bom().Compute(graph, table, Fx.Garage(), [new BomTarget("slab", 2)], _noPins);
 
         Assert.Equal(36, table.Costs["block"]);
         Assert.Equal(1, Leaf(result, "block"));

@@ -115,7 +115,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
 
     /// <summary>Material leaf classes keyed by the oredict's exact GT prefix. Intermediates
     /// (crushed, dustImpure, ingotHot) are distinct prefixes and so never match.</summary>
-    private static readonly Dictionary<string, string> ClassByPrefix = new()
+    private static readonly Dictionary<string, string> _classByPrefix = new()
     {
         ["dust"] = "dust",
         ["dustSmall"] = "dust_small",
@@ -144,7 +144,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
         // with a material prefix (dustSpace*) must not hand their members a material leaf.
         if (dump.UnifiedOredictTargets.ContainsKey(oredict)
             && dump.OrePrefixes.Match(oredict) is { } match
-            && ClassByPrefix.TryGetValue(match.Prefix.Name, out var materialClass))
+            && _classByPrefix.TryGetValue(match.Prefix.Name, out var materialClass))
         {
             return materialClass;
         }

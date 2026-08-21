@@ -1,5 +1,4 @@
 using Craftiger.Api.Models;
-using Craftiger.Solver.Models;
 
 namespace Craftiger.Api.Interfaces;
 

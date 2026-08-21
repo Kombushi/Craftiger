@@ -3,7 +3,6 @@ using System.Text.Json;
 using Craftiger.Builder.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using Xunit;
 
 namespace Craftiger.Builder.UnitTests;
 
