@@ -23,7 +23,7 @@ public sealed class PlannerQueryService(
 
     /// <summary>A one- or two-character query matches most of the pack; the scan stops after
     /// this many candidates, which keeps it cheap but makes the set beyond them arbitrary.</summary>
-    private const int ShortQueryScanLimit = 200;
+    private const int ShortQueryScanLimit = 500;
 
     public MetaResponse Meta() => new(
         artifact.PackVersion, artifact.TierNames, artifact.Coils, artifact.Machines,
