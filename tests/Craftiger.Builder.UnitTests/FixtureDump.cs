@@ -197,7 +197,7 @@ public static class FixtureDump
         Item(db, AluDust, "Aluminium Dust", "gregtech");
         Item(db, AluBlock, "Block of Aluminium", "gregtech");
         Item(db, AluRod, "Aluminium Rod", "gregtech");
-        Item(db, Saw, "Saw", "gregtech");
+        Item(db, Saw, "Saw", "gregtech", maxStack: 1);
         Item(db, Mold, "Extruder Shape (Rod)", "gregtech");
         Item(db, Plank, "Oak Wood Planks", "minecraft");
         Item(db, Log, "Oak Wood", "minecraft");
@@ -844,10 +844,10 @@ public static class FixtureDump
     }
 
     private static void Item(
-        SqliteConnection db, string id, string name, string mod, long maxDamage = 0) =>
+        SqliteConnection db, string id, string name, string mod, long maxDamage = 0, long maxStack = 64) =>
         db.Execute(
-            "INSERT INTO ITEM VALUES (@id, 'item/x.png', @name, 0, 1, @name, @maxDamage, 64, @mod, '', @name)",
-            new { id, name, mod, maxDamage });
+            "INSERT INTO ITEM VALUES (@id, 'item/x.png', @name, 0, 1, @name, @maxDamage, @maxStack, @mod, '', @name)",
+            new { id, name, mod, maxDamage, maxStack });
 
     private static void ItemContainer(SqliteConnection db, string itemId, string containerId) =>
         db.Execute(

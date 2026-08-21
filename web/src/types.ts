@@ -55,6 +55,8 @@ export interface ItemRef {
   leafClass: string | null
   cost: number | null
   uncraftable: boolean
+  /** The pack's stack size; null for fluids. */
+  maxStack: number | null
   aliases?: string[] | null
 }
 

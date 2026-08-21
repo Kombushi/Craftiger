@@ -36,7 +36,8 @@ public sealed class PlannerRepository : IPlannerRepository
                 oredict TEXT,
                 is_fluid INTEGER NOT NULL,
                 leaf_class TEXT,
-                atlas_idx INTEGER NOT NULL UNIQUE);
+                atlas_idx INTEGER NOT NULL UNIQUE,
+                max_stack INTEGER);
             CREATE TABLE item_aliases(
                 item_id TEXT NOT NULL,
                 alias TEXT NOT NULL,
@@ -76,7 +77,7 @@ public sealed class PlannerRepository : IPlannerRepository
 
         using var tx = db.BeginTransaction();
 
-        db.Execute("INSERT INTO items VALUES (@Id, @Name, @Oredict, @IsFluid, @LeafClass, @AtlasIdx)",
+        db.Execute("INSERT INTO items VALUES (@Id, @Name, @Oredict, @IsFluid, @LeafClass, @AtlasIdx, @MaxStack)",
             data.OrderedItemIds.Select((id, index) => new
             {
                 Id = id,
@@ -84,7 +85,8 @@ public sealed class PlannerRepository : IPlannerRepository
                 Oredict = data.Unified.PrimaryOredictByCanonical.GetValueOrDefault(id),
                 IsFluid = data.Dump.Fluids.ContainsKey(id) ? 1 : 0,
                 LeafClass = data.LeafClasses.GetValueOrDefault(id),
-                AtlasIdx = index
+                AtlasIdx = index,
+                MaxStack = data.Dump.Items.TryGetValue(id, out var item) ? item.MaxStackSize : (long?)null,
             }), tx);
 
         db.Execute("INSERT INTO item_aliases VALUES (@Id, @Alias)",

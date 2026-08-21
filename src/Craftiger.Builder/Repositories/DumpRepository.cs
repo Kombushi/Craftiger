@@ -23,7 +23,7 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
         var items = db.Query<DumpItem>("""
             SELECT ID AS Id, LOCALIZED_NAME AS Name, MOD_ID AS ModId,
                 INTERNAL_NAME AS InternalName, IMAGE_FILE_PATH AS ImagePath,
-                MAX_DAMAGE AS MaxDamage
+                MAX_DAMAGE AS MaxDamage, MAX_STACK_SIZE AS MaxStackSize
             FROM ITEM
             """).ToDictionary(i => i.Id);
 

@@ -199,6 +199,8 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Equal(4, detail.Items["ing"].Cost);
         Assert.Equal("Test Saw", detail.Items["saw"].Name);
         Assert.False(detail.Items["ing"].IsFluid);
+        Assert.Equal(64, detail.Items["ing"].MaxStack);
+        Assert.Equal(1, detail.Items["saw"].MaxStack);
     }
 
     [Fact]

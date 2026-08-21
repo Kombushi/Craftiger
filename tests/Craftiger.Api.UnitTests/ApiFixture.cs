@@ -51,7 +51,8 @@ public sealed class ApiFixture : IDisposable
                 oredict TEXT,
                 is_fluid INTEGER NOT NULL,
                 leaf_class TEXT,
-                atlas_idx INTEGER NOT NULL UNIQUE);
+                atlas_idx INTEGER NOT NULL UNIQUE,
+                max_stack INTEGER);
             CREATE TABLE item_aliases(item_id TEXT NOT NULL, alias TEXT NOT NULL, UNIQUE(item_id, alias));
             CREATE TABLE recipes(
                 id TEXT PRIMARY KEY,
@@ -81,16 +82,16 @@ public sealed class ApiFixture : IDisposable
 
         db.Execute("""
             INSERT INTO items VALUES
-                ('ing', 'Iron Ingot', 'ingotIronium', 0, 'ingot', 0),
-                ('nug', 'Iron Nugget', 'nuggetIronium', 0, 'nugget', 1),
-                ('wire', 'Iron Wire', NULL, 0, NULL, 2),
-                ('hot', 'Hot Thing', NULL, 0, NULL, 3),
-                ('sil', 'Silver Ingot', 'ingotSilverium', 0, 'ingot', 4),
-                ('rod', 'Extruded Rod', NULL, 0, NULL, 5),
-                ('chip', 'Late Chip', NULL, 0, NULL, 6),
-                ('saw', 'Test Saw', NULL, 0, NULL, 7),
-                ('frame', 'Frame Box', NULL, 0, NULL, 8),
-                ('card', 'Logic Card', NULL, 0, NULL, 9);
+                ('ing', 'Iron Ingot', 'ingotIronium', 0, 'ingot', 0, 64),
+                ('nug', 'Iron Nugget', 'nuggetIronium', 0, 'nugget', 1, 64),
+                ('wire', 'Iron Wire', NULL, 0, NULL, 2, 64),
+                ('hot', 'Hot Thing', NULL, 0, NULL, 3, 64),
+                ('sil', 'Silver Ingot', 'ingotSilverium', 0, 'ingot', 4, 64),
+                ('rod', 'Extruded Rod', NULL, 0, NULL, 5, 64),
+                ('chip', 'Late Chip', NULL, 0, NULL, 6, 64),
+                ('saw', 'Test Saw', NULL, 0, NULL, 7, 1),
+                ('frame', 'Frame Box', NULL, 0, NULL, 8, 64),
+                ('card', 'Logic Card', NULL, 0, NULL, 9, 64);
             INSERT INTO item_aliases VALUES ('ing', 'ingotIronium'), ('ing', 'Ferrum Ingot'), ('sil', 'silberlötzinn');
             INSERT INTO item_search (item_id, text) VALUES
                 ('ing', 'iron ingot'), ('ing', 'ingotironium'), ('ing', 'ferrum ingot'),

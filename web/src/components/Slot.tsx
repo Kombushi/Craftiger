@@ -1,3 +1,4 @@
+import { useTooltipTarget, type TooltipContent } from '../tooltipContext'
 import { ItemIcon } from './ItemIcon'
 
 const ICON_SIZE = { sm: 24, md: 32, lg: 48 } as const
@@ -6,7 +7,7 @@ interface Props {
   atlasIdx: number
   badge?: string
   needBadge?: string
-  title?: string
+  tooltip?: TooltipContent
   size?: 'md' | 'sm' | 'lg'
   highlight?: boolean
   dim?: boolean
@@ -16,8 +17,9 @@ interface Props {
 
 /** The recessed beveled item slot every view is built from. */
 export function Slot({
-  atlasIdx, badge, needBadge, title, size = 'md', highlight, dim, onClick, onHover,
+  atlasIdx, badge, needBadge, tooltip, size = 'md', highlight, dim, onClick, onHover,
 }: Props) {
+  const tip = useTooltipTarget(tooltip)
   const classes = [
     'slot',
     size === 'sm' ? 'slot-sm' : '',
@@ -31,8 +33,18 @@ export function Slot({
   return (
     <span
       className={classes}
-      title={title}
-      onClick={onClick}
+      onClick={
+        onClick
+          ? () => {
+              // Whatever opens under the click takes the pointer with it; the tooltip must not stay.
+              tip.hide()
+              onClick()
+            }
+          : undefined
+      }
+      onPointerEnter={tip.onPointerEnter}
+      onPointerMove={tip.onPointerMove}
+      onPointerLeave={tip.onPointerLeave}
       onMouseEnter={onHover ? () => onHover(true) : undefined}
       onMouseLeave={onHover ? () => onHover(false) : undefined}
     >

@@ -7,4 +7,5 @@ internal sealed record ItemRow(
     string? Oredict,
     long IsFluid,
     string? LeafClass,
-    long AtlasIdx);
+    long AtlasIdx,
+    long? MaxStack);

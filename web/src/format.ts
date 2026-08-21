@@ -47,6 +47,19 @@ export function fmtRuns(runs: number): string {
   return `×${fmtCount(runs)}`
 }
 
+/** A whole amount of a stackable item as stacks — "5×64 + 15" — or null when stacks add
+ * nothing: fluids and unstackable items carry no stack size, and under one stack the plain
+ * count already says it all. */
+export function fmtStacks(amount: number, maxStack: number | null | undefined): string | null {
+  if (!maxStack || maxStack <= 1 || maxStack > 64 || amount < maxStack) {
+    return null
+  }
+  const whole = Math.floor(amount)
+  const stacks = Math.floor(whole / maxStack)
+  const rest = whole - stacks * maxStack
+  return rest > 0 ? `${stacks}×${maxStack} + ${rest}` : `${stacks}×${maxStack}`
+}
+
 export function fmtHeat(heat: number): string {
   return `${heat.toLocaleString('en-US')}K`
 }

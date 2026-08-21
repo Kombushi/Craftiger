@@ -197,6 +197,7 @@ public sealed class PlannerQueryService(
                     item.Name, item.AtlasIdx, item.IsFluid, item.LeafClass,
                     entry.Table.Cost(id),
                     item.Uncraftable,
+                    item.MaxStack,
                     item.Aliases.Count > 0 ? item.Aliases : null);
             });
 

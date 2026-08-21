@@ -3,6 +3,7 @@ import { ItemDetailOverlay } from './components/ItemDetailOverlay'
 import { PlannerPage } from './components/PlannerPage'
 import { PriceListPage } from './components/PriceListPage'
 import { Toasts } from './components/Toasts'
+import { TooltipProvider } from './components/Tooltip'
 import { WeightsModal } from './components/WeightsModal'
 import { StoreProvider } from './store'
 import { useStore } from './storeContext'
@@ -72,7 +73,9 @@ function Shell() {
 export default function App() {
   return (
     <StoreProvider>
-      <Shell />
+      <TooltipProvider>
+        <Shell />
+      </TooltipProvider>
     </StoreProvider>
   )
 }

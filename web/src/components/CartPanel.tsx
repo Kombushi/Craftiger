@@ -28,7 +28,7 @@ export function CartPanel() {
                 <Slot
                   atlasIdx={entry.atlasIdx}
                   size="sm"
-                  title={entry.name}
+                  tooltip={{ name: entry.name }}
                   onClick={() => openDetail(entry.itemId)}
                 />
                 <span className="cart-name" title={entry.name}>

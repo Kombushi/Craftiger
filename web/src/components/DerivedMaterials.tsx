@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fmtAka, fmtAmount, fmtCost, fmtCount } from '../format'
+import { fmtAka, fmtAmount, fmtCost, fmtCount, fmtStacks } from '../format'
 import { useStore } from '../storeContext'
 import type { BomResponse } from '../types'
 import { Slot } from './Slot'
@@ -126,13 +126,21 @@ export function DerivedMaterials({
                   return null
                 }
                 const total = item.cost === null ? null : item.cost * derived.wholeAmount
+                const stacks = item.isFluid ? null : fmtStacks(derived.wholeAmount, item.maxStack)
                 return (
                   <Slot
                     key={derived.itemId}
                     size="lg"
                     atlasIdx={item.atlasIdx}
                     badge={fmtCount(derived.wholeAmount)}
-                    title={`${fmtAka(item, derived.itemId)}\n${fmtAmount(derived.wholeAmount, item.isFluid)} produced (${fmtCount(derived.amount)} expected) · ${fmtCost(item.cost)} each · ${fmtCost(total)} total`}
+                    tooltip={{
+                      name: fmtAka(item, derived.itemId),
+                      lines: [
+                        `${fmtAmount(derived.wholeAmount, item.isFluid)} produced (${fmtCount(derived.amount)} expected)`,
+                        ...(stacks ? [stacks] : []),
+                        `${fmtCost(item.cost)} each · ${fmtCost(total)} total`,
+                      ],
+                    }}
                     onClick={() => openDetail(derived.itemId)}
                   />
                 )

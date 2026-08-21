@@ -153,15 +153,16 @@ interface DetailRecipeProps {
   onPin: (pin: boolean) => void
 }
 
-function altLines(slot: SlotAlternative[], name: (id: string) => string): string {
+/** Tooltip lines naming a slot's alternatives, the first eight of them. */
+function altLines(slot: SlotAlternative[], name: (id: string) => string): string[] {
   if (slot.length <= 1) {
-    return ''
+    return []
   }
-  const lines = slot
-    .slice(0, 8)
-    .map((alternative) => `  ${name(alternative.itemId)}`)
-    .join('\n')
-  return `\n${slot.length} alternatives:\n${lines}${slot.length > 8 ? '\n  …' : ''}`
+  return [
+    `${slot.length} alternatives:`,
+    ...slot.slice(0, 8).map((alternative) => `  ${name(alternative.itemId)}`),
+    ...(slot.length > 8 ? ['  …'] : []),
+  ]
 }
 
 /** Every input slot in card order: the consumed slots, then the catalysts. */
@@ -189,7 +190,13 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
           <Slot
             atlasIdx={chosenItem?.atlasIdx ?? -1}
             badge={as === 'cell' ? undefined : fmtCount(chosen.amount)}
-            title={`${fmtAka(chosenItem, chosen.itemId)} · ${fmtAmount(chosen.amount, chosenItem?.isFluid ?? false)} · ${fmtCost(chosenItem?.cost ?? null)} each${altLines(alternatives, (id) => fmtAka(item(id), id))}`}
+            tooltip={{
+              name: fmtAka(chosenItem, chosen.itemId),
+              lines: [
+                `${fmtAmount(chosen.amount, chosenItem?.isFluid ?? false)} · ${fmtCost(chosenItem?.cost ?? null)} each`,
+                ...altLines(alternatives, (id) => fmtAka(item(id), id)),
+              ],
+            }}
             onClick={() => openDetail(chosen.itemId)}
           />
           {alternatives.length > 1 ? <span className="alt-badge mono">+{alternatives.length - 1}</span> : null}
@@ -205,7 +212,10 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
           atlasIdx={toolItem?.atlasIdx ?? -1}
           badge={as === 'cell' ? undefined : fmtCount(tool.amount)}
           dim
-          title={`${fmtAka(toolItem, tool.itemId)} · needed in place — not consumed${altLines(tools, (id) => fmtAka(item(id), id))}`}
+          tooltip={{
+            name: fmtAka(toolItem, tool.itemId),
+            lines: ['needed in place — not consumed', ...altLines(tools, (id) => fmtAka(item(id), id))],
+          }}
           onClick={() => openDetail(tool.itemId)}
         />
         {tools.length > 1 ? <span className="alt-badge mono">+{tools.length - 1}</span> : null}
@@ -251,7 +261,10 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
                 atlasIdx={outputItem?.atlasIdx ?? -1}
                 badge={String(output.amount)}
                 dim={output.itemId !== detail.itemId}
-                title={`${fmtAka(outputItem, output.itemId)}${output.chance < 1 ? ` · ${Math.round(output.chance * 100)}%` : ''}`}
+                tooltip={{
+                  name: fmtAka(outputItem, output.itemId),
+                  lines: output.chance < 1 ? [`${Math.round(output.chance * 100)}% chance`] : [],
+                }}
                 onClick={() => openDetail(output.itemId)}
               />
             )

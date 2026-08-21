@@ -11,8 +11,9 @@ import {
   type ChainCard,
   type ChainOrientation,
 } from '../chainLayout'
-import { fmtAka, fmtAmount, fmtCost, fmtCount, fmtDuration, fmtHeat, fmtRuns } from '../format'
+import { fmtAka, fmtAmount, fmtCost, fmtCount, fmtDuration, fmtHeat, fmtRuns, fmtStacks } from '../format'
 import { useStore } from '../storeContext'
+import { useTooltipTarget } from '../tooltipContext'
 import type { BomNode, BomResponse } from '../types'
 import { usePersistent } from '../usePersistent'
 import { Slot } from './Slot'
@@ -208,12 +209,19 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
       const isFluid = item?.isFluid ?? false
       const perRun = as === 'cell' ? input.amount / cellsOf(slot) : input.amount
       const total = perRun * node.wholeRuns
+      const stacks = isFluid ? null : fmtStacks(total, item?.maxStack)
       return (
         <Slot
           key={key}
           atlasIdx={item?.atlasIdx ?? -1}
           badge={as === 'cell' ? undefined : fmtCount(total)}
-          title={`${fmtAka(item, input.itemId)}\n${fmtAmount(perRun, isFluid)} per run · ${fmtAmount(total, isFluid)} total (${fmtCount(perRun * node.runs)} expected)`}
+          tooltip={{
+            name: fmtAka(item, input.itemId),
+            lines: [
+              `${fmtAmount(perRun, isFluid)} per ${as === 'cell' ? 'craft' : 'run'} · ${fmtAmount(total, isFluid)} total (${fmtCount(perRun * node.runs)} expected)`,
+              ...(stacks ? [stacks] : []),
+            ],
+          }}
           onClick={() => openDetail(input.itemId)}
           onHover={(hovering) => onHover(hovering ? input.itemId : null)}
         />
@@ -227,7 +235,7 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
         atlasIdx={item?.atlasIdx ?? -1}
         badge={as === 'cell' ? undefined : fmtCount(tool.amount)}
         dim
-        title={`${fmtAka(item, tool.itemId)}\nneeded in place — not consumed`}
+        tooltip={{ name: fmtAka(item, tool.itemId), lines: ['needed in place — not consumed'] }}
         onClick={() => openDetail(tool.itemId)}
         onHover={(hovering) => onHover(hovering ? tool.itemId : null)}
       />
@@ -306,7 +314,6 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
           // Chanced recipes list the same item several times; the need shows once.
           const firstOwn = index === node.outputs.findIndex((o) => o.itemId === node.itemId)
           const produced = output.amount * node.wholeRuns
-          const chance = output.chance < 1 ? ` · ${Math.round(output.chance * 100)}%` : ''
           return (
             <Slot
               key={index}
@@ -315,7 +322,13 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
               needBadge={own && firstOwn ? fmtCount(node.wholeAmount) : undefined}
               dim={!own}
               highlight={own}
-              title={`${fmtAka(item, output.itemId)}${chance}${own ? '' : '\nbyproduct — not credited'}`}
+              tooltip={{
+                name: fmtAka(item, output.itemId),
+                lines: [
+                  ...(output.chance < 1 ? [`${Math.round(output.chance * 100)}% chance`] : []),
+                  ...(own ? [] : ['byproduct — not credited']),
+                ],
+              }}
               onClick={() => openDetail(output.itemId)}
               onHover={(hovering) => onHover(hovering ? output.itemId : null)}
             />
@@ -336,23 +349,37 @@ function EndCard({ card, bom, onHover }: CardProps) {
   const item = bom.items[card.id]
   const missing = card.kind === 'missing'
   const expected = bom.leaves.find((leaf) => leaf.itemId === card.id)?.amount
+  const isFluid = item?.isFluid ?? false
+  const stacks = missing || isFluid ? null : fmtStacks(card.amount, item?.maxStack)
+  const tip = useTooltipTarget({
+    name: fmtAka(item, card.id),
+    lines: missing
+      ? [item?.uncraftable ? 'uncraftable' : 'unreachable']
+      : [
+          `${fmtAmount(card.amount, isFluid)} to gather${expected === undefined ? '' : ` (${fmtCount(expected)} expected)`} · ${fmtCost(item?.cost ?? null)} each`,
+          ...(stacks ? [stacks] : []),
+        ],
+  })
   return (
     <div
       className={`card card-leaf${missing ? ' card-missing' : ''}`}
       style={{ left: card.x, top: card.y, width: card.w, height: card.h }}
-      title={expected === undefined ? undefined : `${fmtCount(expected)} expected`}
       onMouseEnter={() => onHover(card.id)}
       onMouseLeave={() => onHover(null)}
+      onPointerEnter={tip.onPointerEnter}
+      onPointerMove={tip.onPointerMove}
+      onPointerLeave={tip.onPointerLeave}
     >
       <Slot
         atlasIdx={item?.atlasIdx ?? -1}
         badge={missing ? undefined : fmtCount(card.amount)}
-        onClick={() => openDetail(card.id)}
+        onClick={() => {
+          tip.hide()
+          openDetail(card.id)
+        }}
       />
       <span className="leaf-text">
-        <span className="leaf-name" title={fmtAka(item, card.id)}>
-          {item?.name ?? card.id}
-        </span>
+        <span className="leaf-name">{item?.name ?? card.id}</span>
         <span className="leaf-sub mono">
           {missing
             ? item?.uncraftable

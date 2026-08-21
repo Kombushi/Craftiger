@@ -466,6 +466,15 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
+    public void ItemsCarryTheirStackSizeAndFluidsNone()
+    {
+        Assert.Equal(64, _fixture.Scalar<int>($"SELECT max_stack FROM items WHERE id = '{FixtureDump.IronIngot}'"));
+        Assert.Equal(1, _fixture.Scalar<int>($"SELECT max_stack FROM items WHERE id = '{FixtureDump.Saw}'"));
+        Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(max_stack) FROM items WHERE is_fluid = 1"));
+        Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(*) FROM items WHERE is_fluid = 0 AND max_stack IS NULL"));
+    }
+
+    [Fact]
     public void ShapedRecipesKeepTheirGridOverTheFoldedSlots()
     {
         // r_planks: the log in cell 0 is ingredient slot 0, the saw in cell 1 the catalyst slot

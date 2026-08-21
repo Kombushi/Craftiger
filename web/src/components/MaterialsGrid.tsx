@@ -1,4 +1,4 @@
-import { fmtAka, fmtAmount, fmtCost, fmtCount } from '../format'
+import { fmtAka, fmtAmount, fmtCost, fmtCount, fmtStacks } from '../format'
 import { useStore } from '../storeContext'
 import type { BomResponse } from '../types'
 
@@ -30,13 +30,21 @@ export function MaterialsGrid({ bom }: { bom: BomResponse }) {
           return null
         }
         const total = item.cost === null ? null : item.cost * leaf.wholeAmount
+        const stacks = item.isFluid ? null : fmtStacks(leaf.wholeAmount, item.maxStack)
         return (
           <Slot
             key={leaf.itemId}
             size="lg"
             atlasIdx={item.atlasIdx}
             badge={fmtCount(leaf.wholeAmount)}
-            title={`${fmtAka(item, leaf.itemId)}\n${fmtAmount(leaf.wholeAmount, item.isFluid)} to gather (${fmtCount(leaf.amount)} expected) · ${fmtCost(item.cost)} each · ${fmtCost(total)} total`}
+            tooltip={{
+              name: fmtAka(item, leaf.itemId),
+              lines: [
+                `${fmtAmount(leaf.wholeAmount, item.isFluid)} to gather (${fmtCount(leaf.amount)} expected)`,
+                ...(stacks ? [stacks] : []),
+                `${fmtCost(item.cost)} each · ${fmtCost(total)} total`,
+              ],
+            }}
             onClick={() => openDetail(leaf.itemId)}
           />
         )

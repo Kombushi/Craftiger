@@ -299,7 +299,9 @@ Builder responsibilities, in order:
 
 ### Slim schema (`planner.sqlite`)
 
-- `items(id, name_en, oredict, is_fluid, leaf_class NULL, atlas_idx)`
+- `items(id, name_en, oredict, is_fluid, leaf_class NULL, atlas_idx, max_stack
+  NULL)` — `max_stack` is the stack size the pack gives the item (NULL for
+  fluids), so the UI can read an amount as stacks (§7)
 - `item_aliases(item_id, alias)` — merged names and oredict names for search
 - `item_search(item_id, text)` — an FTS5 trigram index (`case_sensitive 1`) over
   every item's name and every alias, the text lowercased with invariant
@@ -593,10 +595,17 @@ notifications, never as layout-shifting inline rows; BOM warnings stay inline
 with the results they describe. The planner's sidebar (cart + garage) resizes
 by dragging its edge, double-click resetting the default, and a top-bar menu
 button hides it entirely; both preferences persist in `localStorage` like all
-user state. Item slots' tooltips append the display names unification merged
-away — "Tin Nugget (aka Tin Oreberry)" — so a canonicalized ingredient stays
-recognizable in recipe cards and item detail; oredict-style aliases never
-show. Screens:
+user state. Item slots carry the planner's own tooltip, not the browser's: a
+chrome panel that follows the cursor NEI-style and flips to stay inside the
+window, with the item's name on its first line — the display names
+unification merged away appended, "Tin Nugget (aka Tin Oreberry)", so a
+canonicalized ingredient stays recognizable; oredict-style aliases never
+show — and the slot's figures under it in mono. A whole amount of a
+stackable solid item (`items.max_stack` from 2 to 64) also reads as stacks,
+`5×64 + 15`, on the chain's per-slot totals, the leaf cards and the raw and
+derived material grids; never for fluids, catalyst slots, unstackable
+items, amounts under one stack, or the per-craft amounts of item detail.
+Screens:
 
 - **Search** — type-ahead over canonical names and oredict aliases: a
   case-insensitive substring match (every script, case only — diacritics are
@@ -766,7 +775,7 @@ show. Screens:
   the BOM will expand, each recipe's `grid` (nine cells → the slot each holds,
   slots first then catalysts, or null; null for a recipe without a shape),
   and an `items` display lookup (name, atlas index, fluid flag, leaf class,
-  cost) for every item id the recipes reference.
+  cost, stack size) for every item id the recipes reference.
 - `GET /api/machines?targets=` — upstream-closure machine list for the given
   item ids; drives the relevance-filtered garage.
 - `POST /api/bom` — body `{solveId, targets: [{itemId, count}],
@@ -775,7 +784,7 @@ show. Screens:
   warnings, nodes: [{itemId, amount, runs, wholeAmount, wholeRuns, recipeId,
   machine, tier, multiTier, heat, durationTicks, euT, inputsPerRun: [{itemId,
   amount}], outputs: [{itemId, amount, chance}], loop, seed, grid}], items: {itemId:
-  {name, atlasIdx, isFluid, leafClass, cost, uncraftable}}}` — the chain nodes of §6 in both
+  {name, atlasIdx, isFluid, leafClass, cost, uncraftable, maxStack}}}` — the chain nodes of §6 in both
   accountings plus the same display lookup, so one request feeds a whole
   chain view.
 - `GET /api/meta` → tier ladder, machine list (each with its availability
@@ -1058,3 +1067,8 @@ All "does not / never" rules live here; other sections only reference this one.
     slot — and every cell points at a slot the recipe actually ships; a
     shapeless recipe and a machine recipe ship no shape, and the chain card
     and item detail draw a shaped recipe on the 3×3 grid, folded otherwise.
+43. Every item ships its stack size and fluids none; a whole amount of a
+    stackable item reads as stacks in the slot tooltip — 335 of a 64-stack
+    item as `5×64 + 15`, exact stacks without a remainder — while a fluid,
+    a catalyst slot, an unstackable item and an amount under one stack show
+    no stack line.
