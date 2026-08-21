@@ -1,7 +1,12 @@
+using Craftiger.Solver.Models;
 namespace Craftiger.Solver.UnitTests;
 
 public sealed class CostSolverTests
 {
+    /// <summary>The priced cost of an item; a test asking for an unpriced one has failed already.</summary>
+    private static double Cost(CostTable table, string itemId) =>
+        table.Cost(itemId) ?? throw new KeyNotFoundException(itemId);
+
     [Fact]
     public void IngotTierStepsMultiplyByFour()
     {
@@ -9,8 +14,8 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal(4, table.Costs["bronze"]);
-        Assert.Equal(16, table.Costs["aluminium"]);
+        Assert.Equal(4, Cost(table, "bronze"));
+        Assert.Equal(16, Cost(table, "aluminium"));
     }
 
     [Fact]
@@ -22,8 +27,8 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal(8, table.Costs["steel"]);
-        Assert.Equal("r", table.BestRecipes["steel"].Id);
+        Assert.Equal(8, Cost(table, "steel"));
+        Assert.Equal("r", table.BestRecipe("steel")!.Id);
     }
 
     [Fact]
@@ -35,9 +40,9 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal(table.Costs["circuit"], table.Costs["anyCircuit"]);
-        Assert.Equal("circuit", Assert.Single(table.ChosenInputs["anyCircuit"]).ItemId);
-        Assert.Equal("anyCircuit", Assert.Single(table.BestRecipes["anyCircuit"].Slots).Alternatives[0].ItemId);
+        Assert.Equal(Cost(table, "circuit"), Cost(table, "anyCircuit"));
+        Assert.Equal("circuit", Assert.Single(table.ChosenInputs("anyCircuit")).ItemId);
+        Assert.Equal("anyCircuit", Assert.Single(table.BestRecipe("anyCircuit")!.Slots).Alternatives[0].ItemId);
     }
 
     [Fact]
@@ -50,7 +55,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal(table.Costs["plate"] / 0.9, table.Costs["shard"], 9);
+        Assert.Equal(Cost(table, "plate") / 0.9, Cost(table, "shard"), 9);
     }
 
     [Fact]
@@ -63,9 +68,9 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal(4, table.Costs["ingot"]);
-        Assert.Equal(36, table.Costs["block"]);
-        Assert.False(table.BestRecipes.ContainsKey("ingot"));
+        Assert.Equal(4, Cost(table, "ingot"));
+        Assert.Equal(36, Cost(table, "block"));
+        Assert.False(table.BestRecipe("ingot") is not null);
         Assert.True(table.Converged);
     }
 
@@ -78,9 +83,9 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal(4, table.Costs["ingot"]);
-        Assert.Equal(4.0 / 9, table.Costs["nugget"], 9);
-        Assert.False(table.BestRecipes.ContainsKey("ingot"));
+        Assert.Equal(4, Cost(table, "ingot"));
+        Assert.Equal(4.0 / 9, Cost(table, "nugget"), 9);
+        Assert.False(table.BestRecipe("ingot") is not null);
     }
 
     [Fact]
@@ -92,7 +97,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal(4, table.Costs["wire"]);
+        Assert.Equal(4, Cost(table, "wire"));
     }
 
     [Fact]
@@ -105,7 +110,7 @@ public sealed class CostSolverTests
         var table = Fx.Solver().Solve(
             graph, Fx.Garage(), Fx.Weights(items: new() { ["silver"] = 1 }));
 
-        Assert.Equal(1, table.Costs["wire"]);
+        Assert.Equal(1, Cost(table, "wire"));
     }
 
     [Fact]
@@ -117,7 +122,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal(20, table.Costs["gel"]);
+        Assert.Equal(20, Cost(table, "gel"));
     }
 
     [Fact]
@@ -131,7 +136,7 @@ public sealed class CostSolverTests
         var costs = Enumerable.Range(0, 4)
             .Select(tier => Fx.Solver()
                 .Solve(graph, Fx.Garage(defaultTier: tier), Fx.Weights())
-                .Costs["metal"])
+                .Cost("metal")!.Value)
             .ToList();
 
         Assert.Equal(costs.OrderDescending(), costs);
@@ -149,7 +154,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, garage, Fx.Weights());
 
-        Assert.False(table.Costs.ContainsKey("rod"));
+        Assert.False(table.IsPriced("rod"));
     }
 
     [Fact]
@@ -162,7 +167,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal(4, table.Costs["dust"]);
+        Assert.Equal(4, Cost(table, "dust"));
     }
 
     [Fact]
@@ -173,7 +178,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.True(double.IsPositiveInfinity(Fx.Solver().Candidate(recipe, "thing", table.Costs)));
+        Assert.True(double.IsPositiveInfinity(Fx.Solver().Candidate(table, recipe, "thing")));
     }
 
     [Fact]
@@ -186,8 +191,8 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal("fromIngot", table.BestRecipes["molten"].Id);
-        Assert.Equal(4.0 / 144, table.Costs["molten"], 6);
+        Assert.Equal("fromIngot", table.BestRecipe("molten")!.Id);
+        Assert.Equal(4.0 / 144, Cost(table, "molten"), 6);
     }
 
     [Fact]
@@ -200,7 +205,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal("fromDust", table.BestRecipes["molten"].Id);
+        Assert.Equal("fromDust", table.BestRecipe("molten")!.Id);
     }
 
     [Fact]
@@ -213,7 +218,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal("fromDust", table.BestRecipes["molten"].Id);
+        Assert.Equal("fromDust", table.BestRecipe("molten")!.Id);
     }
 
     [Fact]
@@ -234,10 +239,10 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal("mix", table.BestRecipes["alloyDust"].Id);
-        Assert.Equal("blast", table.BestRecipes["alloyIngot"].Id);
-        Assert.Equal(8.0 / 3, table.Costs["alloyDust"], 9);
-        Assert.Equal(8.0 / 3, table.Costs["alloyIngot"], 9);
+        Assert.Equal("mix", table.BestRecipe("alloyDust")!.Id);
+        Assert.Equal("blast", table.BestRecipe("alloyIngot")!.Id);
+        Assert.Equal(8.0 / 3, Cost(table, "alloyDust"), 9);
+        Assert.Equal(8.0 / 3, Cost(table, "alloyIngot"), 9);
     }
 
     [Fact]
@@ -253,8 +258,8 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal("meltIngot", table.BestRecipes["molten"].Id);
-        Assert.Equal(4.0 / 144, table.Costs["molten"], 9);
+        Assert.Equal("meltIngot", table.BestRecipe("molten")!.Id);
+        Assert.Equal(4.0 / 144, Cost(table, "molten"), 9);
     }
 
     [Fact]
@@ -270,8 +275,8 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal("meltPlain", table.BestRecipes["molten"].Id);
-        Assert.Equal(4.0 / 144, table.Costs["molten"], 9);
+        Assert.Equal("meltPlain", table.BestRecipe("molten")!.Id);
+        Assert.Equal(4.0 / 144, Cost(table, "molten"), 9);
     }
 
     [Fact]
@@ -287,7 +292,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.Equal("fromDust", table.BestRecipes["metal"].Id);
-        Assert.Equal(4, table.Costs["metal"]);
+        Assert.Equal("fromDust", table.BestRecipe("metal")!.Id);
+        Assert.Equal(4, Cost(table, "metal"));
     }
 }

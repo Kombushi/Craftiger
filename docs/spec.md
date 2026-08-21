@@ -467,10 +467,13 @@ Why this shape:
   gap, not a tie, and keeps winning.
 - Full-pack scale (a few hundred thousand recipes) converges in about a second
   in memory. The fixpoint runs over an integer-indexed copy of the graph built
-  once when the artifact loads (`SolverIndex`), never over id-keyed lookups;
-  the layout changes nothing about the result — evaluation order, tie
-  outcomes and the recorded alternatives are exactly those of the id-keyed
-  walk it replaced.
+  once when the artifact loads (`SolverIndex`), never over id-keyed lookups,
+  and the solved table is stored the same way — cost, best recipe and the
+  picked alternative per slot as arrays over index positions, a few megabytes
+  per solve; readers ask it by position on hot paths (the BOM walk) and by id
+  at the API edge. The layout changes nothing about the result — evaluation
+  order, tie outcomes and the recorded alternatives are exactly those of the
+  id-keyed walk it replaced.
 
 Caching and pins:
 

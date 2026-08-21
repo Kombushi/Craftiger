@@ -1,20 +1,30 @@
 namespace Craftiger.Solver.Models;
 
-/// <summary>Everything one BOM walk accumulates, shared by the item and loop expansions.</summary>
+/// <summary>Everything one BOM walk accumulates, shared by the item and loop expansions. Items
+/// are index positions; a target the index does not know gets a position past the end and its
+/// id in <paramref name="ExtraIds"/>, so it walks like any other unproducible item.</summary>
 internal sealed record BomWalkState(
-    SolverGraph Graph, CostTable Costs, Garage Garage, Dictionary<string, SolverRecipe> Pins,
-    HashSet<string> Roots, Dictionary<string, double> Demand, Dictionary<string, long> WholeDemand,
-    List<BomWarning> Warnings)
+    SolverIndex Index,
+    CostTable Costs,
+    Garage Garage,
+    Dictionary<int, int> Pins,
+    HashSet<int> Roots,
+    Dictionary<int, double> Demand,
+    Dictionary<int, long> WholeDemand,
+    List<BomWarning> Warnings,
+    IReadOnlyList<string> ExtraIds)
 {
-    public Dictionary<string, (double Amount, long Whole)> Leaves { get; } = new();
+    public Dictionary<int, (double Amount, long Whole)> Leaves { get; } = new();
 
     public List<BomNode> Nodes { get; } = [];
 
     public int Loops { get; set; }
 
-    public void Add(string itemId, double amount, long whole)
+    public void Add(int item, double amount, long whole)
     {
-        Demand[itemId] = Demand.GetValueOrDefault(itemId) + amount;
-        WholeDemand[itemId] = WholeDemand.GetValueOrDefault(itemId) + whole;
+        Demand[item] = Demand.GetValueOrDefault(item) + amount;
+        WholeDemand[item] = WholeDemand.GetValueOrDefault(item) + whole;
     }
+
+    public string IdOf(int item) => item < Index.ItemCount ? Index.ItemIds[item] : ExtraIds[item - Index.ItemCount];
 }

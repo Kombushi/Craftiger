@@ -21,12 +21,10 @@ public sealed class SolveCacheService(
     private readonly LinkedList<string> _recency = [];
     private readonly int _capacity = Math.Max(1, options.Value.SolveCacheSize);
 
-    /// <summary>Every item id in craft-list tie order (name, then id), fixed per artifact: a
-    /// solve only has to order the priced items by cost and keep this order inside each price.</summary>
-    private readonly string[] _byName = artifact.Items.Values
-        .OrderBy(item => item.Name, StringComparer.Ordinal)
-        .ThenBy(item => item.Id, StringComparer.Ordinal)
-        .Select(item => item.Id)
+    /// <summary>Per craft-list rank, the item's position in the solver index, or -1 for an item
+    /// no recipe and no leaf class ever mention — it can only ever be unpriced.</summary>
+    private readonly int[] _positionOfRank = artifact.CraftListOrder
+        .Select(id => artifact.Graph.Index.TryGetItem(id, out var item) ? item : -1)
         .ToArray();
 
     public SolveResponse Solve(SolveRequest request)
@@ -81,20 +79,24 @@ public sealed class SolveCacheService(
     }
 
     /// <summary>The craft list: priced items cheapest first, unreachable items after them, ties
-    /// in the fixed name order. Only the priced items are sorted, by cost and then by their
-    /// position in that order, so no comparison touches a string.</summary>
-    private (IReadOnlyList<string> Sorted, int ReachableCount) Sort(CostTable table)
+    /// in the artifact's fixed name order. Only the priced ranks are sorted, by cost and then
+    /// by rank, so no comparison touches a string.</summary>
+    private (IReadOnlyList<int> Sorted, int ReachableCount) Sort(CostTable table)
     {
-        var costs = new double[_byName.Length];
-        var isPriced = new bool[_byName.Length];
-        var priced = new List<int>(table.Costs.Count);
-        for (var rank = 0; rank < _byName.Length; rank++)
+        var ranks = _positionOfRank.Length;
+        var costs = new double[ranks];
+        var priced = new List<int>(table.PricedCount);
+        for (var rank = 0; rank < ranks; rank++)
         {
-            if (table.Costs.TryGetValue(_byName[rank], out var cost))
+            var position = _positionOfRank[rank];
+            if (position >= 0 && table.TryCost(position, out var cost))
             {
                 costs[rank] = cost;
-                isPriced[rank] = true;
                 priced.Add(rank);
+            }
+            else
+            {
+                costs[rank] = double.NaN;
             }
         }
         var order = priced.ToArray();
@@ -104,17 +106,14 @@ public sealed class SolveCacheService(
             return byCost != 0 ? byCost : a.CompareTo(b);
         });
 
-        var sorted = new string[_byName.Length];
-        var next = 0;
-        foreach (var rank in order)
+        var sorted = new int[ranks];
+        order.CopyTo(sorted, 0);
+        var next = order.Length;
+        for (var rank = 0; rank < ranks; rank++)
         {
-            sorted[next++] = _byName[rank];
-        }
-        for (var rank = 0; rank < _byName.Length; rank++)
-        {
-            if (!isPriced[rank])
+            if (double.IsNaN(costs[rank]))
             {
-                sorted[next++] = _byName[rank];
+                sorted[next++] = rank;
             }
         }
         return (sorted, order.Length);

@@ -29,13 +29,11 @@ public sealed class PlannerQueryService(
         var items = rows
             .Skip(page * pageSize)
             .Take(pageSize)
-            .Select(id =>
+            .Select(rank =>
             {
-                var item = artifact.Items[id];
+                var item = artifact.Items[artifact.CraftListOrder[rank]];
                 return new ItemSummaryDto(
-                    item.Id, item.Name, item.AtlasIdx,
-                    entry.Table.Costs.TryGetValue(id, out var cost) ? cost : null,
-                    item.Uncraftable);
+                    item.Id, item.Name, item.AtlasIdx, entry.Table.Cost(item.Id), item.Uncraftable);
             })
             .ToList();
         return new ListResponse(items, total, page, pageSize);
@@ -60,9 +58,7 @@ public sealed class PlannerQueryService(
             .Select(id => artifact.Items[id])
             .Select(item => new ItemSummaryDto(
                 item.Id, item.Name, item.AtlasIdx,
-                entry is not null && entry.Table.Costs.TryGetValue(item.Id, out var cost)
-                    ? cost
-                    : null,
+                entry?.Table.Cost(item.Id),
                 item.Uncraftable))
             .OrderBy(item => item.Name.StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
             .ThenBy(item => item.Cost ?? double.PositiveInfinity)
@@ -95,9 +91,9 @@ public sealed class PlannerQueryService(
 
         return new ItemDetailResponse(
             item.Id, item.Name, item.AtlasIdx, item.LeafClass,
-            entry.Table.Costs.TryGetValue(itemId, out var cost) ? cost : null,
+            entry.Table.Cost(itemId),
             item.Uncraftable,
-            entry.Table.BestRecipes.GetValueOrDefault(itemId)?.Id,
+            entry.Table.BestRecipe(itemId)?.Id,
             recipes,
             Refs(entry, ids));
     }
@@ -159,7 +155,7 @@ public sealed class PlannerQueryService(
                 var item = artifact.Items[id];
                 return new ItemRefDto(
                     item.Name, item.AtlasIdx, item.IsFluid, item.LeafClass,
-                    entry.Table.Costs.TryGetValue(id, out var cost) ? cost : null,
+                    entry.Table.Cost(id),
                     item.Uncraftable,
                     item.Aliases.Count > 0 ? item.Aliases : null);
             });
@@ -167,7 +163,7 @@ public sealed class PlannerQueryService(
     private RecipeDto ToDto(SolveEntry entry, SolverRecipe recipe, string itemId)
     {
         var info = artifact.Recipes[recipe.Id];
-        var candidate = solver.Candidate(recipe, itemId, entry.Table.Costs);
+        var candidate = solver.Candidate(entry.Table, recipe, itemId);
         return new RecipeDto(
             recipe.Id, info.Machine, info.Tier, info.MultiTier, info.Heat,
             info.DurationTicks, info.EuT,
@@ -176,9 +172,7 @@ public sealed class PlannerQueryService(
                 .Select(slot => (IReadOnlyList<SlotAlternativeDto>)slot.Alternatives
                     .Select(alternative => new SlotAlternativeDto(
                         alternative.ItemId, alternative.Amount,
-                        entry.Table.Costs.TryGetValue(alternative.ItemId, out var cost)
-                            ? cost * alternative.Amount
-                            : null))
+                        entry.Table.Cost(alternative.ItemId) * alternative.Amount))
                     .ToList())
                 .ToList(),
             SlotChoice.Inputs(entry.Table, itemId, recipe).Select(input => input.ItemId).ToList(),

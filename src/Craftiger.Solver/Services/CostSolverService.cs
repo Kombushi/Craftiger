@@ -16,9 +16,9 @@ public sealed class CostSolverService(
     /// only wins where it strictly beats what an output already costs, so cycles starve and
     /// the bestRecipe pointers stay acyclic. Recipes are evaluated first-in first-out in graph
     /// order, and that order decides which of two exactly tied recipes an item records — so
-    /// the loop runs over the graph's integer index, where nothing depends on the layout, and
-    /// translates back to ids only at the end. A price that is not known yet is NaN: every
-    /// comparison against it is false, which is exactly "absent loses to any candidate".</summary>
+    /// the loop runs over the graph's integer index, where nothing depends on the layout. A
+    /// price that is not known yet is NaN: every comparison against it is false, which is
+    /// exactly "absent loses to any candidate".</summary>
     public CostTable Solve(SolverGraph graph, Garage garage, WeightSettings weights)
     {
         var index = graph.Index;
@@ -43,10 +43,13 @@ public sealed class CostSolverService(
         }
         var best = new int[index.ItemCount];
         Array.Fill(best, -1);
-        var chosen = new int[index.ItemCount][];
+        // Per item, the alternative its best recipe was priced with, per slot — a buffer
+        // allocated at the first win and overwritten in place afterwards.
+        var chosen = new ushort[index.ItemCount][];
         // Items in the order they first won a recipe: the reroute pass visits them in that order
         // and its outcome on ties depends on it, so the order is kept explicitly.
         var won = new List<int>();
+        var scratch = new ushort[index.MaxSlotCount];
 
         var queue = new Queue<int>(legalCount);
         var queued = new bool[recipeCount];
@@ -64,7 +67,7 @@ public sealed class CostSolverService(
             queued[recipe] = false;
             if (budget-- <= 0)
             {
-                return Materialize(index, cost, best, chosen, won, seeds, converged: false);
+                return Materialize(index, cost, best, chosen, won, converged: false);
             }
 
             var total = SlotTotal(index, recipe, cost);
@@ -73,7 +76,8 @@ public sealed class CostSolverService(
                 continue;
             }
 
-            int[]? picks = null;
+            var picked = false;
+            var slots = index.SlotCount(recipe);
             for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
             {
                 var item = index.OutputItem[o];
@@ -84,14 +88,18 @@ public sealed class CostSolverService(
                 }
                 // The walk must follow the stacks this price was built from: an alternative that
                 // only ties them later (the recipe's own output, once priced) could close a loop.
-                picks ??= Picks(index, recipe, cost);
+                if (!picked)
+                {
+                    Picks(index, recipe, cost, scratch);
+                    picked = true;
+                }
                 if (best[item] < 0)
                 {
                     won.Add(item);
                 }
                 cost[item] = candidate;
                 best[item] = recipe;
-                chosen[item] = picks;
+                Record(chosen, item, scratch, slots);
                 for (var c = index.ConsumerStart[item]; c < index.ConsumerStart[item + 1]; c++)
                 {
                     var consumer = index.ConsumerRecipe[c];
@@ -105,52 +113,22 @@ public sealed class CostSolverService(
         }
 
         PreferForms(index, legal, cost, best, chosen, won, seeds);
-        return Materialize(index, cost, best, chosen, won, seeds, converged: true);
+        return Materialize(index, cost, best, chosen, won, converged: true);
     }
 
-    public double Candidate(SolverRecipe recipe, string itemId, IReadOnlyDictionary<string, double> costs)
+    public double Candidate(CostTable table, SolverRecipe recipe, string itemId)
     {
-        var total = SlotTotal(recipe, costs);
-        if (double.IsPositiveInfinity(total))
+        var index = table.Index;
+        if (!index.RecipeIndex.TryGetValue(recipe.Id, out var r))
         {
-            return double.PositiveInfinity;
+            throw new ArgumentException($"recipe '{recipe.Id}' does not belong to the solved graph", nameof(recipe));
         }
-
-        var candidate = double.PositiveInfinity;
-        foreach (var output in recipe.Outputs)
-        {
-            if (output.ItemId == itemId)
-            {
-                candidate = Math.Min(candidate, total / (output.Amount * output.Chance));
-            }
-        }
-        return candidate;
+        return index.TryGetItem(itemId, out var item)
+            ? Candidate(index, r, item, table.CostArray)
+            : double.PositiveInfinity;
     }
 
     /// <summary>Every slot at its cheapest alternative, or +∞ when one has no known price.</summary>
-    private static double SlotTotal(SolverRecipe recipe, IReadOnlyDictionary<string, double> costs)
-    {
-        var total = 0.0;
-        foreach (var slot in recipe.Slots)
-        {
-            var cheapest = double.PositiveInfinity;
-            foreach (var alternative in slot.Alternatives)
-            {
-                if (costs.TryGetValue(alternative.ItemId, out var unit)
-                    && unit * alternative.Amount < cheapest)
-                {
-                    cheapest = unit * alternative.Amount;
-                }
-            }
-            if (double.IsPositiveInfinity(cheapest))
-            {
-                return double.PositiveInfinity;
-            }
-            total += cheapest;
-        }
-        return total;
-    }
-
     private static double SlotTotal(SolverIndex index, int recipe, double[] cost)
     {
         var total = 0.0;
@@ -193,14 +171,14 @@ public sealed class CostSolverService(
         return candidate;
     }
 
-    /// <summary>The alternative each slot resolves to at the current prices — the same rule as
-    /// <see cref="SlotChoice.Cheapest"/>: first strictly cheaper wins, the first on ties and
-    /// when no alternative is priced.</summary>
-    private static int[] Picks(SolverIndex index, int recipe, double[] cost)
+    /// <summary>The alternative each slot resolves to at the current prices, written into
+    /// <paramref name="picks"/> — the same rule as <see cref="SlotChoice.Cheapest"/>: first
+    /// strictly cheaper wins, the first on ties and when no alternative is priced.</summary>
+    private static void Picks(SolverIndex index, int recipe, double[] cost, ushort[] picks)
     {
         var first = index.SlotStart[recipe];
-        var picks = new int[index.SlotStart[recipe + 1] - first];
-        for (var s = 0; s < picks.Length; s++)
+        var slots = index.SlotStart[recipe + 1] - first;
+        for (var s = 0; s < slots; s++)
         {
             var start = index.AlternativeStart[first + s];
             var bestCost = double.PositiveInfinity;
@@ -211,16 +189,25 @@ public sealed class CostSolverService(
                 var stack = double.IsNaN(unit) ? double.PositiveInfinity : unit * index.AlternativeAmount[a];
                 if (a == start || stack < bestCost)
                 {
-                    picks[s] = a - start;
+                    picks[s] = (ushort)(a - start);
                     bestCost = stack;
                 }
             }
         }
-        return picks;
+    }
+
+    /// <summary>Keeps the item's picks in its own buffer, grown only when a wider recipe wins.</summary>
+    private static void Record(ushort[][] chosen, int item, ushort[] picks, int slots)
+    {
+        if (chosen[item] is null || chosen[item].Length < slots)
+        {
+            chosen[item] = new ushort[slots];
+        }
+        Array.Copy(picks, chosen[item], slots);
     }
 
     /// <summary>The item behind slot <paramref name="slot"/> of the recipe under the given picks.</summary>
-    private static int PickedItem(SolverIndex index, int recipe, int[] picks, int slot) =>
+    private static int PickedItem(SolverIndex index, int recipe, ushort[] picks, int slot) =>
         index.AlternativeItem[index.AlternativeStart[index.SlotStart[recipe] + slot] + picks[slot]];
 
     /// <summary>Reroutes ties toward better routes (§5): where another legal producer offers
@@ -231,7 +218,7 @@ public sealed class CostSolverService(
     /// edges, leaves included, which would close a pointer loop. Costs never change here,
     /// only pointers.</summary>
     private void PreferForms(
-        SolverIndex index, bool[] legal, double[] cost, int[] best, int[][] chosen, List<int> won,
+        SolverIndex index, bool[] legal, double[] cost, int[] best, ushort[][] chosen, List<int> won,
         IReadOnlyDictionary<string, double> weights)
     {
         var depths = Depths(index, best, chosen, won);
@@ -247,7 +234,7 @@ public sealed class CostSolverService(
         }
 
         var reach = new ReachWalk(index.ItemCount);
-        var candidates = new List<(int Recipe, int[] Inputs, (int, int, double) Score)>();
+        var candidates = new List<(int Recipe, ushort[] Picks, (int, int, double) Score)>();
         foreach (var item in won)
         {
             var current = best[item];
@@ -260,11 +247,12 @@ public sealed class CostSolverService(
                 {
                     continue;
                 }
-                var inputs = Picks(index, producer, cost);
-                var score = Score(index, producer, inputs, rank, depths, leafWeight);
+                var picks = new ushort[index.SlotCount(producer)];
+                Picks(index, producer, cost, picks);
+                var score = Score(index, producer, picks, rank, depths, leafWeight);
                 if (score.CompareTo(currentScore) < 0)
                 {
-                    candidates.Add((producer, inputs, score));
+                    candidates.Add((producer, picks, score));
                 }
             }
             // Stable by score, so equally scored producers keep graph order.
@@ -279,15 +267,15 @@ public sealed class CostSolverService(
                 }
                 candidates[j + 1] = entry;
             }
-            foreach (var (candidate, inputs, _) in candidates)
+            foreach (var (candidate, picks, _) in candidates)
             {
                 if (Candidate(index, candidate, item, cost) > cost[item] + Epsilon
-                    || reach.Reaches(index, best, chosen, candidate, inputs, item))
+                    || reach.Reaches(index, best, chosen, candidate, picks, item))
                 {
                     continue;
                 }
                 best[item] = candidate;
-                chosen[item] = inputs;
+                Record(chosen, item, picks, picks.Length);
                 break;
             }
         }
@@ -296,12 +284,13 @@ public sealed class CostSolverService(
     /// <summary>The tie-break key of a recipe over its chosen inputs: worst form rank, deepest
     /// chain, heaviest chosen leaf. Lexicographically smaller is better.</summary>
     private static (int Rank, int Depth, double Weight) Score(
-        SolverIndex index, int recipe, int[] picks, int[] rank, int[] depths, double[] leafWeight)
+        SolverIndex index, int recipe, ushort[] picks, int[] rank, int[] depths, double[] leafWeight)
     {
         var worstRank = 0;
         var depth = 0;
         var weight = 0.0;
-        for (var s = 0; s < picks.Length; s++)
+        var slots = index.SlotCount(recipe);
+        for (var s = 0; s < slots; s++)
         {
             var item = PickedItem(index, recipe, picks, s);
             worstRank = Math.Max(worstRank, rank[item]);
@@ -317,7 +306,7 @@ public sealed class CostSolverService(
     /// <summary>Chain depth per item over chosen edges: leaves and unproduced items sit at 0,
     /// an expanded item one step past its deepest chosen input. The bestRecipe DAG is acyclic
     /// (§5), so a post-order walk settles every item once.</summary>
-    private static int[] Depths(SolverIndex index, int[] best, int[][] chosen, List<int> roots)
+    private static int[] Depths(SolverIndex index, int[] best, ushort[][] chosen, List<int> roots)
     {
         var depths = new int[index.ItemCount];
         var started = new bool[index.ItemCount];
@@ -341,11 +330,12 @@ public sealed class CostSolverService(
                     stack.RemoveAt(stack.Count - 1);
                     continue;
                 }
-                var picks = chosen[item];
-                if (next < picks.Length)
+                var recipe = best[item];
+                var slots = index.SlotCount(recipe);
+                if (next < slots)
                 {
                     stack[^1] = (item, next + 1);
-                    var child = PickedItem(index, best[item], picks, next);
+                    var child = PickedItem(index, recipe, chosen[item], next);
                     if (!done[child] && !started[child])
                     {
                         started[child] = true;
@@ -355,9 +345,9 @@ public sealed class CostSolverService(
                 else
                 {
                     var deepest = 0;
-                    for (var s = 0; s < picks.Length; s++)
+                    for (var s = 0; s < slots; s++)
                     {
-                        deepest = Math.Max(deepest, depths[PickedItem(index, best[item], picks, s)]);
+                        deepest = Math.Max(deepest, depths[PickedItem(index, recipe, chosen[item], s)]);
                     }
                     depths[item] = deepest + 1;
                     done[item] = true;
@@ -378,11 +368,12 @@ public sealed class CostSolverService(
         private readonly Stack<int> _pending = new();
         private int _stamp;
 
-        public bool Reaches(SolverIndex index, int[] best, int[][] chosen, int recipe, int[] picks, int target)
+        public bool Reaches(SolverIndex index, int[] best, ushort[][] chosen, int recipe, ushort[] picks, int target)
         {
             _stamp++;
             _pending.Clear();
-            for (var s = 0; s < picks.Length; s++)
+            var slots = index.SlotCount(recipe);
+            for (var s = 0; s < slots; s++)
             {
                 _pending.Push(PickedItem(index, recipe, picks, s));
             }
@@ -397,43 +388,34 @@ public sealed class CostSolverService(
                     continue;
                 }
                 _seenAt[item] = _stamp;
-                var inputs = chosen[item];
-                for (var s = 0; s < inputs.Length; s++)
+                var viaRecipe = best[item];
+                var viaSlots = index.SlotCount(viaRecipe);
+                for (var s = 0; s < viaSlots; s++)
                 {
-                    _pending.Push(PickedItem(index, best[item], inputs, s));
+                    _pending.Push(PickedItem(index, viaRecipe, chosen[item], s));
                 }
             }
             return false;
         }
     }
 
-    /// <summary>Back to the id-keyed table every reader consumes. Insertion order is kept as
-    /// the dictionaries always had it: leaves in weight order, then items as they first won.</summary>
+    /// <summary>Packs the per-item pick buffers into one compressed row array; the cost and
+    /// best-recipe arrays are handed over as they are.</summary>
     private static CostTable Materialize(
-        SolverIndex index, double[] cost, int[] best, int[][] chosen, List<int> won,
-        IReadOnlyDictionary<string, double> seeds, bool converged)
+        SolverIndex index, double[] cost, int[] best, ushort[][] chosen, List<int> won, bool converged)
     {
-        var costs = new Dictionary<string, double>(seeds.Count + won.Count);
-        foreach (var id in seeds.Keys)
-        {
-            costs[id] = cost[index.ItemIndex[id]];
-        }
-        var bestRecipes = new Dictionary<string, SolverRecipe>(won.Count);
-        var chosenInputs = new Dictionary<string, IReadOnlyList<SolverStack>>(won.Count);
+        var pickStart = new int[index.ItemCount];
+        var total = 0;
         foreach (var item in won)
         {
-            var id = index.ItemIds[item];
-            var recipe = index.Recipes[best[item]];
-            var picks = chosen[item];
-            var stacks = new SolverStack[picks.Length];
-            for (var s = 0; s < picks.Length; s++)
-            {
-                stacks[s] = recipe.Slots[s].Alternatives[picks[s]];
-            }
-            costs[id] = cost[item];
-            bestRecipes[id] = recipe;
-            chosenInputs[id] = stacks;
+            pickStart[item] = total;
+            total += index.SlotCount(best[item]);
         }
-        return new CostTable(costs, bestRecipes, chosenInputs, converged);
+        var picks = new ushort[total];
+        foreach (var item in won)
+        {
+            Array.Copy(chosen[item], 0, picks, pickStart[item], index.SlotCount(best[item]));
+        }
+        return new CostTable(index, cost, best, pickStart, picks, converged);
     }
 }

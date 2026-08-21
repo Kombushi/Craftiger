@@ -125,9 +125,17 @@ public sealed class PlannerArtifactRepository(
             .OrderBy(machine => machine.Name, StringComparer.Ordinal)
             .ToList();
 
+        // The craft list's tie order, fixed per artifact: a solve only ranks priced items by cost.
+        var craftListOrder = items.Values
+            .OrderBy(item => item.Name, StringComparer.Ordinal)
+            .ThenBy(item => item.Id, StringComparer.Ordinal)
+            .Select(item => item.Id)
+            .ToArray();
+
         var artifact = new PlannerArtifact(
             graph,
             items,
+            craftListOrder,
             recipeRows.ToDictionary(row => row.Id, row => new ArtifactRecipe(
                 row.Id, row.Machine, (int)row.Tier, (int?)row.MultiTier, (int?)row.Heat,
                 row.DurationTicks, row.EuT,

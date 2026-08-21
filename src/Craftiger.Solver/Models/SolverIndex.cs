@@ -7,16 +7,28 @@ namespace Craftiger.Solver.Models;
 public sealed class SolverIndex
 {
     private SolverIndex(
-        string[] itemIds, IReadOnlyDictionary<string, int> itemIndex, string?[] leafClass,
+        string[] itemIds,
+        IReadOnlyDictionary<string, int> itemIndex,
+        string?[] leafClass,
         SolverRecipe[] recipes,
-        int[] slotStart, int[] alternativeStart, int[] alternativeItem, double[] alternativeAmount,
-        int[] outputStart, int[] outputItem, double[] outputYield,
-        int[] consumerStart, int[] consumerRecipe, int[] producerStart, int[] producerRecipe)
+        IReadOnlyDictionary<string, int> recipeIndex,
+        int[] slotStart,
+        int[] alternativeStart,
+        int[] alternativeItem,
+        double[] alternativeAmount,
+        int[] outputStart,
+        int[] outputItem,
+        double[] outputYield,
+        int[] consumerStart,
+        int[] consumerRecipe,
+        int[] producerStart,
+        int[] producerRecipe)
     {
         ItemIds = itemIds;
         ItemIndex = itemIndex;
         LeafClass = leafClass;
         Recipes = recipes;
+        RecipeIndex = recipeIndex;
         SlotStart = slotStart;
         AlternativeStart = alternativeStart;
         AlternativeItem = alternativeItem;
@@ -40,6 +52,8 @@ public sealed class SolverIndex
 
     /// <summary>Recipes in graph order; the recipe index is the position here.</summary>
     public SolverRecipe[] Recipes { get; }
+
+    public IReadOnlyDictionary<string, int> RecipeIndex { get; }
 
     /// <summary>Recipe <c>r</c> owns slots <c>SlotStart[r]</c> to <c>SlotStart[r + 1]</c>.</summary>
     public int[] SlotStart { get; }
@@ -73,7 +87,40 @@ public sealed class SolverIndex
 
     public int ItemCount => ItemIds.Length;
 
+    /// <summary>The widest recipe's slot count — the size of a scratch pick buffer.</summary>
+    public int MaxSlotCount { get; private set; }
+
     public bool IsLeaf(int item) => LeafClass[item] is not null;
+
+    public bool TryGetItem(string itemId, out int item) => ItemIndex.TryGetValue(itemId, out item);
+
+    public int SlotCount(int recipe) => SlotStart[recipe + 1] - SlotStart[recipe];
+
+    public int AlternativeCount(int recipe, int slot)
+    {
+        var s = SlotStart[recipe] + slot;
+        return AlternativeStart[s + 1] - AlternativeStart[s];
+    }
+
+    /// <summary>The flat position of one alternative, indexing <see cref="AlternativeItem"/> and
+    /// <see cref="AlternativeAmount"/>.</summary>
+    public int AlternativeAt(int recipe, int slot, int alternative) =>
+        AlternativeStart[SlotStart[recipe] + slot] + alternative;
+
+    /// <summary>The expected amount one run of the recipe yields of the item, summing chanced
+    /// twin rows.</summary>
+    public double Yield(int recipe, int item)
+    {
+        var yield = 0.0;
+        for (var o = OutputStart[recipe]; o < OutputStart[recipe + 1]; o++)
+        {
+            if (OutputItem[o] == item)
+            {
+                yield += OutputYield[o];
+            }
+        }
+        return yield;
+    }
 
     public static SolverIndex Build(
         IReadOnlyDictionary<string, SolverItem> items, IReadOnlyList<SolverRecipe> recipeList)
@@ -96,6 +143,7 @@ public sealed class SolverIndex
         }
 
         var recipes = recipeList.ToArray();
+        var recipeIndex = new Dictionary<string, int>(recipes.Length);
         var slotStart = new int[recipes.Length + 1];
         var outputStart = new int[recipes.Length + 1];
         var alternativeStart = new List<int> { 0 };
@@ -103,10 +151,18 @@ public sealed class SolverIndex
         var alternativeAmount = new List<double>();
         var outputItem = new List<int>();
         var outputYield = new List<double>();
+        var maxSlots = 0;
         for (var r = 0; r < recipes.Length; r++)
         {
+            recipeIndex[recipes[r].Id] = r;
             foreach (var slot in recipes[r].Slots)
             {
+                // Solved tables record the chosen alternative per slot as a ushort.
+                if (slot.Alternatives.Count > ushort.MaxValue)
+                {
+                    throw new InvalidOperationException(
+                        $"recipe '{recipes[r].Id}' has a slot with {slot.Alternatives.Count} alternatives; at most {ushort.MaxValue} are supported");
+                }
                 foreach (var alternative in slot.Alternatives)
                 {
                     alternativeItem.Add(IndexOf(alternative.ItemId));
@@ -115,6 +171,7 @@ public sealed class SolverIndex
                 alternativeStart.Add(alternativeItem.Count);
             }
             slotStart[r + 1] = alternativeStart.Count - 1;
+            maxSlots = Math.Max(maxSlots, recipes[r].Slots.Count);
             foreach (var output in recipes[r].Outputs)
             {
                 outputItem.Add(IndexOf(output.ItemId));
@@ -135,10 +192,13 @@ public sealed class SolverIndex
             itemIds.Count, recipes.Length, r => DistinctRange(outputItem, outputStart[r], outputStart[r + 1]));
 
         return new SolverIndex(
-            itemIds.ToArray(), itemIndex, leafClass, recipes,
+            itemIds.ToArray(), itemIndex, leafClass, recipes, recipeIndex,
             slotStart, alternativeStart.ToArray(), alternativeItem.ToArray(), alternativeAmount.ToArray(),
             outputStart, outputItem.ToArray(), outputYield.ToArray(),
-            consumerStart, consumerRecipe, producerStart, producerRecipe);
+            consumerStart, consumerRecipe, producerStart, producerRecipe)
+        {
+            MaxSlotCount = maxSlots,
+        };
     }
 
     private static IEnumerable<int> DistinctRange(List<int> values, int start, int end)

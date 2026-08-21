@@ -446,7 +446,7 @@ public sealed class BomTests
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
         var result = Fx.Bom().Compute(graph, table, Fx.Garage(), [new BomTarget("slab", 2)], _noPins);
 
-        Assert.Equal(36, table.Costs["block"]);
+        Assert.Equal(36, table.Cost("block"));
         Assert.Equal(1, Leaf(result, "block"));
         Assert.DoesNotContain(result.Leaves, leaf => leaf.ItemId == "ingot");
     }

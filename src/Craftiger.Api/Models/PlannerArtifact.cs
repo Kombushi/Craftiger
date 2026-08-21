@@ -7,6 +7,7 @@ namespace Craftiger.Api.Models;
 public sealed record PlannerArtifact(
     SolverGraph Graph,
     IReadOnlyDictionary<string, ArtifactItem> Items,
+    IReadOnlyList<string> CraftListOrder,
     IReadOnlyDictionary<string, ArtifactRecipe> Recipes,
     string PackVersion,
     IReadOnlyList<string> TierNames,

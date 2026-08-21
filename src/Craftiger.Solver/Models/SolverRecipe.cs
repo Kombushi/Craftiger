@@ -4,5 +4,10 @@ namespace Craftiger.Solver.Models;
 /// needs, <paramref name="MultiTier"/> what the map's multiblock needs where owning one lowers
 /// the bar, and <paramref name="Heat"/> is set on coil-gated recipes only.</summary>
 public sealed record SolverRecipe(
-    string Id, string Machine, int Tier, int? MultiTier, int? Heat,
-    IReadOnlyList<SolverSlot> Slots, IReadOnlyList<SolverOutput> Outputs);
+    string Id,
+    string Machine,
+    int Tier,
+    int? MultiTier,
+    int? Heat,
+    IReadOnlyList<SolverSlot> Slots,
+    IReadOnlyList<SolverOutput> Outputs);
