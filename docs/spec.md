@@ -108,7 +108,7 @@ Caveats:
   pack version into `meta`.
 
 Stage 2 — build. The HSQLDB dump is first converted into a local
-`dump.sqlite` copy by the `dump:convert` task (a JDBC copier in
+`artifacts/dump.sqlite` copy by the `dump:convert` task (a JDBC copier in
 `tools/dump-convert/` — the only step requiring a JRE, since .NET has no
 HSQLDB driver). The builder (`Craftiger.Builder`, a standalone console
 project — repo layout in §8) then produces:
@@ -118,8 +118,9 @@ project — repo layout in §8) then produces:
 - `atlas-offsets.json` — `itemId → (u, v)` pixel offsets into the atlas
 
 These artifacts are the only contract between the builder and the API.
-`dump.sqlite` is an intermediate — a faithful SQLite copy of the dump kept
-locally for builder runs and ad-hoc queries; it is never shipped.
+`artifacts/dump.sqlite` is an intermediate — a faithful SQLite copy of the
+dump kept locally beside the icon archive `artifacts/image.zip` for builder
+runs and ad-hoc queries; neither is committed nor baked into an image.
 
 Builder responsibilities, in order:
 

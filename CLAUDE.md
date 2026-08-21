@@ -59,7 +59,7 @@ types and identifiers.
   `docker:push` (the latter two take the image version via `TAG`) for the
   container images.
 - The NESQL dump is an HSQLDB database (Java-only format, ~600 MB), converted
-  into a local `dump.sqlite` by `mise run dump:convert` (a single-file JDBC
+  into a local `artifacts/dump.sqlite` by `mise run dump:convert` (a single-file JDBC
   copier in `tools/dump-convert/`, the only step that ever needs a JRE). All
   code and ad-hoc queries read the SQLite copy: use `sqlite3` with `LIMIT`,
   never dump whole tables.

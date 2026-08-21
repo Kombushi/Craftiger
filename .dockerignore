@@ -6,6 +6,6 @@
 docs/
 tests/
 web/
-dump*.sqlite
-image.zip
+artifacts/dump*.sqlite
+artifacts/image.zip
 *.md
