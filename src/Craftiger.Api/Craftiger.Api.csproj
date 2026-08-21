@@ -15,6 +15,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- One heap, memory handed back promptly: a solve is single-threaded and the live heap is
+         small, so server GC's per-core budgets only cost resident memory here. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>
 
 </Project>
