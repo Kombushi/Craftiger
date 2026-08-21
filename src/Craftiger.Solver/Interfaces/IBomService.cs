@@ -6,6 +6,9 @@ namespace Craftiger.Solver.Interfaces;
 public interface IBomService
 {
     BomResult Compute(
-        SolverGraph graph, CostTable costs, Garage garage,
-        IReadOnlyList<BomTarget> targets, IReadOnlyDictionary<string, string> pins);
+        SolverGraph graph,
+        CostTable costs,
+        Garage garage,
+        IReadOnlyList<BomTarget> targets,
+        IReadOnlyDictionary<string, string> pins);
 }

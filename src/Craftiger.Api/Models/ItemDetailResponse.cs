@@ -4,6 +4,12 @@ namespace Craftiger.Api.Models;
 /// expands unless a pin overrides it; null for leaves priced at their weight and for
 /// unreachable items.</summary>
 public sealed record ItemDetailResponse(
-    string ItemId, string Name, long AtlasIdx, string? LeafClass, double? Cost, bool Uncraftable,
-    string? BestRecipeId, IReadOnlyList<RecipeDto> Recipes,
+    string ItemId,
+    string Name,
+    long AtlasIdx,
+    string? LeafClass,
+    double? Cost,
+    bool Uncraftable,
+    string? BestRecipeId,
+    IReadOnlyList<RecipeDto> Recipes,
     IReadOnlyDictionary<string, ItemRefDto> Items);

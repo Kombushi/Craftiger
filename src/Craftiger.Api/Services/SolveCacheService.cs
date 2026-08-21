@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -10,16 +11,19 @@ using Microsoft.Extensions.Options;
 
 namespace Craftiger.Api.Services;
 
+/// <summary>The in-process solve cache. Entries live in a concurrent map whose values are
+/// lazies, so a solve runs exactly once per id while every concurrent request for that id
+/// waits on the same computation and nothing else waits at all; recency is a tick per entry
+/// and eviction drops the stalest settled one, so no lock is held anywhere.</summary>
 public sealed class SolveCacheService(
     PlannerArtifact artifact,
     ICostSolverService solver,
     IOptions<ApiOptions> options,
     ILogger<SolveCacheService> logger) : ISolveCacheService
 {
-    private readonly Lock _gate = new();
-    private readonly Dictionary<string, SolveEntry> _entries = [];
-    private readonly LinkedList<string> _recency = [];
+    private readonly ConcurrentDictionary<string, Slot> _entries = new();
     private readonly int _capacity = Math.Max(1, options.Value.SolveCacheSize);
+    private long _clock;
 
     /// <summary>Per craft-list rank, the item's position in the solver index, or -1 for an item
     /// no recipe and no leaf class ever mention — it can only ever be unpriced.</summary>
@@ -31,51 +35,71 @@ public sealed class SolveCacheService(
     {
         var (garage, weights) = Translate(request);
         var solveId = SolveIdOf(request);
+        var slot = _entries.GetOrAdd(solveId, id => new Slot(new Lazy<SolveEntry>(
+            () => Compute(id, garage, weights), LazyThreadSafetyMode.ExecutionAndPublication)));
+        var entry = Settle(solveId, slot) ?? throw new InvalidOperationException($"solve {solveId} failed");
+        Evict();
+        return new SolveResponse(solveId, entry.ReachableCount, entry.Table.Converged);
+    }
 
-        lock (_gate)
+    public SolveEntry? Get(string solveId) =>
+        _entries.TryGetValue(solveId, out var slot) ? Settle(solveId, slot) : null;
+
+    /// <summary>The slot's entry, waiting for an in-flight solve; a solve that threw is dropped
+    /// so the next request recomputes instead of replaying the failure.</summary>
+    private SolveEntry? Settle(string solveId, Slot slot)
+    {
+        slot.LastUsed = Interlocked.Increment(ref _clock);
+        try
         {
-            if (_entries.TryGetValue(solveId, out var cached))
-            {
-                Touch(solveId);
-                return new SolveResponse(solveId, cached.ReachableCount, cached.Table.Converged);
-            }
-
-            var table = solver.Solve(artifact.Graph, garage, weights);
-            var (sorted, reachable) = Sort(table);
-            var entry = new SolveEntry(table, garage, weights, sorted, reachable);
-            _entries[solveId] = entry;
-            _recency.AddFirst(solveId);
-            while (_entries.Count > _capacity)
-            {
-                var evicted = _recency.Last!.Value;
-                _recency.RemoveLast();
-                _entries.Remove(evicted);
-            }
-
-            logger.LogInformation(
-                "solved {SolveId}: {Reachable:N0} of {Items:N0} items priced, converged {Converged}",
-                solveId, entry.ReachableCount, artifact.Items.Count, table.Converged);
-            return new SolveResponse(solveId, entry.ReachableCount, table.Converged);
+            return slot.Entry.Value;
+        }
+        catch (Exception e)
+        {
+            _entries.TryRemove(new KeyValuePair<string, Slot>(solveId, slot));
+            logger.LogError(e, "solve {SolveId} failed", solveId);
+            return null;
         }
     }
 
-    public SolveEntry? Get(string solveId)
+    private SolveEntry Compute(string solveId, Garage garage, WeightSettings weights)
     {
-        lock (_gate)
+        var table = solver.Solve(artifact.Graph, garage, weights);
+        var (sorted, reachable) = Sort(table);
+        logger.LogInformation(
+            "solved {SolveId}: {Reachable:N0} of {Items:N0} items priced, converged {Converged}",
+            solveId, reachable, artifact.Items.Count, table.Converged);
+        return new SolveEntry(table, garage, weights, sorted, reachable);
+    }
+
+    /// <summary>Drops the least recently used settled entries until the cache fits; a solve
+    /// still in flight is never evicted. Two requests evicting at once may drop one entry
+    /// more than needed, which costs a recompute and nothing else.</summary>
+    private void Evict()
+    {
+        while (_entries.Count > _capacity)
         {
-            if (!_entries.TryGetValue(solveId, out var entry))
+            KeyValuePair<string, Slot>? stalest = null;
+            foreach (var pair in _entries)
             {
-                return null;
+                if (pair.Value.Entry.IsValueCreated
+                    && (stalest is null || pair.Value.LastUsed < stalest.Value.Value.LastUsed))
+                {
+                    stalest = pair;
+                }
             }
-            Touch(solveId);
-            return entry;
+            if (stalest is null || !_entries.TryRemove(stalest.Value))
+            {
+                return;
+            }
         }
     }
 
-    private void Touch(string solveId)
+    private sealed class Slot(Lazy<SolveEntry> entry)
     {
-        _recency.Remove(solveId);
-        _recency.AddFirst(solveId);
+        public Lazy<SolveEntry> Entry { get; } = entry;
+
+        public long LastUsed { get; set; }
     }
 
     /// <summary>The craft list: priced items cheapest first, unreachable items after them, ties

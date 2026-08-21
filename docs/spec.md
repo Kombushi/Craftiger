@@ -479,6 +479,10 @@ Caching and pins:
 
 - Solved cost tables are cached keyed by `(garageHash, B, weightsHash)`, where
   `garageHash` covers the default tier, all overrides, and the EBF coil.
+- A solve never blocks anyone else: concurrent requests for the same key share
+  one computation and wait only for it, requests for other keys — cached or
+  new — proceed at once, and there is no cap on how many distinct solves run
+  at a time. A solve that fails is not kept; the next request recomputes.
 - **Pins never enter the cache key.** The sorted list always shows the unpinned
   baseline; pins are applied as an overlay when resolving the item detail view and
   the BOM walk. v1 simplification: a pin changes recipe *choice*, not the listed price.

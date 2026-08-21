@@ -98,8 +98,7 @@ public sealed class PlannerQueryService(
             Refs(entry, ids));
     }
 
-    public IReadOnlyList<string> Machines(IEnumerable<string> targetIds) =>
-        closure.MachinesFor(artifact.Graph, targetIds);
+    public IReadOnlyList<string> Machines(IEnumerable<string> targetIds) => closure.MachinesFor(artifact.Graph, targetIds);
 
     public BomResponse Bom(SolveEntry entry, BomRequest request)
     {
