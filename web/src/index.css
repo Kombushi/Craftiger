@@ -616,27 +616,35 @@ a:focus-visible {
   padding-right: 10px;
 }
 
+/* Fixed columns: the name, the multiblock switch, then every picker at one width in one
+   column — the tier picker on the first line, the coil picker under it — so the pickers line
+   up down the list and a picker's width never follows its longest option. */
 .garage-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 180px;
   align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
+  column-gap: 6px;
+  row-gap: 4px;
   padding: 3px 0;
 }
 
+/* A long name wraps rather than truncates: the picker column is fixed, so the name takes what
+   is left of the row and keeps every letter. */
 .garage-name {
-  flex: 1;
-  min-width: 90px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 13px;
+  line-height: 1.2;
 }
 
 /* Pickers and the always-owned label share one control height so the list keeps one rhythm. */
 .garage-row select,
 .garage-owned {
+  grid-column: 3;
+  grid-row: 1;
+  width: 100%;
   height: 33px;
 }
 
@@ -652,11 +660,13 @@ a:focus-visible {
   color: var(--danger);
 }
 
-.garage-coil {
-  max-width: 150px;
+.garage-row select.garage-coil {
+  grid-row: 2;
 }
 
 .garage-built {
+  grid-column: 2;
+  grid-row: 1;
   display: inline-flex;
   align-items: center;
   gap: 3px;
