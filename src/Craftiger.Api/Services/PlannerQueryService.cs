@@ -18,6 +18,13 @@ public sealed class PlannerQueryService(
 {
     private const int SearchLimit = 50;
 
+    /// <summary>The trigram index needs three characters; shorter queries scan instead.</summary>
+    private const int TrigramLength = 3;
+
+    /// <summary>A one- or two-character query matches most of the pack; the scan stops after
+    /// this many candidates, which keeps it cheap but makes the set beyond them arbitrary.</summary>
+    private const int ShortQueryScanLimit = 200;
+
     public MetaResponse Meta() => new(
         artifact.PackVersion, artifact.TierNames, artifact.Coils, artifact.Machines,
         artifact.Atlas);
@@ -39,29 +46,36 @@ public sealed class PlannerQueryService(
         return new ListResponse(items, total, page, pageSize);
     }
 
-    /// <summary>Type-ahead over names and aliases straight off the artifact database; name
-    /// prefix matches rank first, then the cheaper item wins.</summary>
+    /// <summary>Type-ahead over names and aliases, case-insensitively on every script: the
+    /// artifact's trigram index answers queries of three characters or more with every match,
+    /// shorter ones scan the same folded text the way the index cannot, and the results are
+    /// the cheapest matches first, then by name.</summary>
     public IReadOnlyList<ItemSummaryDto> Search(SolveEntry? entry, string query)
     {
         using var db = new SqliteConnection($"Data Source={artifact.DbPath};Mode=ReadOnly");
-        var pattern = $"%{query.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%";
-        var ids = db.Query<string>(
-            """
-            SELECT DISTINCT i.id FROM items i
-            LEFT JOIN item_aliases a ON a.item_id = i.id
-            WHERE i.name_en LIKE @Pattern ESCAPE '\' OR a.alias LIKE @Pattern ESCAPE '\'
-            LIMIT @Limit
-            """,
-            new { Pattern = pattern, Limit = SearchLimit * 4 });
+        var folded = query.ToLowerInvariant();
+        var ids = folded.Length >= TrigramLength
+            ? db.Query<string>(
+                "SELECT DISTINCT item_id FROM item_search WHERE item_search MATCH @Match",
+                new { Match = $"\"{folded.Replace("\"", "\"\"")}\"" })
+            : db.Query<string>(
+                """
+                SELECT DISTINCT item_id FROM item_search
+                WHERE text LIKE @Pattern ESCAPE '\'
+                LIMIT @Limit
+                """,
+                new
+                {
+                    Pattern = $"%{folded.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%",
+                    Limit = ShortQueryScanLimit,
+                });
 
         return ids
+            .Where(artifact.Items.ContainsKey)
             .Select(id => artifact.Items[id])
             .Select(item => new ItemSummaryDto(
-                item.Id, item.Name, item.AtlasIdx,
-                entry?.Table.Cost(item.Id),
-                item.Uncraftable))
-            .OrderBy(item => item.Name.StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-            .ThenBy(item => item.Cost ?? double.PositiveInfinity)
+                item.Id, item.Name, item.AtlasIdx, entry?.Table.Cost(item.Id), item.Uncraftable))
+            .OrderBy(item => item.Cost ?? double.PositiveInfinity)
             .ThenBy(item => item.Name, StringComparer.Ordinal)
             .Take(SearchLimit)
             .ToList();

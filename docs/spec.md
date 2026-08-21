@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.31
+# GTNH Crafting Planner — Specification v1.32
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -297,6 +297,11 @@ Builder responsibilities, in order:
 
 - `items(id, name_en, oredict, is_fluid, leaf_class NULL, atlas_idx)`
 - `item_aliases(item_id, alias)` — merged names and oredict names for search
+- `item_search(item_id, text)` — an FTS5 trigram index (`case_sensitive 1`) over
+  every item's name and every alias, the text lowercased with invariant
+  Unicode case mapping (.NET `ToLowerInvariant`) at build time; the reader
+  folds its query the same way, so matching is case-insensitive on every
+  script while SQLite's own ASCII-only `LIKE` folding never matters (§7)
 - `recipes(id, machine, tier, multi_tier NULL, heat NULL, duration_ticks, eu_t)`
   — `multi_tier` for maps whose multiblock lowers the tier, `heat` for
   coil-gated recipes only
@@ -566,9 +571,14 @@ away — "Tin Nugget (aka Tin Oreberry)" — so a canonicalized ingredient stays
 recognizable in recipe cards and item detail; oredict-style aliases never
 show. Screens:
 
-- **Search** — type-ahead over canonical names and oredict aliases; results show
-  icon, name, and cost. Search works before the first solve — costs are simply
-  blank until one exists. An item nothing in the pack produces and that is not
+- **Search** — type-ahead over canonical names and oredict aliases: a
+  case-insensitive substring match (every script, case only — diacritics are
+  not folded) answered by the artifact's trigram index with every match for
+  queries of three characters or more, and by a scan of the same folded text
+  for shorter ones; results are the cheapest matches first, then by name, at
+  most fifty, showing icon, name, and cost. Search works before the first
+  solve — costs are simply blank until one exists, so results come in name
+  order. An item nothing in the pack produces and that is not
   a raw material — a deprecated controller kept only for its conversion
   recipe, a creative or placeholder item — reads `uncraftable` instead of a
   cost, before and after a solve; items merely unpriced under the garage keep
@@ -966,3 +976,7 @@ All "does not / never" rules live here; other sections only reference this one.
 38. An item nothing in the pack produces and that is not a raw material reads
     `uncraftable` under every garage, while a craftable item that is merely
     unpriced at the garage keeps its `∞`.
+39. Search matches a substring of a name or alias regardless of letter case
+    on every script — an uppercase query finds a lowercase non-ASCII name and
+    vice versa — both through the trigram index and on the short-query scan,
+    and lists the cheapest matches first, then by name.

@@ -9,7 +9,7 @@ public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader
     /// can refuse an artifact written for a contract it does not know.</summary>
-    public const int SchemaVersion = 5;
+    public const int SchemaVersion = 6;
 
     public void Write(string path, PlannerData data)
     {
@@ -65,6 +65,7 @@ public sealed class PlannerRepository : IPlannerRepository
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
             CREATE TABLE machine_eras(machine TEXT PRIMARY KEY, era INTEGER, multiblock INTEGER NOT NULL);
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE VIRTUAL TABLE item_search USING fts5(item_id UNINDEXED, text, tokenize = 'trigram case_sensitive 1');
             """);
 
         using var tx = db.BeginTransaction();
@@ -84,6 +85,15 @@ public sealed class PlannerRepository : IPlannerRepository
             data.OrderedItemIds.SelectMany(id =>
                 (data.Unified.AliasesByCanonical.GetValueOrDefault(id) ?? [])
                 .Select(alias => new { Id = id, Alias = alias })), tx);
+
+        // Search text is folded here with .NET's invariant Unicode lowercasing, and the reader
+        // folds its query the same way: SQLite's own LIKE only folds ASCII, the trigram index
+        // is told the text is already case-folded, and both paths then agree on every script.
+        db.Execute("INSERT INTO item_search (item_id, text) VALUES (@Id, @Text)",
+            data.OrderedItemIds.SelectMany(id =>
+                (data.Unified.AliasesByCanonical.GetValueOrDefault(id) ?? [])
+                .Prepend(data.Dump.NameOf(id))
+                .Select(text => new { Id = id, Text = text.ToLowerInvariant() })), tx);
 
         db.Execute(
             "INSERT INTO recipes VALUES (@Id, @Machine, @Tier, @MultiTier, @Heat, @DurationTicks, @EuT)",

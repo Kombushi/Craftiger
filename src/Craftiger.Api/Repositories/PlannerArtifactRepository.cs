@@ -11,7 +11,7 @@ public sealed class PlannerArtifactRepository(
     GarageRules rules, ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 5;
+    public const int SupportedSchemaVersion = 6;
 
     public PlannerArtifact Load(string artifactsDir)
     {

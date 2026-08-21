@@ -17,7 +17,7 @@ public sealed class ApiFixture : IDisposable
     {
         Dir = Path.Combine(Path.GetTempPath(), "craftiger-api-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Dir);
-        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 5);
+        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 6);
         File.WriteAllText(Path.Combine(Dir, "atlas-offsets.json"), "{}");
         _factory = Create(Dir);
         Client = _factory.CreateClient();
@@ -64,6 +64,7 @@ public sealed class ApiFixture : IDisposable
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
             CREATE TABLE machine_eras(machine TEXT PRIMARY KEY, era INTEGER, multiblock INTEGER NOT NULL);
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE VIRTUAL TABLE item_search USING fts5(item_id UNINDEXED, text, tokenize = 'trigram case_sensitive 1');
             """);
 
         db.Execute("""
@@ -76,7 +77,12 @@ public sealed class ApiFixture : IDisposable
                 ('rod', 'Extruded Rod', NULL, 0, NULL, 5),
                 ('chip', 'Late Chip', NULL, 0, NULL, 6),
                 ('saw', 'Test Saw', NULL, 0, NULL, 7);
-            INSERT INTO item_aliases VALUES ('ing', 'ingotIronium'), ('ing', 'Ferrum Ingot');
+            INSERT INTO item_aliases VALUES ('ing', 'ingotIronium'), ('ing', 'Ferrum Ingot'), ('sil', 'silberlötzinn');
+            INSERT INTO item_search (item_id, text) VALUES
+                ('ing', 'iron ingot'), ('ing', 'ingotironium'), ('ing', 'ferrum ingot'),
+                ('nug', 'iron nugget'), ('wire', 'iron wire'), ('hot', 'hot thing'),
+                ('sil', 'silver ingot'), ('sil', 'silberlötzinn'), ('rod', 'extruded rod'),
+                ('chip', 'late chip'), ('saw', 'test saw');
             INSERT INTO recipes VALUES
                 ('r_wire', 'Wiremill', 1, NULL, NULL, 100, 32),
                 ('r_ebf', 'Electric Blast Furnace', 1, NULL, 1900, 200, 120),

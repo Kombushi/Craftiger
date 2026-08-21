@@ -136,6 +136,27 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task SearchRanksTheCheapestMatchFirstThenByName()
+    {
+        var solveId = await SolveAsync();
+
+        var results = await Client.GetFromJsonAsync<List<ItemSummaryDto>>($"/api/search?q=ir&solveId={solveId}");
+
+        Assert.NotNull(results);
+        Assert.Equal(["Iron Nugget", "Iron Wire", "Iron Ingot"], results.Select(item => item.Name));
+    }
+
+    [Fact]
+    public async Task SearchFoldsCaseOnEveryScript()
+    {
+        var byIndex = await Client.GetFromJsonAsync<List<ItemSummaryDto>>("/api/search?q=L%C3%96TZ");
+        var byScan = await Client.GetFromJsonAsync<List<ItemSummaryDto>>("/api/search?q=%C3%96");
+
+        Assert.Equal("sil", Assert.Single(byIndex ?? []).ItemId);
+        Assert.Equal("sil", Assert.Single(byScan ?? []).ItemId);
+    }
+
+    [Fact]
     public async Task SearchWorksBeforeAnySolve()
     {
         var results = await Client.GetFromJsonAsync<List<ItemSummaryDto>>("/api/search?q=Ferrum");

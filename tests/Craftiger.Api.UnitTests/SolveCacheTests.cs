@@ -19,7 +19,7 @@ public sealed class SolveCacheTests : IDisposable
     {
         _dir = Path.Combine(Path.GetTempPath(), "craftiger-cache-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
-        ApiFixture.WriteArtifact(Path.Combine(_dir, "planner.sqlite"), schemaVersion: 5);
+        ApiFixture.WriteArtifact(Path.Combine(_dir, "planner.sqlite"), schemaVersion: 6);
         var rules = new GarageRulesOptions().ToRules();
         _artifact = new PlannerArtifactRepository(rules, NullLogger<PlannerArtifactRepository>.Instance).Load(_dir);
         _solver = new CountingSolver(new CostSolverService(

@@ -370,6 +370,18 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));
 
     [Fact]
+    public void ArtifactIndexesCaseFoldedSearchText()
+    {
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM item_search WHERE item_id = '{FixtureDump.GtBronze}' AND text = 'ingotbronze'"));
+        Assert.Equal(
+            _fixture.Scalar<int>("SELECT COUNT(*) FROM items") + _fixture.Scalar<int>("SELECT COUNT(*) FROM item_aliases"),
+            _fixture.Scalar<int>("SELECT COUNT(*) FROM item_search"));
+        Assert.Equal(FixtureDump.GtBronze, _fixture.Scalar<string>(
+            "SELECT item_id FROM item_search WHERE item_search MATCH '\"otbro\"'"));
+    }
+
+    [Fact]
     public void ArtifactCarriesQueryStatistics() =>
         Assert.True(_fixture.Scalar<int>("SELECT COUNT(*) FROM sqlite_stat1") > 0);
 
