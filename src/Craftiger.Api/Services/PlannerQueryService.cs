@@ -29,10 +29,13 @@ public sealed class PlannerQueryService(
         var items = rows
             .Skip(page * pageSize)
             .Take(pageSize)
-            .Select(row =>
+            .Select(id =>
             {
-                var item = artifact.Items[row.ItemId];
-                return new ItemSummaryDto(item.Id, item.Name, item.AtlasIdx, row.Cost, item.Uncraftable);
+                var item = artifact.Items[id];
+                return new ItemSummaryDto(
+                    item.Id, item.Name, item.AtlasIdx,
+                    entry.Table.Costs.TryGetValue(id, out var cost) ? cost : null,
+                    item.Uncraftable);
             })
             .ToList();
         return new ListResponse(items, total, page, pageSize);

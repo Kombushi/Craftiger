@@ -19,6 +19,14 @@ public sealed class SolveCacheService(
     private readonly LinkedList<string> _recency = [];
     private readonly int _capacity = Math.Max(1, options.Value.SolveCacheSize);
 
+    /// <summary>Every item id in craft-list tie order (name, then id), fixed per artifact: a
+    /// solve only has to order the priced items by cost and keep this order inside each price.</summary>
+    private readonly string[] _byName = artifact.Items.Values
+        .OrderBy(item => item.Name, StringComparer.Ordinal)
+        .ThenBy(item => item.Id, StringComparer.Ordinal)
+        .Select(item => item.Id)
+        .ToArray();
+
     public SolveResponse Solve(SolveRequest request)
     {
         var (garage, weights) = Translate(request);
@@ -33,7 +41,8 @@ public sealed class SolveCacheService(
             }
 
             var table = solver.Solve(artifact.Graph, garage, weights);
-            var entry = new SolveEntry(table, garage, weights, Sort(table), CountReachable(table));
+            var (sorted, reachable) = Sort(table);
+            var entry = new SolveEntry(table, garage, weights, sorted, reachable);
             _entries[solveId] = entry;
             _recency.AddFirst(solveId);
             while (_entries.Count > _capacity)
@@ -69,28 +78,40 @@ public sealed class SolveCacheService(
         _recency.AddFirst(solveId);
     }
 
-    private int CountReachable(CostTable table) =>
-        artifact.Items.Keys.Count(table.Costs.ContainsKey);
-
-    private IReadOnlyList<SortedRow> Sort(CostTable table)
+    /// <summary>The craft list: priced items cheapest first, unreachable items after them, ties
+    /// in the fixed name order. Only the priced items are sorted, by cost and then by their
+    /// position in that order, so no comparison touches a string.</summary>
+    private (IReadOnlyList<string> Sorted, int ReachableCount) Sort(CostTable table)
     {
-        var rows = artifact.Items.Values
-            .Select(item => new SortedRow(
-                item.Id,
-                table.Costs.TryGetValue(item.Id, out var cost) ? cost : null))
-            .ToList();
-        rows.Sort((a, b) =>
+        var costs = new double[_byName.Length];
+        var isPriced = new bool[_byName.Length];
+        var priced = new List<int>(table.Costs.Count);
+        for (var rank = 0; rank < _byName.Length; rank++)
         {
-            if (a.Cost is null != b.Cost is null)
+            if (table.Costs.TryGetValue(_byName[rank], out var cost))
             {
-                return a.Cost is null ? 1 : -1;
+                costs[rank] = cost;
+                isPriced[rank] = true;
+                priced.Add(rank);
             }
-            var byCost = (a.Cost ?? 0).CompareTo(b.Cost ?? 0);
-            return byCost != 0
-                ? byCost
-                : string.CompareOrdinal(artifact.Items[a.ItemId].Name, artifact.Items[b.ItemId].Name);
-        });
-        return rows;
+        }
+        var order = priced.ToArray();
+        Array.Sort(order, (a, b) => costs[a] != costs[b] ? costs[a].CompareTo(costs[b]) : a.CompareTo(b));
+
+        var sorted = new string[_byName.Length];
+        var next = 0;
+        foreach (var rank in order)
+        {
+            sorted[next++] = _byName[rank];
+        }
+        for (var rank = 0; rank < _byName.Length; rank++)
+        {
+            if (!isPriced[rank])
+            {
+                sorted[next++] = _byName[rank];
+            }
+        }
+        return (sorted, order.Length);
     }
 
     private (Garage Garage, WeightSettings Weights) Translate(SolveRequest request)
