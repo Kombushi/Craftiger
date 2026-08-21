@@ -1,36 +1,21 @@
 namespace Craftiger.Solver.Models;
 
-/// <summary>The recipe graph the solver works on, with producer and consumer indices built
-/// once so every solve walks dictionaries rather than lists.</summary>
+/// <summary>The graph the solver works on: the leaves with their weight sources, and the
+/// recipes as the positional index — nothing else is retained. Recipe records only exist as
+/// an input form (<see cref="Build"/>) for fixtures and tests; a real artifact streams into
+/// the index builder directly.</summary>
 public sealed class SolverGraph
 {
-    private SolverGraph(
-        IReadOnlyDictionary<string, SolverItem> items,
-        IReadOnlyList<SolverRecipe> recipes,
-        IReadOnlyDictionary<string, SolverRecipe> recipesById,
-        IReadOnlyDictionary<string, IReadOnlyList<SolverRecipe>> producers,
-        IReadOnlyDictionary<string, IReadOnlyList<SolverRecipe>> consumers)
+    public SolverGraph(IReadOnlyDictionary<string, SolverItem> items, SolverIndex index)
     {
         Items = items;
-        Recipes = recipes;
-        RecipesById = recipesById;
-        Producers = producers;
-        Consumers = consumers;
-        Index = SolverIndex.Build(items, recipes);
+        Index = index;
     }
 
+    /// <summary>The leaves by id; every other item the graph knows is an index position only.</summary>
     public IReadOnlyDictionary<string, SolverItem> Items { get; }
 
-    /// <summary>The same graph as integer-indexed arrays, for the solve's hot loop.</summary>
     public SolverIndex Index { get; }
-
-    public IReadOnlyList<SolverRecipe> Recipes { get; }
-
-    public IReadOnlyDictionary<string, SolverRecipe> RecipesById { get; }
-
-    public IReadOnlyDictionary<string, IReadOnlyList<SolverRecipe>> Producers { get; }
-
-    public IReadOnlyDictionary<string, IReadOnlyList<SolverRecipe>> Consumers { get; }
 
     /// <summary>An item absent from the item set is simply not a leaf.</summary>
     public bool IsLeaf(string itemId) =>
@@ -38,38 +23,7 @@ public sealed class SolverGraph
 
     public static SolverGraph Build(IEnumerable<SolverItem> items, IEnumerable<SolverRecipe> recipes)
     {
-        var recipeList = recipes.ToList();
-        var producers = new Dictionary<string, List<SolverRecipe>>();
-        var consumers = new Dictionary<string, List<SolverRecipe>>();
-        foreach (var recipe in recipeList)
-        {
-            foreach (var itemId in recipe.Outputs.Select(o => o.ItemId).Distinct())
-            {
-                Register(producers, itemId, recipe);
-            }
-            foreach (var itemId in recipe.Slots
-                .SelectMany(slot => slot.Alternatives)
-                .Select(a => a.ItemId)
-                .Distinct())
-            {
-                Register(consumers, itemId, recipe);
-            }
-        }
-
-        return new SolverGraph(
-            items.ToDictionary(item => item.Id),
-            recipeList,
-            recipeList.ToDictionary(recipe => recipe.Id),
-            producers.ToDictionary(p => p.Key, p => (IReadOnlyList<SolverRecipe>)p.Value),
-            consumers.ToDictionary(c => c.Key, c => (IReadOnlyList<SolverRecipe>)c.Value));
-    }
-
-    private static void Register(Dictionary<string, List<SolverRecipe>> index, string itemId, SolverRecipe recipe)
-    {
-        if (!index.TryGetValue(itemId, out var list))
-        {
-            index[itemId] = list = [];
-        }
-        list.Add(recipe);
+        var leaves = items.ToDictionary(item => item.Id);
+        return new SolverGraph(leaves, SolverIndex.Build(leaves.Values, recipes));
     }
 }

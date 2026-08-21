@@ -10,24 +10,33 @@ public sealed class ClosureService : IClosureService
     /// end there, so recipes below a leaf are not relevant to the cart.</summary>
     public IReadOnlyList<string> MachinesFor(SolverGraph graph, IEnumerable<string> targetIds)
     {
-        var seen = new HashSet<string>();
+        var index = graph.Index;
+        var seen = new HashSet<int>();
         var machines = new HashSet<string>();
-        var pending = new Stack<string>(targetIds);
-        while (pending.TryPop(out var itemId))
+        var pending = new Stack<int>();
+        foreach (var targetId in targetIds)
         {
-            if (!seen.Add(itemId) || graph.IsLeaf(itemId))
+            if (index.TryGetItem(targetId, out var target))
+            {
+                pending.Push(target);
+            }
+        }
+        while (pending.TryPop(out var item))
+        {
+            if (!seen.Add(item) || index.IsLeaf(item))
             {
                 continue;
             }
-            foreach (var recipe in graph.Producers.GetValueOrDefault(itemId) ?? [])
+            for (var p = index.ProducerStart[item]; p < index.ProducerStart[item + 1]; p++)
             {
-                machines.Add(recipe.Machine);
-                foreach (var alternative in recipe.Slots.SelectMany(slot => slot.Alternatives))
+                var recipe = index.ProducerRecipe[p];
+                machines.Add(index.Machine[recipe]);
+                for (var a = index.AlternativeStart[index.SlotStart[recipe]]; a < index.AlternativeStart[index.SlotStart[recipe + 1]]; a++)
                 {
-                    pending.Push(alternative.ItemId);
+                    pending.Push(index.AlternativeItem[a]);
                 }
             }
         }
-        return machines.Order(StringComparer.Ordinal).ToList();
+        return [.. machines.Order(StringComparer.Ordinal)];
     }
 }

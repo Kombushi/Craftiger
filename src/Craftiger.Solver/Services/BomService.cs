@@ -159,12 +159,12 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         var wholeRuns = WholeRuns(wholeDemanded, yield);
         var picks = SlotChoice.Picks(walk.Costs, item, recipe);
         walk.Nodes.Add(new BomNode(
-            walk.IdOf(item), demanded, runs, wholeDemanded, wholeRuns, index.Recipes[recipe].Id,
+            walk.IdOf(item), demanded, runs, wholeDemanded, wholeRuns, index.RecipeIds[recipe],
             Stacks(walk, recipe, picks), Loop: null, Seed: false));
         for (var s = 0; s < picks.Length; s++)
         {
             var at = index.AlternativeAt(recipe, s, picks[s]);
-            walk.Add(index.AlternativeItem[at], runs * index.AlternativeAmount[at], wholeRuns * (long)index.AlternativeAmount[at]);
+            walk.Add(index.AlternativeItem[at], runs * index.AlternativeAmount[at], wholeRuns * index.AlternativeAmount[at]);
         }
     }
 
@@ -223,7 +223,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
                     var at = index.AlternativeAt(system.Recipes[j], s, picks[s]);
                     if (system.Row.TryGetValue(index.AlternativeItem[at], out var i))
                     {
-                        next[i] += wholeRuns[j] * (long)index.AlternativeAmount[at];
+                        next[i] += wholeRuns[j] * index.AlternativeAmount[at];
                     }
                 }
             }
@@ -248,7 +248,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             var recipe = system.Recipes[i];
             var picks = system.Picks[i];
             walk.Nodes.Add(new BomNode(
-                walk.IdOf(members[i]), totals[i], runs[i], wholeTotals[i], wholeRuns[i], index.Recipes[recipe].Id,
+                walk.IdOf(members[i]), totals[i], runs[i], wholeTotals[i], wholeRuns[i], index.RecipeIds[recipe],
                 Stacks(walk, recipe, picks), Loop: loop, Seed: false));
             for (var s = 0; s < picks.Length; s++)
             {
@@ -256,7 +256,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
                 var input = index.AlternativeItem[at];
                 if (!system.Row.ContainsKey(input))
                 {
-                    walk.Add(input, runs[i] * index.AlternativeAmount[at], wholeRuns[i] * (long)index.AlternativeAmount[at]);
+                    walk.Add(input, runs[i] * index.AlternativeAmount[at], wholeRuns[i] * index.AlternativeAmount[at]);
                 }
             }
         }
@@ -270,12 +270,12 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         var seedRuns = 1 / seedYield;
         var seedWholeRuns = WholeRuns(1, seedYield);
         walk.Nodes.Add(new BomNode(
-            walk.IdOf(seed.Item), 1, seedRuns, 1, seedWholeRuns, index.Recipes[seed.Recipe].Id,
+            walk.IdOf(seed.Item), 1, seedRuns, 1, seedWholeRuns, index.RecipeIds[seed.Recipe],
             Stacks(walk, seed.Recipe, seed.Picks), Loop: loop, Seed: true));
         for (var s = 0; s < seed.Picks.Length; s++)
         {
             var at = index.AlternativeAt(seed.Recipe, s, seed.Picks[s]);
-            walk.Add(index.AlternativeItem[at], seedRuns * index.AlternativeAmount[at], seedWholeRuns * (long)index.AlternativeAmount[at]);
+            walk.Add(index.AlternativeItem[at], seedRuns * index.AlternativeAmount[at], seedWholeRuns * index.AlternativeAmount[at]);
         }
     }
 
@@ -307,7 +307,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             for (var p = index.ProducerStart[item]; p < index.ProducerStart[item + 1]; p++)
             {
                 var producer = index.ProducerRecipe[p];
-                if (producer == chosen || !legality.IsLegal(index.Recipes[producer], garage))
+                if (producer == chosen || !legality.IsLegal(index, producer, garage))
                 {
                     continue;
                 }
@@ -478,7 +478,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
                 warnings.Add(new BomWarning("pin_unknown", itemId));
                 continue;
             }
-            if (!legality.IsLegal(index.Recipes[recipe], garage))
+            if (!legality.IsLegal(index, recipe, garage))
             {
                 warnings.Add(new BomWarning("pin_illegal", itemId));
                 continue;
@@ -642,7 +642,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             inputs[id] = inputs.GetValueOrDefault(id) + runs * index.AlternativeAmount[at];
         }
         return new BomTargetResult(
-            target.ItemId, target.Count, index.Recipes[recipe].Id,
+            target.ItemId, target.Count, index.RecipeIds[recipe],
             inputs.Select(input => new BomStack(input.Key, input.Value)).ToList());
     }
 }

@@ -22,12 +22,12 @@ public sealed class CostSolverService(
     public CostTable Solve(SolverGraph graph, Garage garage, WeightSettings weights)
     {
         var index = graph.Index;
-        var recipeCount = index.Recipes.Length;
+        var recipeCount = index.RecipeCount;
         var legal = new bool[recipeCount];
         var legalCount = 0;
         for (var r = 0; r < recipeCount; r++)
         {
-            legal[r] = legality.IsLegal(index.Recipes[r], garage);
+            legal[r] = legality.IsLegal(index, r, garage);
             if (legal[r])
             {
                 legalCount++;
@@ -116,17 +116,10 @@ public sealed class CostSolverService(
         return Materialize(index, cost, best, chosen, won, converged: true);
     }
 
-    public double Candidate(CostTable table, SolverRecipe recipe, string itemId)
-    {
-        var index = table.Index;
-        if (!index.RecipeIndex.TryGetValue(recipe.Id, out var r))
-        {
-            throw new ArgumentException($"recipe '{recipe.Id}' does not belong to the solved graph", nameof(recipe));
-        }
-        return index.TryGetItem(itemId, out var item)
-            ? Candidate(index, r, item, table.CostArray)
+    public double Candidate(CostTable table, int recipe, string itemId) =>
+        table.Index.TryGetItem(itemId, out var item)
+            ? Candidate(table.Index, recipe, item, table.CostArray)
             : double.PositiveInfinity;
-    }
 
     /// <summary>Every slot at its cheapest alternative, or +∞ when one has no known price.</summary>
     private static double SlotTotal(SolverIndex index, int recipe, double[] cost)

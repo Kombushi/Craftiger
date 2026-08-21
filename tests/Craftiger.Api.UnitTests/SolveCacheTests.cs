@@ -153,7 +153,7 @@ public sealed class SolveCacheTests : IDisposable
             return inner.Solve(graph, garage, weights);
         }
 
-        public double Candidate(CostTable table, SolverRecipe recipe, string itemId) =>
+        public double Candidate(CostTable table, int recipe, string itemId) =>
             inner.Candidate(table, recipe, itemId);
     }
 }

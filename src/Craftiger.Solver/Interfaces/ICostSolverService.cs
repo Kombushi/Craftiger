@@ -9,5 +9,5 @@ public interface ICostSolverService
 
     /// <summary>One recipe's candidate cost for one of its outputs against solved costs,
     /// or +∞ where an input is unreachable.</summary>
-    double Candidate(CostTable table, SolverRecipe recipe, string itemId);
+    double Candidate(CostTable table, int recipe, string itemId);
 }

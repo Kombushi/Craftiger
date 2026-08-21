@@ -21,7 +21,8 @@ public sealed class PlannerArtifactRepository(
             throw new FileNotFoundException($"planner.sqlite not found in '{artifactsDir}'", path);
         }
 
-        using var db = new SqliteConnection($"Data Source={path};Mode=ReadOnly");
+        var connectionString = $"Data Source={path};Mode=ReadOnly";
+        using var db = new SqliteConnection(connectionString);
         db.Open();
 
         var meta = db.Query<(string Key, string Value)>("SELECT key, value FROM meta")
@@ -45,9 +46,10 @@ public sealed class PlannerArtifactRepository(
                 row => row.Id,
                 row => new ArtifactItem(
                     row.Id, row.Name, row.Oredict, row.IsFluid != 0, row.LeafClass, row.AtlasIdx,
+                    // Typed explicitly, or the empty branch would become a fresh list per item.
                     aliases.TryGetValue(row.Id, out var names)
-                        ? names.Where(name => name != row.Name).Distinct().Order(StringComparer.Ordinal).ToList()
-                        : []));
+                        ? (IReadOnlyList<string>)names.Where(name => name != row.Name).Distinct().Order(StringComparer.Ordinal).ToList()
+                        : Array.Empty<string>()));
 
         var tiers = db.Query<(string ItemId, long Tier)>("SELECT item_id, tier FROM item_tiers")
             .ToDictionary(row => row.ItemId, row => (int)row.Tier);
@@ -59,69 +61,34 @@ public sealed class PlannerArtifactRepository(
 
         var leaves = items.Values
             .Where(item => item.LeafClass is not null)
-            .Select(item => new SolverItem(
-                item.Id, item.LeafClass,
-                tiers.TryGetValue(item.Id, out var tier) ? tier : null,
-                weights.TryGetValue(item.Id, out var weight) ? weight : null,
-                parents.GetValueOrDefault(item.Id)))
-            .ToList();
+            .ToDictionary(
+                item => item.Id,
+                item => new SolverItem(
+                    item.Id, item.LeafClass,
+                    tiers.TryGetValue(item.Id, out var tier) ? tier : null,
+                    weights.TryGetValue(item.Id, out var weight) ? weight : null,
+                    parents.GetValueOrDefault(item.Id)));
 
-        var recipeRows = db.Query<RecipeRow>(
-                "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT FROM recipes")
-            .ToList();
-
-        // Row order inside a slot fixes which alternative wins ties, so it must be stable.
-        // Catalyst rows never reach the solver: they are display-only tool slots.
-        var slotsByRecipe = new Dictionary<string, List<SolverSlot>>();
-        var catalystsByRecipe = new Dictionary<string, List<SolverSlot>>();
-        foreach (var group in db.Query<(string RecipeId, string ItemId, long Amount, long Slot, long Catalyst)>(
-                "SELECT recipe_id, item_id, amount, slot, catalyst FROM recipe_inputs ORDER BY recipe_id, slot, rowid")
-            .GroupBy(row => (row.RecipeId, row.Slot, row.Catalyst)))
-        {
-            var target = group.Key.Catalyst != 0 ? catalystsByRecipe : slotsByRecipe;
-            if (!target.TryGetValue(group.Key.RecipeId, out var slots))
-            {
-                target[group.Key.RecipeId] = slots = [];
-            }
-            slots.Add(new SolverSlot(group.Select(row => new SolverStack(row.ItemId, row.Amount)).ToList()));
-        }
-
-        var outputsByRecipe = new Dictionary<string, List<SolverOutput>>();
-        foreach (var row in db.Query<(string RecipeId, string ItemId, long Amount, double Chance)>(
-            "SELECT recipe_id, item_id, amount, chance FROM recipe_outputs"))
-        {
-            if (!outputsByRecipe.TryGetValue(row.RecipeId, out var outputs))
-            {
-                outputsByRecipe[row.RecipeId] = outputs = [];
-            }
-            outputs.Add(new SolverOutput(row.ItemId, row.Amount, row.Chance));
-        }
-
-        var solverRecipes = recipeRows.Select(row => new SolverRecipe(
-            row.Id, row.Machine, (int)row.Tier, (int?)row.MultiTier, (int?)row.Heat,
-            slotsByRecipe.GetValueOrDefault(row.Id) ?? [],
-            outputsByRecipe.GetValueOrDefault(row.Id) ?? []));
-        var graph = SolverGraph.Build(leaves, solverRecipes);
+        var (index, recipeData, machines) = LoadRecipes(connectionString, leaves.Values);
+        var graph = new SolverGraph(leaves, index);
         items = items.ToDictionary(
             pair => pair.Key,
             pair => pair.Value with
             {
-                Uncraftable = !graph.IsLeaf(pair.Key) && !graph.Producers.ContainsKey(pair.Key),
+                Uncraftable = !graph.IsLeaf(pair.Key)
+                    && !(index.TryGetItem(pair.Key, out var item) && index.IsProduced(item)),
             });
 
         var machineEras = db.Query<(string Machine, long? Era, long Multiblock)>(
                 "SELECT machine, era, multiblock FROM machine_eras")
             .ToDictionary(row => row.Machine, row => (Era: (int?)row.Era, Multiblock: row.Multiblock != 0));
 
-        var machines = recipeRows
-            .GroupBy(row => row.Machine)
-            .Select(byMachine => new MachineDto(
-                byMachine.Key,
-                byMachine.Any(row => row.MultiTier is not null),
-                byMachine.Any(row => row.Heat is not null),
-                rules.AlwaysOwnedMachines.Contains(byMachine.Key),
-                machineEras.GetValueOrDefault(byMachine.Key).Era,
-                machineEras.GetValueOrDefault(byMachine.Key).Multiblock))
+        var machineDtos = machines
+            .Select(pair => new MachineDto(
+                pair.Key, pair.Value.MultiTier, pair.Value.Heat,
+                rules.AlwaysOwnedMachines.Contains(pair.Key),
+                machineEras.GetValueOrDefault(pair.Key).Era,
+                machineEras.GetValueOrDefault(pair.Key).Multiblock))
             .OrderBy(machine => machine.Name, StringComparer.Ordinal)
             .ToList();
 
@@ -136,16 +103,13 @@ public sealed class PlannerArtifactRepository(
             graph,
             items,
             craftListOrder,
-            recipeRows.ToDictionary(row => row.Id, row => new ArtifactRecipe(
-                row.Id, row.Machine, (int)row.Tier, (int?)row.MultiTier, (int?)row.Heat,
-                row.DurationTicks, row.EuT,
-                catalystsByRecipe.GetValueOrDefault(row.Id) ?? [])),
+            recipeData,
             meta.GetValueOrDefault("pack_version") ?? "unknown",
             meta.GetValueOrDefault("build_id")
                 ?? throw new InvalidOperationException("planner.sqlite carries no build_id; rebuild it with the current builder"),
             JsonSerializer.Deserialize<List<string>>(meta.GetValueOrDefault("tier_names") ?? "[]") ?? [],
             JsonSerializer.Deserialize<List<CoilDto>>(meta.GetValueOrDefault("coils") ?? "[]") ?? [],
-            machines,
+            machineDtos,
             meta.ContainsKey("atlas_width")
                 ? new AtlasDto(
                     int.Parse(meta["atlas_width"]), int.Parse(meta["atlas_height"]), int.Parse(meta["atlas_cell"]))
@@ -154,8 +118,115 @@ public sealed class PlannerArtifactRepository(
 
         logger.LogInformation(
             "loaded {Items:N0} items, {Recipes:N0} recipes, {Machines:N0} machines from {Path}",
-            items.Count, recipeRows.Count, machines.Count, path);
+            items.Count, index.RecipeCount, machineDtos.Count, path);
         return artifact;
+    }
+
+    /// <summary>Streams recipes, their inputs and their outputs — three cursors ordered alike,
+    /// by the recipe's row — straight into the index builder, so no recipe ever exists as an
+    /// object. The row order inside a slot fixes which alternative wins ties, so it must be
+    /// stable; catalyst rows never reach the solver, they are display-only tool slots.</summary>
+    private static (SolverIndex Index, ArtifactRecipeData Recipes, Dictionary<string, (bool MultiTier, bool Heat)> Machines)
+        LoadRecipes(string connectionString, IEnumerable<SolverItem> leaves)
+    {
+        var builder = new SolverIndexBuilder(leaves);
+        var durations = new List<long>();
+        var euT = new List<long>();
+        var catalystSlotStart = new List<int> { 0 };
+        var catalystAlternativeStart = new List<int> { 0 };
+        var catalystItemId = new List<string>();
+        var catalystAmount = new List<long>();
+        var catalystIds = new Dictionary<string, string>();
+        var machines = new Dictionary<string, (bool MultiTier, bool Heat)>();
+
+        using var recipesDb = new SqliteConnection(connectionString);
+        using var inputsDb = new SqliteConnection(connectionString);
+        using var outputsDb = new SqliteConnection(connectionString);
+        recipesDb.Open();
+        inputsDb.Open();
+        outputsDb.Open();
+        using var inputs = inputsDb.Query<InputRow>(
+            """
+            SELECT i.recipe_id AS RecipeId, i.item_id AS ItemId, i.amount, i.slot, i.catalyst
+            FROM recipe_inputs i JOIN recipes r ON r.id = i.recipe_id
+            ORDER BY r.rowid, i.slot, i.rowid
+            """, buffered: false).GetEnumerator();
+        using var outputs = outputsDb.Query<OutputRow>(
+            """
+            SELECT o.recipe_id AS RecipeId, o.item_id AS ItemId, o.amount, o.chance
+            FROM recipe_outputs o JOIN recipes r ON r.id = o.recipe_id
+            ORDER BY r.rowid, o.rowid
+            """, buffered: false).GetEnumerator();
+        var input = inputs.MoveNext() ? inputs.Current : null;
+        var output = outputs.MoveNext() ? outputs.Current : null;
+
+        foreach (var recipe in recipesDb.Query<RecipeRow>(
+            "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT FROM recipes ORDER BY rowid",
+            buffered: false))
+        {
+            builder.BeginRecipe(recipe.Id, recipe.Machine, (int)recipe.Tier, (int?)recipe.MultiTier, (int?)recipe.Heat);
+            durations.Add(recipe.DurationTicks);
+            euT.Add(recipe.EuT);
+            var flags = machines.GetValueOrDefault(recipe.Machine);
+            machines[recipe.Machine] = (flags.MultiTier || recipe.MultiTier is not null, flags.Heat || recipe.Heat is not null);
+
+            long slot = -1;
+            var catalyst = false;
+            var catalystSlotOpen = false;
+            while (input is not null && input.RecipeId == recipe.Id)
+            {
+                var isCatalyst = input.Catalyst != 0;
+                if (input.Slot != slot || isCatalyst != catalyst)
+                {
+                    slot = input.Slot;
+                    catalyst = isCatalyst;
+                    if (isCatalyst)
+                    {
+                        if (catalystSlotOpen)
+                        {
+                            catalystAlternativeStart.Add(catalystItemId.Count);
+                        }
+                        catalystSlotOpen = true;
+                    }
+                    else
+                    {
+                        builder.BeginSlot();
+                    }
+                }
+                if (isCatalyst)
+                {
+                    if (!catalystIds.TryGetValue(input.ItemId, out var shared))
+                    {
+                        catalystIds[input.ItemId] = shared = input.ItemId;
+                    }
+                    catalystItemId.Add(shared);
+                    catalystAmount.Add(input.Amount);
+                }
+                else
+                {
+                    builder.AddAlternative(input.ItemId, input.Amount);
+                }
+                input = inputs.MoveNext() ? inputs.Current : null;
+            }
+            if (catalystSlotOpen)
+            {
+                catalystAlternativeStart.Add(catalystItemId.Count);
+            }
+            catalystSlotStart.Add(catalystAlternativeStart.Count - 1);
+
+            while (output is not null && output.RecipeId == recipe.Id)
+            {
+                builder.AddOutput(output.ItemId, output.Amount, output.Chance);
+                output = outputs.MoveNext() ? outputs.Current : null;
+            }
+        }
+
+        return (
+            builder.Build(),
+            new ArtifactRecipeData(
+                durations.ToArray(), euT.ToArray(),
+                catalystSlotStart.ToArray(), catalystAlternativeStart.ToArray(), catalystItemId.ToArray(), catalystAmount.ToArray()),
+            machines);
     }
 
     private sealed record ItemRow(
@@ -164,4 +235,8 @@ public sealed class PlannerArtifactRepository(
     private sealed record RecipeRow(
         string Id, string Machine, long Tier, long? MultiTier, long? Heat,
         long DurationTicks, long EuT);
+
+    private sealed record InputRow(string RecipeId, string ItemId, long Amount, long Slot, long Catalyst);
+
+    private sealed record OutputRow(string RecipeId, string ItemId, long Amount, double Chance);
 }

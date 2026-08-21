@@ -8,7 +8,7 @@ public sealed record PlannerArtifact(
     SolverGraph Graph,
     IReadOnlyDictionary<string, ArtifactItem> Items,
     IReadOnlyList<string> CraftListOrder,
-    IReadOnlyDictionary<string, ArtifactRecipe> Recipes,
+    ArtifactRecipeData Recipes,
     string PackVersion,
     string BuildId,
     IReadOnlyList<string> TierNames,

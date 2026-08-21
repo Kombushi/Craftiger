@@ -7,8 +7,8 @@ public sealed class GarageLegalityTests
     {
         var recipe = Fx.Recipe("r", machine: "Assembler", tier: 2);
 
-        Assert.True(Fx.Legality().IsLegal(recipe, Fx.Garage(defaultTier: 2)));
-        Assert.False(Fx.Legality().IsLegal(recipe, Fx.Garage(defaultTier: 1)));
+        Assert.True(Fx.Legal(recipe, Fx.Garage(defaultTier: 2)));
+        Assert.False(Fx.Legal(recipe, Fx.Garage(defaultTier: 1)));
     }
 
     [Fact]
@@ -17,7 +17,7 @@ public sealed class GarageLegalityTests
         var recipe = Fx.Recipe("r", machine: "Extruder", tier: 0);
         var garage = Fx.Garage(defaultTier: 14, tiers: new() { ["Extruder"] = null });
 
-        Assert.False(Fx.Legality().IsLegal(recipe, garage));
+        Assert.False(Fx.Legal(recipe, garage));
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public sealed class GarageLegalityTests
         var recipe = Fx.Recipe("r", machine: "Furnace", tier: 0);
         var garage = Fx.Garage(defaultTier: 0, tiers: new() { ["Furnace"] = null });
 
-        Assert.True(Fx.Legality().IsLegal(recipe, garage));
+        Assert.True(Fx.Legal(recipe, garage));
     }
 
     [Fact]
@@ -36,8 +36,8 @@ public sealed class GarageLegalityTests
         var below = Fx.Garage(defaultTier: 2);
         var built = Fx.Garage(defaultTier: 2, built: ["Macerator"]);
 
-        Assert.False(Fx.Legality().IsLegal(recipe, below));
-        Assert.True(Fx.Legality().IsLegal(recipe, built));
+        Assert.False(Fx.Legal(recipe, below));
+        Assert.True(Fx.Legal(recipe, built));
     }
 
     [Fact]
@@ -47,8 +47,8 @@ public sealed class GarageLegalityTests
         var kanthal = Fx.Garage(defaultTier: 5, coils: new() { ["Vacuum Furnace"] = 2700 });
         var cupronickel = Fx.Garage(defaultTier: 5, coils: new() { ["Vacuum Furnace"] = 1800 });
 
-        Assert.True(Fx.Legality().IsLegal(recipe, kanthal));
-        Assert.False(Fx.Legality().IsLegal(recipe, cupronickel));
+        Assert.True(Fx.Legal(recipe, kanthal));
+        Assert.False(Fx.Legal(recipe, cupronickel));
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class GarageLegalityTests
     {
         var recipe = Fx.Recipe("r", machine: "Digester", tier: 1, heat: 800);
 
-        Assert.False(Fx.Legality().IsLegal(recipe, Fx.Garage(defaultTier: 5)));
+        Assert.False(Fx.Legal(recipe, Fx.Garage(defaultTier: 5)));
     }
 
     [Fact]
@@ -66,8 +66,8 @@ public sealed class GarageLegalityTests
         var hv = Fx.Garage(defaultTier: 3, coils: new() { ["Electric Blast Furnace"] = 1800 });
         var mv = Fx.Garage(defaultTier: 2, coils: new() { ["Electric Blast Furnace"] = 1800 });
 
-        Assert.True(Fx.Legality().IsLegal(recipe, hv));
-        Assert.False(Fx.Legality().IsLegal(recipe, mv));
+        Assert.True(Fx.Legal(recipe, hv));
+        Assert.False(Fx.Legal(recipe, mv));
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class GarageLegalityTests
         var recipe = Fx.Recipe("r", machine: "Vacuum Furnace", tier: 1, heat: 1900);
         var garage = Fx.Garage(defaultTier: 14, coils: new() { ["Vacuum Furnace"] = 1800 });
 
-        Assert.False(Fx.Legality().IsLegal(recipe, garage));
+        Assert.False(Fx.Legal(recipe, garage));
     }
 
     [Fact]
@@ -84,6 +84,6 @@ public sealed class GarageLegalityTests
     {
         var recipe = Fx.Recipe("r", machine: "Helioflux Melting Core", tier: 11, heat: 100000);
 
-        Assert.True(Fx.Legality().IsLegal(recipe, Fx.Garage(defaultTier: 11)));
+        Assert.True(Fx.Legal(recipe, Fx.Garage(defaultTier: 11)));
     }
 }

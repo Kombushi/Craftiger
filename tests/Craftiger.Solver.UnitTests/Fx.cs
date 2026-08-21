@@ -56,6 +56,10 @@ internal static class Fx
 
     public static GarageLegalityService Legality() => new(Rules);
 
+    /// <summary>Whether the garage can run a single recipe, indexed on its own.</summary>
+    public static bool Legal(SolverRecipe recipe, Garage garage) =>
+        Legality().IsLegal(Graph([], recipe).Index, 0, garage);
+
     public static CostSolverService Solver() => new(new LeafWeightService(), Legality(), Preferences);
 
     public static BomService Bom() => new(Legality());

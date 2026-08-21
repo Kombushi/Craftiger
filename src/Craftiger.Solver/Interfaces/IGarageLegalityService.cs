@@ -8,5 +8,5 @@ public interface IGarageLegalityService
     /// <summary>The tier the garage runs this machine at, or null when it is not owned.</summary>
     int? EffectiveTier(string machine, Garage garage);
 
-    bool IsLegal(SolverRecipe recipe, Garage garage);
+    bool IsLegal(SolverIndex index, int recipe, Garage garage);
 }

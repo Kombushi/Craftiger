@@ -66,8 +66,11 @@ public sealed class CostTable
     public double? Cost(string itemId) =>
         Index.TryGetItem(itemId, out var item) && TryCost(item, out var cost) ? cost : null;
 
-    public SolverRecipe? BestRecipe(string itemId) =>
-        Index.TryGetItem(itemId, out var item) && _best[item] >= 0 ? Index.Recipes[_best[item]] : null;
+    /// <summary>The recipe position that priced the item, or -1 for an unpriced or unknown id.</summary>
+    public int BestRecipe(string itemId) => Index.TryGetItem(itemId, out var item) ? _best[item] : -1;
+
+    public string? BestRecipeId(string itemId) =>
+        BestRecipe(itemId) is var recipe && recipe >= 0 ? Index.RecipeIds[recipe] : null;
 
     /// <summary>The input stack per slot the item's best recipe was priced with; empty when no
     /// recipe priced it.</summary>
@@ -77,12 +80,13 @@ public sealed class CostTable
         {
             return [];
         }
-        var recipe = Index.Recipes[_best[item]];
+        var recipe = _best[item];
         var picks = Picks(item);
         var stacks = new SolverStack[picks.Length];
         for (var s = 0; s < stacks.Length; s++)
         {
-            stacks[s] = recipe.Slots[s].Alternatives[picks[s]];
+            var at = Index.AlternativeAt(recipe, s, picks[s]);
+            stacks[s] = new SolverStack(Index.ItemIds[Index.AlternativeItem[at]], Index.AlternativeAmount[at]);
         }
         return stacks;
     }

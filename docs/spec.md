@@ -474,9 +474,11 @@ Why this shape:
   form's leaf. A route where a worse form is genuinely cheaper is a real
   gap, not a tie, and keeps winning.
 - Full-pack scale (a few hundred thousand recipes) converges in about a second
-  in memory. The fixpoint runs over an integer-indexed copy of the graph built
-  once when the artifact loads (`SolverIndex`), never over id-keyed lookups,
-  and the solved table is stored the same way — cost, best recipe and the
+  in memory. The recipe graph is held only as integer positions and
+  compressed-row arrays (`SolverIndex`), built once when the artifact loads by
+  streaming its rows — recipe records exist only as an input form for
+  fixtures — and never as per-recipe objects or id-keyed lookups; the solved
+  table is stored the same way — cost, best recipe and the
   picked alternative per slot as arrays over index positions, a few megabytes
   per solve; readers ask it by position on hot paths (the BOM walk) and by id
   at the API edge. The layout changes nothing about the result — evaluation

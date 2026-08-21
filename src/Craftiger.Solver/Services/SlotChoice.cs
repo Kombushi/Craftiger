@@ -10,7 +10,7 @@ public static class SlotChoice
     /// one the solve priced it with where it is the item's best recipe — a later price drop
     /// that merely ties another alternative never reopens the choice, so the pointer DAG stays
     /// acyclic — and the cheapest alternative for any other recipe.</summary>
-    public static int Pick(CostTable table, int item, int recipe, int slot) =>
+    private static int Pick(CostTable table, int item, int recipe, int slot) =>
         table.BestRecipe(item) == recipe ? table.Picks(item)[slot] : Cheapest(table, recipe, slot);
 
     /// <summary>Every slot's pick for the recipe producing the item, in slot order.</summary>
@@ -48,20 +48,17 @@ public static class SlotChoice
 
     /// <summary>The recipe's input stack per slot when it produces the item, by id — the item
     /// detail's view of the same choice.</summary>
-    public static IReadOnlyList<SolverStack> Inputs(CostTable table, string itemId, SolverRecipe recipe)
+    public static IReadOnlyList<SolverStack> Inputs(CostTable table, string itemId, int recipe)
     {
         var index = table.Index;
-        if (!index.RecipeIndex.TryGetValue(recipe.Id, out var r))
-        {
-            throw new ArgumentException($"recipe '{recipe.Id}' does not belong to the solved graph", nameof(recipe));
-        }
         // An id the index does not know cannot have a best recipe; every slot falls to cheapest.
         var item = index.TryGetItem(itemId, out var known) ? known : -1;
-        var stacks = new SolverStack[recipe.Slots.Count];
+        var stacks = new SolverStack[index.SlotCount(recipe)];
         for (var s = 0; s < stacks.Length; s++)
         {
-            var pick = item >= 0 ? Pick(table, item, r, s) : Cheapest(table, r, s);
-            stacks[s] = recipe.Slots[s].Alternatives[pick];
+            var pick = item >= 0 ? Pick(table, item, recipe, s) : Cheapest(table, recipe, s);
+            var at = index.AlternativeAt(recipe, s, pick);
+            stacks[s] = new SolverStack(index.ItemIds[index.AlternativeItem[at]], index.AlternativeAmount[at]);
         }
         return stacks;
     }

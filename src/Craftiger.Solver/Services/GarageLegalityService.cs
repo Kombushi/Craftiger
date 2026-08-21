@@ -20,25 +20,26 @@ public sealed class GarageLegalityService(GarageRules rules) : IGarageLegalitySe
         return overridden ? tier : garage.DefaultTier;
     }
 
-    public bool IsLegal(SolverRecipe recipe, Garage garage)
+    public bool IsLegal(SolverIndex index, int recipe, Garage garage)
     {
-        if (EffectiveTier(recipe.Machine, garage) is not { } tier)
+        var machine = index.Machine[recipe];
+        if (EffectiveTier(machine, garage) is not { } tier)
         {
             return false;
         }
 
-        var required = recipe.MultiTier is { } multi && garage.BuiltMultiblocks.Contains(recipe.Machine)
-            ? multi
-            : recipe.Tier;
+        var multi = index.MultiTier[recipe];
+        var required = multi >= 0 && garage.BuiltMultiblocks.Contains(machine) ? multi : index.Tier[recipe];
         if (required > tier)
         {
             return false;
         }
 
-        if (recipe.Heat is { } heat && !rules.HeatExemptMachines.Contains(recipe.Machine))
+        var heat = index.Heat[recipe];
+        if (heat >= 0 && !rules.HeatExemptMachines.Contains(machine))
         {
-            var capacity = garage.CoilHeat.GetValueOrDefault(recipe.Machine)
-                + (rules.HeatBonusMachines.Contains(recipe.Machine)
+            var capacity = garage.CoilHeat.GetValueOrDefault(machine)
+                + (rules.HeatBonusMachines.Contains(machine)
                     ? HeatPerTierAboveMv * Math.Max(0, tier - 2)
                     : 0);
             if (heat > capacity)

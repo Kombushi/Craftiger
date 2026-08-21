@@ -88,9 +88,20 @@ public sealed class PlannerQueryService(
             return null;
         }
 
-        var recipes = (artifact.Graph.Producers.GetValueOrDefault(itemId) ?? [])
-            .Where(recipe => legality.IsLegal(recipe, entry.Garage))
-            .Select(recipe => ToDto(entry, recipe, itemId))
+        var index = artifact.Graph.Index;
+        var recipes = new List<RecipeDto>();
+        if (index.TryGetItem(itemId, out var position))
+        {
+            for (var p = index.ProducerStart[position]; p < index.ProducerStart[position + 1]; p++)
+            {
+                var recipe = index.ProducerRecipe[p];
+                if (legality.IsLegal(index, recipe, entry.Garage))
+                {
+                    recipes.Add(ToDto(entry, recipe, itemId));
+                }
+            }
+        }
+        recipes = recipes
             .OrderBy(recipe => recipe.CandidateCost ?? double.PositiveInfinity)
             .ThenBy(recipe => recipe.RecipeId, StringComparer.Ordinal)
             .ToList();
@@ -107,7 +118,7 @@ public sealed class PlannerQueryService(
             item.Id, item.Name, item.AtlasIdx, item.LeafClass,
             entry.Table.Cost(itemId),
             item.Uncraftable,
-            entry.Table.BestRecipe(itemId)?.Id,
+            entry.Table.BestRecipeId(itemId),
             recipes,
             Refs(entry, ids));
     }
@@ -146,18 +157,34 @@ public sealed class PlannerQueryService(
 
     private BomNodeDto ToDto(BomNode node)
     {
-        var info = artifact.Recipes[node.RecipeId];
-        var outputs = artifact.Graph.RecipesById[node.RecipeId].Outputs
-            .Select(output => new OutputDto(output.ItemId, output.Amount, output.Chance))
-            .ToList();
+        var index = artifact.Graph.Index;
+        var recipe = index.RecipeIndex[node.RecipeId];
         // One representative stack per catalyst slot; the item detail lists the alternatives.
-        var catalysts = info.Catalysts
-            .Select(slot => new BomStack(slot.Alternatives[0].ItemId, slot.Alternatives[0].Amount))
-            .ToList();
+        var data = artifact.Recipes;
+        var catalysts = new List<BomStack>(data.CatalystSlotCount(recipe));
+        for (var s = 0; s < data.CatalystSlotCount(recipe); s++)
+        {
+            var at = data.CatalystAt(recipe, s, 0);
+            catalysts.Add(new BomStack(data.CatalystItemId[at], data.CatalystAmount[at]));
+        }
         return new BomNodeDto(
             node.ItemId, node.Amount, node.Runs, node.WholeAmount, node.WholeRuns, node.RecipeId,
-            info.Machine, info.Tier, info.MultiTier, info.Heat, info.DurationTicks, info.EuT,
-            node.InputsPerRun, catalysts, outputs, node.Loop, node.Seed);
+            index.Machine[recipe], index.Tier[recipe], Optional(index.MultiTier[recipe]), Optional(index.Heat[recipe]),
+            data.DurationTicks[recipe], data.EuT[recipe],
+            node.InputsPerRun, catalysts, Outputs(recipe), node.Loop, node.Seed);
+    }
+
+    private static int? Optional(int value) => value < 0 ? null : value;
+
+    private List<OutputDto> Outputs(int recipe)
+    {
+        var index = artifact.Graph.Index;
+        var outputs = new List<OutputDto>(index.OutputCount(recipe));
+        for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
+        {
+            outputs.Add(new OutputDto(index.ItemIds[index.OutputItem[o]], index.OutputAmount[o], index.OutputChance[o]));
+        }
+        return outputs;
     }
 
     private IReadOnlyDictionary<string, ItemRefDto> Refs(SolveEntry entry, IEnumerable<string> ids) =>
@@ -173,27 +200,44 @@ public sealed class PlannerQueryService(
                     item.Aliases.Count > 0 ? item.Aliases : null);
             });
 
-    private RecipeDto ToDto(SolveEntry entry, SolverRecipe recipe, string itemId)
+    private RecipeDto ToDto(SolveEntry entry, int recipe, string itemId)
     {
-        var info = artifact.Recipes[recipe.Id];
+        var index = artifact.Graph.Index;
+        var data = artifact.Recipes;
         var candidate = solver.Candidate(entry.Table, recipe, itemId);
+        var slots = new List<IReadOnlyList<SlotAlternativeDto>>(index.SlotCount(recipe));
+        for (var s = 0; s < index.SlotCount(recipe); s++)
+        {
+            var alternatives = new List<SlotAlternativeDto>(index.AlternativeCount(recipe, s));
+            for (var a = 0; a < index.AlternativeCount(recipe, s); a++)
+            {
+                var at = index.AlternativeAt(recipe, s, a);
+                var item = index.AlternativeItem[at];
+                alternatives.Add(new SlotAlternativeDto(
+                    index.ItemIds[item], index.AlternativeAmount[at],
+                    entry.Table.TryCost(item, out var cost) ? cost * index.AlternativeAmount[at] : null));
+            }
+            slots.Add(alternatives);
+        }
+        var catalysts = new List<IReadOnlyList<SlotAlternativeDto>>(data.CatalystSlotCount(recipe));
+        for (var s = 0; s < data.CatalystSlotCount(recipe); s++)
+        {
+            var alternatives = new List<SlotAlternativeDto>(data.CatalystAlternativeCount(recipe, s));
+            for (var a = 0; a < data.CatalystAlternativeCount(recipe, s); a++)
+            {
+                var at = data.CatalystAt(recipe, s, a);
+                alternatives.Add(new SlotAlternativeDto(data.CatalystItemId[at], data.CatalystAmount[at], null));
+            }
+            catalysts.Add(alternatives);
+        }
         return new RecipeDto(
-            recipe.Id, info.Machine, info.Tier, info.MultiTier, info.Heat,
-            info.DurationTicks, info.EuT,
+            index.RecipeIds[recipe], index.Machine[recipe], index.Tier[recipe],
+            Optional(index.MultiTier[recipe]), Optional(index.Heat[recipe]),
+            data.DurationTicks[recipe], data.EuT[recipe],
             double.IsPositiveInfinity(candidate) ? null : candidate,
-            recipe.Slots
-                .Select(slot => (IReadOnlyList<SlotAlternativeDto>)slot.Alternatives
-                    .Select(alternative => new SlotAlternativeDto(
-                        alternative.ItemId, alternative.Amount,
-                        entry.Table.Cost(alternative.ItemId) * alternative.Amount))
-                    .ToList())
-                .ToList(),
+            slots,
             SlotChoice.Inputs(entry.Table, itemId, recipe).Select(input => input.ItemId).ToList(),
-            info.Catalysts
-                .Select(slot => (IReadOnlyList<SlotAlternativeDto>)slot.Alternatives
-                    .Select(alternative => new SlotAlternativeDto(alternative.ItemId, alternative.Amount, null))
-                    .ToList())
-                .ToList(),
-            recipe.Outputs.Select(output => new OutputDto(output.ItemId, output.Amount, output.Chance)).ToList());
+            catalysts,
+            Outputs(recipe));
     }
 }
