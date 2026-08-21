@@ -1058,6 +1058,17 @@ a:focus-visible {
   display: inline-flex;
 }
 
+/* A shaped recipe as crafted: three by three, empty cells left recessed and blank. */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  gap: 4px;
+}
+
+.slot-empty {
+  opacity: 0.55;
+}
+
 .alt-badge {
   position: absolute;
   top: -6px;

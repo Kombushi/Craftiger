@@ -93,6 +93,9 @@ export interface BomNode {
   outputs: OutputRow[]
   loop: number | null
   seed: boolean
+  /** A shaped crafting recipe's nine cells, row-major: the slot each holds — inputsPerRun
+   * first, then catalysts — or null for an empty cell; null when the recipe has no shape. */
+  grid: (number | null)[] | null
 }
 
 export interface BomWarning {
@@ -134,6 +137,9 @@ export interface RecipeDto {
   chosen: string[]
   catalysts: SlotAlternative[][]
   outputs: OutputRow[]
+  /** A shaped crafting recipe's nine cells, row-major: the slot each holds — slots first,
+   * then catalysts — or null for an empty cell; null when the recipe has no shape. */
+  grid: (number | null)[] | null
 }
 
 export interface ItemDetail {

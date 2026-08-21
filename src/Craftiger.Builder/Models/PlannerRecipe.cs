@@ -21,6 +21,11 @@ public sealed record PlannerRecipe(
     /// solver, to break exact ties.</summary>
     public IReadOnlyList<PlannerCatalystSlot> Catalysts { get; init; } = [];
 
+    /// <summary>The filled cells of a shaped crafting recipe, each naming the input slot it
+    /// holds; null for shapeless and machine recipes, and for a shaped recipe whose cell lost
+    /// its ingredient to netting, which then ships no shape at all.</summary>
+    public IReadOnlyList<PlannerGridCell>? Grid { get; init; }
+
     /// <summary>The tier of the best machine for the job: multiblocks run recipes one tier
     /// above their hatches, so serving this recipe on one costs a tier less.</summary>
     public int BestCaseTier =>

@@ -129,7 +129,7 @@ public static class FixtureDump
                 IMAGE_FILE_PATH TEXT, INTERNAL_NAME TEXT, LOCALIZED_NAME TEXT, LUMINOSITY INTEGER,
                 MOD_ID TEXT, NBT TEXT, TEMPERATURE INTEGER, UNLOCALIZED_NAME TEXT, VISCOSITY INTEGER);
             CREATE TABLE RECIPE(ID TEXT, RECIPE_TYPE_ID TEXT);
-            CREATE TABLE RECIPE_TYPE(ID TEXT, CATEGORY TEXT, TYPE TEXT);
+            CREATE TABLE RECIPE_TYPE(ID TEXT, CATEGORY TEXT, TYPE TEXT, SHAPELESS INTEGER);
             CREATE TABLE RECIPE_TYPE_ITEM(RECIPE_TYPE_ID TEXT, ICON_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, RECIPE_CATEGORY TEXT, REQUIRES_CLEANROOM INTEGER, RECIPE_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE_METADATA(GREG_TECH_RECIPE_ID TEXT, METADATA_KEY TEXT, METADATA_VALUE INTEGER);
@@ -539,7 +539,7 @@ public static class FixtureDump
         OrePrefix(db, "wireGt01", 1814400, recyclable: true);
         OrePrefix(db, "cell", 3628800, container: true, selfReferencing: true, recyclable: true);
 
-        RecipeType(db, "t_shaped", "minecraft", "Crafting (Shaped)");
+        RecipeType(db, "t_shaped", "minecraft", "Crafting (Shaped)", shapeless: false);
         RecipeType(db, "t_furnace", "minecraft", "Furnace");
         RecipeType(db, "rt~gregtech~gt.recipe.blastfurnace~MV", "gregtech", "Blast Furnace (MV)", handlerIcons: 2);
         RecipeType(db, "rt~gregtech~gt.recipe.extruder~MV", "gregtech", "Extruder (MV)");
@@ -969,9 +969,11 @@ public static class FixtureDump
 
     /// <summary>Single-block maps list a tiered machine family; multiblocks list few controllers.</summary>
     private static void RecipeType(
-        SqliteConnection db, string id, string category, string type, int handlerIcons = 12, string? handlerItem = null)
+        SqliteConnection db, string id, string category, string type, int handlerIcons = 12, string? handlerItem = null,
+        bool shapeless = true)
     {
-        db.Execute("INSERT INTO RECIPE_TYPE VALUES (@id, @category, @type)", new { id, category, type });
+        db.Execute("INSERT INTO RECIPE_TYPE VALUES (@id, @category, @type, @shapeless)",
+            new { id, category, type, shapeless = shapeless ? 1 : 0 });
         for (var i = 0; i < handlerIcons; i++)
         {
             db.Execute("INSERT INTO RECIPE_TYPE_ITEM VALUES (@id, @iconId)", new { id, iconId = $"icon~{id}~{i}" });

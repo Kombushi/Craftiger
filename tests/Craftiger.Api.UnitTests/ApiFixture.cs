@@ -20,7 +20,7 @@ public sealed class ApiFixture : IDisposable
     {
         Dir = Path.Combine(Path.GetTempPath(), "craftiger-api-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Dir);
-        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 7);
+        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 8);
         File.WriteAllText(Path.Combine(Dir, "atlas-offsets.json"), "{}");
         _factory = Create(Dir);
         Client = _factory.CreateClient();
@@ -70,6 +70,7 @@ public sealed class ApiFixture : IDisposable
                 tool INTEGER NOT NULL,
                 UNIQUE(recipe_id, slot, item_id));
             CREATE TABLE recipe_outputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, chance REAL NOT NULL);
+            CREATE TABLE recipe_grid(recipe_id TEXT NOT NULL, cell INTEGER NOT NULL, slot INTEGER NOT NULL, UNIQUE(recipe_id, cell));
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
             CREATE TABLE item_parents(item_id TEXT PRIMARY KEY, parent_item_id TEXT NOT NULL, divisor REAL NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
@@ -120,6 +121,10 @@ public sealed class ApiFixture : IDisposable
                 ('r_chip', 'chip', 1, 1.0),
                 ('r_frame_hand', 'frame', 2, 1.0),
                 ('r_frame_asm', 'frame', 1, 1.0);
+            INSERT INTO recipe_grid VALUES
+                ('r_frame_hand', 0, 0),
+                ('r_frame_hand', 3, 0),
+                ('r_frame_hand', 4, 1);
             INSERT INTO item_tiers VALUES ('ing', 0), ('sil', 1);
             INSERT INTO item_parents VALUES ('nug', 'ing', 9.0);
             INSERT INTO machine_eras VALUES

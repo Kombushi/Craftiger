@@ -41,12 +41,12 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
         }
 
         var recipes = new List<DumpRecipe>();
-        foreach (var (id, type, category, typeId) in db.Query<(string, string, string, string)>("""
-            SELECT r.ID, rt.TYPE, rt.CATEGORY, rt.ID
+        foreach (var (id, type, category, typeId, shapeless) in db.Query<(string, string, string, string, long)>("""
+            SELECT r.ID, rt.TYPE, rt.CATEGORY, rt.ID, rt.SHAPELESS
             FROM RECIPE r JOIN RECIPE_TYPE rt ON rt.ID = r.RECIPE_TYPE_ID
             """))
         {
-            recipes.Add(new DumpRecipe(id, type, category, typeId));
+            recipes.Add(new DumpRecipe(id, type, category, typeId, shapeless != 0));
         }
 
         // coil_heat metadata is authoritative; RECIPE_SPECIAL_VALUE holds the same number for EBF maps.

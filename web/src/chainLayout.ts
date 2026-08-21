@@ -53,12 +53,54 @@ export function nodeKey(node: BomNode): string {
   return node.seed ? `${node.itemId}#seed` : node.itemId
 }
 
+/** The crafting grid a shaped recipe draws its inputs on. */
+export const GRID_COLUMNS = 3
+export const GRID_ROWS = 3
+
+/** Slots a shaped recipe's grid does not place — a fluid split from a bucket — render under it. */
+export function gridExtras(node: BomNode): number[] {
+  if (node.grid === null) {
+    return []
+  }
+  const placed = new Set(node.grid)
+  const count = node.inputsPerRun.length + node.catalysts.length
+  const extras: number[] = []
+  for (let slot = 0; slot < count; slot++) {
+    if (!placed.has(slot)) {
+      extras.push(slot)
+    }
+  }
+  return extras
+}
+
 export function inputColumns(node: BomNode): number {
   const count = node.inputsPerRun.length + node.catalysts.length
   if (count === 0) {
     return 1
   }
-  return node.machine === 'Crafting Table' ? 3 : Math.min(4, count)
+  return node.grid !== null || node.machine === 'Crafting Table' ? GRID_COLUMNS : Math.min(4, count)
+}
+
+function inputRows(node: BomNode): number {
+  if (node.grid !== null) {
+    return GRID_ROWS + Math.ceil(gridExtras(node).length / GRID_COLUMNS)
+  }
+  return Math.max(1, Math.ceil((node.inputsPerRun.length + node.catalysts.length) / inputColumns(node)))
+}
+
+/** Where a slot sits in the card's input area: its first grid cell on a shaped recipe (or the
+ * rows under the grid for a slot the grid does not place), its running position otherwise. */
+export function slotPosition(node: BomNode, slot: number): { row: number; column: number } {
+  const columns = inputColumns(node)
+  if (node.grid !== null) {
+    const cell = node.grid.indexOf(slot)
+    if (cell !== -1) {
+      return { row: Math.floor(cell / GRID_COLUMNS), column: cell % GRID_COLUMNS }
+    }
+    const extra = gridExtras(node).indexOf(slot)
+    return { row: GRID_ROWS + Math.floor(extra / GRID_COLUMNS), column: extra % GRID_COLUMNS }
+  }
+  return { row: Math.floor(slot / columns), column: slot % columns }
 }
 
 export function outputColumns(node: BomNode): number {
@@ -75,7 +117,7 @@ const MIN_RECIPE_W = 210
 function recipeSize(node: BomNode): { w: number; h: number } {
   const inCols = inputColumns(node)
   const outCols = outputColumns(node)
-  const inRows = Math.max(1, Math.ceil((node.inputsPerRun.length + node.catalysts.length) / inCols))
+  const inRows = inputRows(node)
   const outRows = Math.max(1, Math.ceil(node.outputs.length / outCols))
   const rows = Math.max(inRows, outRows)
   return {
@@ -148,20 +190,20 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
 
   // Every producer→consumer link by card id: each node's inputs feed it, and a loop's seed
   // feeds the loop members that consume its item.
-  const links: { from: string; to: string; itemId: string; slotIndex: number }[] = []
+  const links: { from: string; to: string; itemId: string; row: number; column: number }[] = []
   for (const node of bom.nodes) {
     const seen = new Set<string>()
     node.inputsPerRun.forEach((input, slotIndex) => {
       if (!seen.has(input.itemId) && cards.has(input.itemId)) {
         seen.add(input.itemId)
-        links.push({ from: input.itemId, to: nodeKey(node), itemId: input.itemId, slotIndex })
+        links.push({ from: input.itemId, to: nodeKey(node), itemId: input.itemId, ...slotPosition(node, slotIndex) })
       }
     })
     if (node.seed && node.loop !== null) {
       for (const member of loopMembers.get(node.loop) ?? []) {
         const slotIndex = member.inputsPerRun.findIndex((input) => input.itemId === node.itemId)
         if (slotIndex !== -1) {
-          links.push({ from: nodeKey(node), to: member.itemId, itemId: node.itemId, slotIndex })
+          links.push({ from: nodeKey(node), to: member.itemId, itemId: node.itemId, ...slotPosition(member, slotIndex) })
         }
       }
     }
@@ -254,8 +296,8 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
       from.node !== null && to.node !== null && !from.node.seed && !to.node.seed &&
       from.node.loop !== null && from.node.loop === to.node.loop
     return orientation === 'vertical'
-      ? verticalEdge(from, to, link.itemId, link.slotIndex, loop)
-      : horizontalEdge(from, to, link.itemId, link.slotIndex, loop)
+      ? verticalEdge(from, to, link.itemId, link.column, loop)
+      : horizontalEdge(from, to, link.itemId, link.row, loop)
   })
 
   // Loop arcs swing out past the last layer; the extent must include them or fit clips them.
@@ -318,9 +360,8 @@ function placeRows(layers: string[][], cards: Map<string, ChainCard>): { width: 
 
 /** Leaves the producer's right edge at its body's middle and enters the consuming slot's row. */
 function horizontalEdge(
-  from: ChainCard, to: ChainCard, itemId: string, slotIndex: number, loop: boolean,
+  from: ChainCard, to: ChainCard, itemId: string, row: number, loop: boolean,
 ): ChainEdge {
-  const row = Math.floor(slotIndex / to.inCols)
   return {
     from: from.id,
     to: to.id,
@@ -335,9 +376,8 @@ function horizontalEdge(
 
 /** Leaves the producer's bottom edge under its output grid and enters the consuming slot's column. */
 function verticalEdge(
-  from: ChainCard, to: ChainCard, itemId: string, slotIndex: number, loop: boolean,
+  from: ChainCard, to: ChainCard, itemId: string, column: number, loop: boolean,
 ): ChainEdge {
-  const column = slotIndex % to.inCols
   return {
     from: from.id,
     to: to.id,

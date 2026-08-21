@@ -9,7 +9,7 @@ public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader
     /// can refuse an artifact written for a contract it does not know.</summary>
-    public const int SchemaVersion = 7;
+    public const int SchemaVersion = 8;
 
     public void Write(string path, PlannerData data)
     {
@@ -58,6 +58,11 @@ public sealed class PlannerRepository : IPlannerRepository
                 tool INTEGER NOT NULL,
                 UNIQUE(recipe_id, slot, item_id));
             CREATE TABLE recipe_outputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, chance REAL NOT NULL);
+            CREATE TABLE recipe_grid(
+                recipe_id TEXT NOT NULL,
+                cell INTEGER NOT NULL,
+                slot INTEGER NOT NULL,
+                UNIQUE(recipe_id, cell));
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
             CREATE TABLE item_parents(
                 item_id TEXT PRIMARY KEY,
@@ -127,6 +132,11 @@ public sealed class PlannerRepository : IPlannerRepository
             data.Recipes.SelectMany(r =>
                 r.Outputs.Select(o => new { RecipeId = r.Id, o.ItemId, o.Amount, o.Chance })), tx);
 
+        // The shape of a shaped crafting recipe: which input slot each filled grid cell holds.
+        db.Execute("INSERT INTO recipe_grid VALUES (@RecipeId, @Cell, @Slot)",
+            data.Recipes.SelectMany(r =>
+                (r.Grid ?? []).Select(g => new { RecipeId = r.Id, g.Cell, g.Slot })), tx);
+
         db.Execute("INSERT INTO item_tiers VALUES (@Key, @Value)",
             data.MaterialTiers.Select(t => new { t.Key, t.Value }), tx);
 
@@ -160,6 +170,7 @@ public sealed class PlannerRepository : IPlannerRepository
             CREATE INDEX idx_recipe_inputs_item ON recipe_inputs(item_id);
             CREATE INDEX idx_recipe_outputs_recipe ON recipe_outputs(recipe_id);
             CREATE INDEX idx_recipe_outputs_item ON recipe_outputs(item_id);
+            CREATE INDEX idx_recipe_grid_recipe ON recipe_grid(recipe_id);
             CREATE INDEX idx_item_aliases_item ON item_aliases(item_id);
             CREATE INDEX idx_items_oredict ON items(oredict);
             """, transaction: tx);

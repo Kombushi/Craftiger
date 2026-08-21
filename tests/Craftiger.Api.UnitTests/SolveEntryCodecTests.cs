@@ -17,7 +17,7 @@ public sealed class SolveEntryCodecTests : IDisposable
     {
         _dir = Path.Combine(Path.GetTempPath(), "craftiger-codec-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
-        ApiFixture.WriteArtifact(Path.Combine(_dir, "planner.sqlite"), schemaVersion: 7);
+        ApiFixture.WriteArtifact(Path.Combine(_dir, "planner.sqlite"), schemaVersion: 8);
         var rules = new GarageRulesOptions().ToRules();
         _artifact = new PlannerArtifactRepository(rules, NullLogger<PlannerArtifactRepository>.Instance).Load(_dir);
         var solver = new CostSolverService(

@@ -164,9 +164,54 @@ function altLines(slot: SlotAlternative[], name: (id: string) => string): string
   return `\n${slot.length} alternatives:\n${lines}${slot.length > 8 ? '\n  …' : ''}`
 }
 
+/** Every input slot in card order: the consumed slots, then the catalysts. */
+function slotNumbers(recipe: RecipeDto): number[] {
+  return Array.from({ length: recipe.slots.length + recipe.catalysts.length }, (_, slot) => slot)
+}
+
+/** Slots a shaped recipe's grid does not place — a fluid split from a bucket — render beside it. */
+function gridExtras(recipe: RecipeDto): number[] {
+  const placed = new Set(recipe.grid ?? [])
+  return slotNumbers(recipe).filter((slot) => !placed.has(slot))
+}
+
 function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: DetailRecipeProps) {
   const { openDetail } = useStore()
   const item = (id: string) => detail.items[id]
+  // On the grid a cell is one item per craft, so the folded amount badge stays off the cells.
+  const inputSlot = (slot: number, as: 'slot' | 'cell') => {
+    if (slot < recipe.slots.length) {
+      const alternatives = recipe.slots[slot]
+      const chosen = alternatives.find((alternative) => alternative.itemId === recipe.chosen[slot]) ?? alternatives[0]
+      const chosenItem = item(chosen.itemId)
+      return (
+        <span key={`${as}-${slot}`} className="detail-slot">
+          <Slot
+            atlasIdx={chosenItem?.atlasIdx ?? -1}
+            badge={as === 'cell' ? undefined : fmtCount(chosen.amount)}
+            title={`${fmtAka(chosenItem, chosen.itemId)} · ${fmtAmount(chosen.amount, chosenItem?.isFluid ?? false)} · ${fmtCost(chosenItem?.cost ?? null)} each${altLines(alternatives, (id) => fmtAka(item(id), id))}`}
+            onClick={() => openDetail(chosen.itemId)}
+          />
+          {alternatives.length > 1 ? <span className="alt-badge mono">+{alternatives.length - 1}</span> : null}
+        </span>
+      )
+    }
+    const tools = recipe.catalysts[slot - recipe.slots.length]
+    const tool = tools[0]
+    const toolItem = item(tool.itemId)
+    return (
+      <span key={`${as}-${slot}`} className="detail-slot">
+        <Slot
+          atlasIdx={toolItem?.atlasIdx ?? -1}
+          badge={as === 'cell' ? undefined : fmtCount(tool.amount)}
+          dim
+          title={`${fmtAka(toolItem, tool.itemId)} · needed in place — not consumed${altLines(tools, (id) => fmtAka(item(id), id))}`}
+          onClick={() => openDetail(tool.itemId)}
+        />
+        {tools.length > 1 ? <span className="alt-badge mono">+{tools.length - 1}</span> : null}
+      </span>
+    )
+  }
   return (
     <li className={`detail-recipe${best ? ' detail-best' : ''}${pinned ? ' detail-pinned' : ''}`}>
       <header className="card-head">
@@ -182,41 +227,20 @@ function DetailRecipe({ recipe, detail, tierNames, best, pinned, onPin }: Detail
         <span className="card-runs mono">{fmtCost(recipe.candidateCost)}</span>
       </header>
       <div className="detail-body">
-        <div className="detail-slots">
-          {recipe.slots.map((slot, index) => {
-            const chosen = slot.find((alternative) => alternative.itemId === recipe.chosen[index]) ?? slot[0]
-            const chosenItem = item(chosen.itemId)
-            const alternatives = altLines(slot, (id) => fmtAka(item(id), id))
-            return (
-              <span key={index} className="detail-slot">
-                <Slot
-                  atlasIdx={chosenItem?.atlasIdx ?? -1}
-                  badge={fmtCount(chosen.amount)}
-                  title={`${fmtAka(chosenItem, chosen.itemId)} · ${fmtAmount(chosen.amount, chosenItem?.isFluid ?? false)} · ${fmtCost(chosenItem?.cost ?? null)} each${alternatives}`}
-                  onClick={() => openDetail(chosen.itemId)}
-                />
-                {slot.length > 1 ? <span className="alt-badge mono">+{slot.length - 1}</span> : null}
-              </span>
-            )
-          })}
-          {recipe.catalysts.map((slot, index) => {
-            const tool = slot[0]
-            const toolItem = item(tool.itemId)
-            const alternatives = altLines(slot, (id) => fmtAka(item(id), id))
-            return (
-              <span key={`tool-${index}`} className="detail-slot">
-                <Slot
-                  atlasIdx={toolItem?.atlasIdx ?? -1}
-                  badge={fmtCount(tool.amount)}
-                  dim
-                  title={`${fmtAka(toolItem, tool.itemId)} · needed in place — not consumed${alternatives}`}
-                  onClick={() => openDetail(tool.itemId)}
-                />
-                {slot.length > 1 ? <span className="alt-badge mono">+{slot.length - 1}</span> : null}
-              </span>
-            )
-          })}
-        </div>
+        {recipe.grid === null ? (
+          <div className="detail-slots">{slotNumbers(recipe).map((slot) => inputSlot(slot, 'slot'))}</div>
+        ) : (
+          <>
+            <div className="detail-grid">
+              {recipe.grid.map((slot, cell) =>
+                slot === null ? <span key={`cell-${cell}`} className="slot slot-empty" /> : inputSlot(slot, 'cell'),
+              )}
+            </div>
+            {gridExtras(recipe).length > 0 ? (
+              <div className="detail-slots">{gridExtras(recipe).map((slot) => inputSlot(slot, 'slot'))}</div>
+            ) : null}
+          </>
+        )}
         <span className="card-arrow-inline">▶</span>
         <div className="detail-slots">
           {recipe.outputs.map((output, index) => {

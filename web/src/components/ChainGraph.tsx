@@ -6,13 +6,14 @@ import {
   SLOT,
   SLOT_GAP,
   edgePath,
+  gridExtras,
   layoutChain,
   type ChainCard,
   type ChainOrientation,
 } from '../chainLayout'
 import { fmtAka, fmtAmount, fmtCost, fmtCount, fmtDuration, fmtHeat, fmtRuns } from '../format'
 import { useStore } from '../storeContext'
-import type { BomResponse } from '../types'
+import type { BomNode, BomResponse } from '../types'
 import { usePersistent } from '../usePersistent'
 import { Slot } from './Slot'
 
@@ -185,12 +186,53 @@ interface CardProps {
   onHover: (itemId: string | null) => void
 }
 
+/** Every input slot in card order: the consumed inputs, then the catalysts. */
+function allSlots(node: BomNode): number[] {
+  return Array.from({ length: node.inputsPerRun.length + node.catalysts.length }, (_, slot) => slot)
+}
+
 function RecipeCard({ card, bom, onHover }: CardProps) {
   const { meta, openDetail } = useStore()
   const node = card.node!
   const tierName = meta?.tierNames[node.tier] ?? String(node.tier)
   const bodyTop = HEADER + PAD
   const gridWidth = (columns: number) => columns * SLOT + (columns - 1) * SLOT_GAP
+  const inputCount = node.inputsPerRun.length
+  // A shaped recipe's cell holds one item per craft: the slot's folded amount spreads over its cells.
+  const cellsOf = (slot: number) =>
+    node.grid === null ? 1 : Math.max(1, node.grid.filter((held) => held === slot).length)
+  const inputSlot = (slot: number, key: string, as: 'slot' | 'cell') => {
+    if (slot < inputCount) {
+      const input = node.inputsPerRun[slot]
+      const item = bom.items[input.itemId]
+      const isFluid = item?.isFluid ?? false
+      const perRun = as === 'cell' ? input.amount / cellsOf(slot) : input.amount
+      const total = perRun * node.wholeRuns
+      return (
+        <Slot
+          key={key}
+          atlasIdx={item?.atlasIdx ?? -1}
+          badge={as === 'cell' ? undefined : fmtCount(total)}
+          title={`${fmtAka(item, input.itemId)}\n${fmtAmount(perRun, isFluid)} per run · ${fmtAmount(total, isFluid)} total (${fmtCount(perRun * node.runs)} expected)`}
+          onClick={() => openDetail(input.itemId)}
+          onHover={(hovering) => onHover(hovering ? input.itemId : null)}
+        />
+      )
+    }
+    const tool = node.catalysts[slot - inputCount]
+    const item = bom.items[tool.itemId]
+    return (
+      <Slot
+        key={key}
+        atlasIdx={item?.atlasIdx ?? -1}
+        badge={as === 'cell' ? undefined : fmtCount(tool.amount)}
+        dim
+        title={`${fmtAka(item, tool.itemId)}\nneeded in place — not consumed`}
+        onClick={() => openDetail(tool.itemId)}
+        onHover={(hovering) => onHover(hovering ? tool.itemId : null)}
+      />
+    )
+  }
 
   return (
     <div
@@ -230,35 +272,14 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
           gridTemplateColumns: `repeat(${card.inCols}, ${SLOT}px)`,
         }}
       >
-        {node.inputsPerRun.map((input, index) => {
-          const item = bom.items[input.itemId]
-          const isFluid = item?.isFluid ?? false
-          const total = input.amount * node.wholeRuns
-          return (
-            <Slot
-              key={index}
-              atlasIdx={item?.atlasIdx ?? -1}
-              badge={fmtCount(total)}
-              title={`${fmtAka(item, input.itemId)}\n${fmtAmount(input.amount, isFluid)} per run · ${fmtAmount(total, isFluid)} total (${fmtCount(input.amount * node.runs)} expected)`}
-              onClick={() => openDetail(input.itemId)}
-              onHover={(hovering) => onHover(hovering ? input.itemId : null)}
-            />
-          )
-        })}
-        {node.catalysts.map((tool, index) => {
-          const item = bom.items[tool.itemId]
-          return (
-            <Slot
-              key={`tool-${index}`}
-              atlasIdx={item?.atlasIdx ?? -1}
-              badge={fmtCount(tool.amount)}
-              dim
-              title={`${fmtAka(item, tool.itemId)}\nneeded in place — not consumed`}
-              onClick={() => openDetail(tool.itemId)}
-              onHover={(hovering) => onHover(hovering ? tool.itemId : null)}
-            />
-          )
-        })}
+        {node.grid === null
+          ? allSlots(node).map((slot) => inputSlot(slot, String(slot), 'slot'))
+          : [
+              ...node.grid.map((slot, cell) =>
+                slot === null ? <span key={`cell-${cell}`} className="slot slot-empty" /> : inputSlot(slot, `cell-${cell}`, 'cell'),
+              ),
+              ...gridExtras(node).map((slot) => inputSlot(slot, `extra-${slot}`, 'slot')),
+            ]}
       </div>
       <span
         className="card-arrow"

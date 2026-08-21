@@ -466,6 +466,24 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
+    public void ShapedRecipesKeepTheirGridOverTheFoldedSlots()
+    {
+        // r_planks: the log in cell 0 is ingredient slot 0, the saw in cell 1 the catalyst slot
+        // after it; r_tool_choice puts the tool slot first on the grid and the log second; a
+        // choice slot is addressed by its own number; furnace recipes have no shape.
+        Assert.Equal("0:0,1:1", _fixture.Scalar<string>(
+            "SELECT GROUP_CONCAT(cell || ':' || slot, ',') FROM (SELECT cell, slot FROM recipe_grid WHERE recipe_id = 'r_planks' ORDER BY cell)"));
+        Assert.Equal("0:1,1:0", _fixture.Scalar<string>(
+            "SELECT GROUP_CONCAT(cell || ':' || slot, ',') FROM (SELECT cell, slot FROM recipe_grid WHERE recipe_id = 'r_tool_choice' ORDER BY cell)"));
+        Assert.Equal("0:0", _fixture.Scalar<string>(
+            "SELECT GROUP_CONCAT(cell || ':' || slot, ',') FROM recipe_grid WHERE recipe_id = 'r_any_iron_use'"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_grid g JOIN recipes r ON r.id = g.recipe_id WHERE r.machine <> 'Crafting Table'"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_grid g WHERE NOT EXISTS (SELECT 1 FROM recipe_inputs i WHERE i.recipe_id = g.recipe_id AND i.slot = g.slot)"));
+    }
+
+    [Fact]
     public void AContainerReturningItemStaysAnIngredient() =>
         Assert.Equal(0, _fixture.Scalar<int>(
             "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_soup' AND catalyst = 1"));

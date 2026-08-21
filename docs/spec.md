@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.34
+# GTNH Crafting Planner — Specification v1.35
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -317,6 +317,14 @@ Builder responsibilities, in order:
   2), and whether a slot holds one is the only thing the solver reads of
   catalysts, to break exact ties (§5)
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
+- `recipe_grid(recipe_id, cell, slot)` — the shape of a shaped crafting recipe:
+  each filled cell of the 3×3 grid (row-major 0–8) names the `recipe_inputs`
+  `slot` it holds, so the shape is drawn over the folded slots and an oredict
+  cell follows the alternative the solve picked (§7). Ingredient and choice
+  slots come first, catalyst slots after — the same numbering as `slot`. A
+  shaped recipe whose cell lost its ingredient to netting (a bucket that
+  comes back out) ships no rows and renders folded; shapeless and machine
+  recipes never have rows
 - `item_tiers(item_id, tier)` — tiered materials: ingots, gems and dusts (§4)
 - `item_parents(item_id, parent_item_id, divisor)` — fraction leaves (small and
   tiny dusts, nuggets, gem grades) name the item their weight divides from
@@ -643,7 +651,15 @@ show. Screens:
      every target's combined plan in one graph, and the sections above follow
      the selected card. Cards link into item detail for pinning. Catalyst slots
      (§9) render dimmed among the inputs, marked as needed in place but not
-     consumed, in both recipe cards and item detail.
+     consumed, in both recipe cards and item detail. A shaped crafting recipe
+     draws its inputs on the 3×3 grid as the pack crafts it (§3
+     `recipe_grid`): each cell shows the chosen alternative of the slot it
+     holds, the tool cell dimmed, empty cells blank; the cells carry no count
+     — the header's run count is the count, and a cell is one item per craft,
+     which its tooltip spells out — and any slot the grid does not place (a
+     fluid split from a bucket) sits under the grid with its count. Shapeless
+     crafting and machine recipes keep the folded slots. Item detail draws
+     the same grid, with the alternatives badge on oredict cells.
   Displayed runs and amounts are the whole-run plan (§6) — a machine takes a
   full recipe or nothing, so no card ever shows a partial craft; the
   fractional expected values surface only in tooltips. A recipe card's own
@@ -747,8 +763,10 @@ show. Screens:
 - `GET /api/list?solveId=&page=&hideUnreachable=` → cost-sorted page
 - `GET /api/item/{id}?solveId=` → producing recipes with candidate costs, the
   solver's current pick (`bestRecipeId`) so the detail view can highlight what
-  the BOM will expand, and an `items` display lookup (name, atlas index,
-  fluid flag, leaf class, cost) for every item id the recipes reference.
+  the BOM will expand, each recipe's `grid` (nine cells → the slot each holds,
+  slots first then catalysts, or null; null for a recipe without a shape),
+  and an `items` display lookup (name, atlas index, fluid flag, leaf class,
+  cost) for every item id the recipes reference.
 - `GET /api/machines?targets=` — upstream-closure machine list for the given
   item ids; drives the relevance-filtered garage.
 - `POST /api/bom` — body `{solveId, targets: [{itemId, count}],
@@ -756,7 +774,7 @@ show. Screens:
   inputs: [{itemId, amount}]}], leaves: [{itemId, amount, wholeAmount}],
   warnings, nodes: [{itemId, amount, runs, wholeAmount, wholeRuns, recipeId,
   machine, tier, multiTier, heat, durationTicks, euT, inputsPerRun: [{itemId,
-  amount}], outputs: [{itemId, amount, chance}], loop, seed}], items: {itemId:
+  amount}], outputs: [{itemId, amount, chance}], loop, seed, grid}], items: {itemId:
   {name, atlasIdx, isFluid, leafClass, cost, uncraftable}}}` — the chain nodes of §6 in both
   accountings plus the same display lookup, so one request feeds a whole
   chain view.
@@ -1035,3 +1053,8 @@ All "does not / never" rules live here; other sections only reference this one.
     rather than wrenches — while a tool route that is genuinely cheaper, or
     shallower, keeps winning; only a wearing tool carries the flag, never a
     circuit, mold or shape, and a tool slot's price is still nothing.
+42. A shaped crafting recipe ships its shape — the frame box's wrench in the
+    centre cell and the rods around it, a choice cell pointing at its choice
+    slot — and every cell points at a slot the recipe actually ships; a
+    shapeless recipe and a machine recipe ship no shape, and the chain card
+    and item detail draw a shaped recipe on the 3×3 grid, folded otherwise.

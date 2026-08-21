@@ -171,7 +171,7 @@ public sealed class PlannerQueryService(
             node.ItemId, node.Amount, node.Runs, node.WholeAmount, node.WholeRuns, node.RecipeId,
             index.Machine[recipe], index.Tier[recipe], Optional(index.MultiTier[recipe]), Optional(index.Heat[recipe]),
             data.DurationTicks[recipe], data.EuT[recipe],
-            node.InputsPerRun, catalysts, Outputs(recipe), node.Loop, node.Seed);
+            node.InputsPerRun, catalysts, Outputs(recipe), node.Loop, node.Seed, data.Grid(recipe));
     }
 
     private static int? Optional(int value) => value < 0 ? null : value;
@@ -238,6 +238,7 @@ public sealed class PlannerQueryService(
             slots,
             SlotChoice.Inputs(entry.Table, itemId, recipe).Select(input => input.ItemId).ToList(),
             catalysts,
-            Outputs(recipe));
+            Outputs(recipe),
+            data.Grid(recipe));
     }
 }

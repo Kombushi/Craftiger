@@ -298,6 +298,32 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task AShapedRecipeCarriesItsGridAndOthersDoNot()
+    {
+        var solveId = await SolveAsync();
+
+        var detail = await Client.GetFromJsonAsync<ItemDetailResponse>($"/api/item/frame?solveId={solveId}");
+
+        var hand = detail!.Recipes.Single(recipe => recipe.RecipeId == "r_frame_hand");
+        var assembled = detail.Recipes.Single(recipe => recipe.RecipeId == "r_frame_asm");
+        Assert.Equal([0, null, null, 0, 1, null, null, null, null], hand.Grid);
+        Assert.Null(assembled.Grid);
+
+        var response = await Client.PostAsJsonAsync("/api/bom", new
+        {
+            solveId,
+            targets = new[] { new { itemId = "frame", count = 1 } },
+            pins = new Dictionary<string, string> { ["frame"] = "r_frame_hand" },
+        });
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<BomResponse>();
+
+        var node = Assert.Single(result!.Nodes);
+        Assert.Equal("r_frame_hand", node.RecipeId);
+        Assert.Equal([0, null, null, 0, 1, null, null, null, null], node.Grid);
+    }
+
+    [Fact]
     public async Task MachinesComeFromTheUpstreamClosure()
     {
         var machines = await Client.GetFromJsonAsync<List<string>>("/api/machines?targets=wire");

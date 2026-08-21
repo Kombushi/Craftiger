@@ -73,7 +73,10 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
             var choices = new List<PlannerChoice>();
             var catalysts = new List<PlannerCatalystSlot>();
             var slots = new List<IReadOnlyList<string>>();
-            foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
+            // A shaped crafting type keys its inputs by grid cell; each cell remembers what it
+            // became, so the shape can be rebuilt over the folded slots once they are final.
+            var cellRefs = recipe.Category == "minecraft" && !recipe.Shapeless ? new List<CellRef>() : null;
+            foreach (var (cell, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
             {
                 var (members, catalyst) = ResolveSlot(dump, unified, tools, groupId);
                 if (members.Count == 0)
@@ -84,6 +87,7 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
                 var alternatives = members.DistinctBy(member => member.ItemId).ToList();
                 if (catalyst)
                 {
+                    cellRefs?.Add(new CellRef((int)cell, null, null, catalysts.Count));
                     catalysts.Add(new PlannerCatalystSlot(
                         alternatives.Select(member => new PlannerCatalyst(member.ItemId, member.Amount, member.Tool)).ToList()));
                     continue;
@@ -93,15 +97,21 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
                 {
                     // A real choice of ingredient: ship every option at its own amount so
                     // the solver can take the cheapest, rather than freezing one at build time.
+                    cellRefs?.Add(new CellRef((int)cell, null, choices.Count, null));
                     choices.Add(new PlannerChoice(alternatives.Select(member => (member.ItemId, member.Amount)).ToList()));
                     slots.Add(alternatives.Select(member => member.ItemId).ToList());
                     continue;
                 }
 
+                string? cellItem = null;
                 foreach (var (partId, partAmount) in Decompose(dump, members[0].ItemId, members[0].Amount))
                 {
-                    inputs[unified.Canonical(partId)] = inputs.GetValueOrDefault(unified.Canonical(partId)) + partAmount;
+                    var canonical = unified.Canonical(partId);
+                    // A filled container splits into its empty form and the fluid; the cell shows the container.
+                    cellItem ??= canonical;
+                    inputs[canonical] = inputs.GetValueOrDefault(canonical) + partAmount;
                 }
+                cellRefs?.Add(new CellRef((int)cell, cellItem, null, null));
 
                 // Single-alternative slots decompose like the flat inputs; genuine
                 // alternative lists keep their members whole.
@@ -191,6 +201,7 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
                     _config.EraOnlyMachines.Contains(machine))
                 {
                     Catalysts = catalysts,
+                    Grid = cellRefs is null ? null : GridOf(cellRefs, variantInputs, choices.Count),
                 });
             }
         }
@@ -276,6 +287,50 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
             members.Add((canonical, Math.Max(1, stack.Size), tool));
         }
         return (members, catalyst);
+    }
+
+    /// <summary>What one grid cell turned into: a flat ingredient (by canonical id), the n-th
+    /// choice slot, or the n-th catalyst slot.</summary>
+    private sealed record CellRef(int Cell, string? Item, int? Choice, int? Catalyst);
+
+    /// <summary>The shape over the final slots: flat ingredients take the slot numbers of their
+    /// position among the inputs, choices and catalysts follow in order — the same numbering the
+    /// artifact writer uses. A cell whose ingredient netting removed has no slot, and the recipe
+    /// then ships no shape rather than a wrong one.</summary>
+    private static IReadOnlyList<PlannerGridCell>? GridOf(
+        List<CellRef> cellRefs, Dictionary<string, long> inputs, int choiceCount)
+    {
+        var slotOfInput = new Dictionary<string, int>();
+        foreach (var key in inputs.Keys)
+        {
+            slotOfInput[key] = slotOfInput.Count;
+        }
+        var cells = new List<PlannerGridCell>(cellRefs.Count);
+        foreach (var cellRef in cellRefs)
+        {
+            if (cellRef.Cell is < 0 or > 8)
+            {
+                continue;
+            }
+            int slot;
+            if (cellRef.Item is not null)
+            {
+                if (!slotOfInput.TryGetValue(cellRef.Item, out slot))
+                {
+                    return null;
+                }
+            }
+            else if (cellRef.Choice is { } choice)
+            {
+                slot = inputs.Count + choice;
+            }
+            else
+            {
+                slot = inputs.Count + choiceCount + cellRef.Catalyst!.Value;
+            }
+            cells.Add(new PlannerGridCell(cellRef.Cell, slot));
+        }
+        return cells;
     }
 
     private static IEnumerable<(string ItemId, long Amount)> Decompose(Dump dump, string itemId, long amount)

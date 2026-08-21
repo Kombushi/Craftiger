@@ -10,7 +10,7 @@ namespace Craftiger.Api.Repositories;
 public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 7;
+    public const int SupportedSchemaVersion = 8;
 
     public PlannerArtifact Load(string artifactsDir)
     {
@@ -135,12 +135,25 @@ public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<Planner
         var catalystIds = new Dictionary<string, string>();
         var machines = new Dictionary<string, (bool MultiTier, bool Heat)>();
 
+        var gridStart = new List<int> { 0 };
+        var gridCell = new List<byte>();
+        var gridSlot = new List<int>();
+
         using var recipesDb = new SqliteConnection(connectionString);
         using var inputsDb = new SqliteConnection(connectionString);
         using var outputsDb = new SqliteConnection(connectionString);
+        using var gridDb = new SqliteConnection(connectionString);
         recipesDb.Open();
         inputsDb.Open();
         outputsDb.Open();
+        gridDb.Open();
+        using var grid = gridDb.Query<GridRow>(
+            """
+            SELECT g.recipe_id AS RecipeId, g.cell, g.slot
+            FROM recipe_grid g JOIN recipes r ON r.id = g.recipe_id
+            ORDER BY r.rowid, g.cell
+            """, buffered: false).GetEnumerator();
+        var gridRow = grid.MoveNext() ? grid.Current : null;
         using var inputs = inputsDb.Query<InputRow>(
             """
             SELECT i.recipe_id AS RecipeId, i.item_id AS ItemId, i.amount, i.slot, i.catalyst, i.tool
@@ -223,6 +236,14 @@ public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<Planner
                 builder.AddOutput(output.ItemId, output.Amount, output.Chance);
                 output = outputs.MoveNext() ? outputs.Current : null;
             }
+
+            while (gridRow is not null && gridRow.RecipeId == recipe.Id)
+            {
+                gridCell.Add((byte)gridRow.Cell);
+                gridSlot.Add((int)gridRow.Slot);
+                gridRow = grid.MoveNext() ? grid.Current : null;
+            }
+            gridStart.Add(gridCell.Count);
         }
 
         return (
@@ -233,7 +254,10 @@ public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<Planner
                 [.. catalystSlotStart],
                 [.. catalystAlternativeStart],
                 [.. catalystItemId],
-                [.. catalystAmount]),
+                [.. catalystAmount],
+                [.. gridStart],
+                [.. gridCell],
+                [.. gridSlot]),
             machines);
     }
 }
