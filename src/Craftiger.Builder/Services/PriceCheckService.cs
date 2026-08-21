@@ -133,7 +133,7 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
             var known = true;
             foreach (var slot in Slots(recipe))
             {
-                var cheapest = double.MaxValue;
+                var cheapest = double.PositiveInfinity;
                 foreach (var (itemId, amount) in slot)
                 {
                     if (cost.TryGetValue(itemId, out var unit) && unit * amount < cheapest)
@@ -141,7 +141,7 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
                         cheapest = unit * amount;
                     }
                 }
-                if (cheapest == double.MaxValue)
+                if (double.IsPositiveInfinity(cheapest))
                 {
                     known = false;
                     break;

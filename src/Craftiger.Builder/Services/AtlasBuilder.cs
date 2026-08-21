@@ -19,7 +19,7 @@ public sealed class AtlasBuilder : IAtlasBuilder
         int cell = 32,
         int? lossyQuality = null)
     {
-        var raw = new byte[icons.Count][];
+        var raw = new byte[]?[icons.Count];
         using (var zip = ZipFile.OpenRead(imageZipPath))
         {
             var entries = zip.Entries.Where(e => e.Length > 0).ToDictionary(e => e.FullName);
@@ -72,7 +72,10 @@ public sealed class AtlasBuilder : IAtlasBuilder
                 continue;
             }
             atlas.Mutate(x => x.DrawImage(tile, new Point(u, v), 1f));
-            tile.Dispose();
+        }
+        foreach (var tile in tiles)
+        {
+            tile?.Dispose();
         }
 
         atlas.SaveAsWebp(atlasPath, lossyQuality is { } quality

@@ -46,10 +46,10 @@ public sealed class BuilderPipeline(
         var unified = Stage("unify", () => unification.Run(dump));
         logger.LogInformation("  {Oredicted:N0} oredicted items in {Classes:N0} classes", unified.CanonicalByRawId.Count, unified.AliasesByCanonical.Count);
 
-        var recipes = Stage("transform recipes", () => recipeTransform.Run(dump, unified));
-        recipes.AddRange(Stage("break blocks", () => blockBreak.Run(dump, unified)));
-        recipes.AddRange(Stage("harvest crops", () => cropHarvest.Run(dump, unified)));
-        recipes = Stage("conserve matter", () => conservation.Run(recipes, dump, unified));
+        var transformed = Stage("transform recipes", () => recipeTransform.Run(dump, unified));
+        transformed.AddRange(Stage("break blocks", () => blockBreak.Run(dump, unified)));
+        transformed.AddRange(Stage("harvest crops", () => cropHarvest.Run(dump, unified)));
+        var recipes = Stage("conserve matter", () => conservation.Run(transformed, dump, unified));
         var solverRecipes = recipes.Where(r => !r.EraOnly).ToList();
         logger.LogInformation("  kept {Kept:N0} recipes ({EraOnly:N0} era-only)", solverRecipes.Count, recipes.Count - solverRecipes.Count);
 

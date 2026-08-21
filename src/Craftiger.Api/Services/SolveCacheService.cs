@@ -11,7 +11,9 @@ using Microsoft.Extensions.Options;
 namespace Craftiger.Api.Services;
 
 public sealed class SolveCacheService(
-    PlannerArtifact artifact, ICostSolverService solver, IOptions<ApiOptions> options,
+    PlannerArtifact artifact,
+    ICostSolverService solver,
+    IOptions<ApiOptions> options,
     ILogger<SolveCacheService> logger) : ISolveCacheService
 {
     private readonly Lock _gate = new();
@@ -96,7 +98,11 @@ public sealed class SolveCacheService(
             }
         }
         var order = priced.ToArray();
-        Array.Sort(order, (a, b) => costs[a] != costs[b] ? costs[a].CompareTo(costs[b]) : a.CompareTo(b));
+        Array.Sort(order, (a, b) =>
+        {
+            var byCost = costs[a].CompareTo(costs[b]);
+            return byCost != 0 ? byCost : a.CompareTo(b);
+        });
 
         var sorted = new string[_byName.Length];
         var next = 0;
