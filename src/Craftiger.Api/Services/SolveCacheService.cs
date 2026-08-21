@@ -21,7 +21,7 @@ public sealed class SolveCacheService(
     IOptions<ApiOptions> options,
     ILogger<SolveCacheService> logger) : ISolveCacheService
 {
-    private readonly ConcurrentDictionary<string, Slot> _entries = new();
+    private readonly ConcurrentDictionary<string, SolveCacheSlot> _entries = new();
     private readonly int _capacity = Math.Max(1, options.Value.SolveCacheSize);
     private long _clock;
 
@@ -35,7 +35,7 @@ public sealed class SolveCacheService(
     {
         var (garage, weights) = Translate(request);
         var solveId = SolveIdOf(request);
-        var slot = _entries.GetOrAdd(solveId, id => new Slot(new Lazy<SolveEntry>(
+        var slot = _entries.GetOrAdd(solveId, id => new SolveCacheSlot(new Lazy<SolveEntry>(
             () => Compute(id, garage, weights), LazyThreadSafetyMode.ExecutionAndPublication)));
         var entry = Settle(solveId, slot) ?? throw new InvalidOperationException($"solve {solveId} failed");
         Evict();
@@ -47,7 +47,7 @@ public sealed class SolveCacheService(
 
     /// <summary>The slot's entry, waiting for an in-flight solve; a solve that threw is dropped
     /// so the next request recomputes instead of replaying the failure.</summary>
-    private SolveEntry? Settle(string solveId, Slot slot)
+    private SolveEntry? Settle(string solveId, SolveCacheSlot slot)
     {
         slot.LastUsed = Interlocked.Increment(ref _clock);
         try
@@ -56,7 +56,7 @@ public sealed class SolveCacheService(
         }
         catch (Exception e)
         {
-            _entries.TryRemove(new KeyValuePair<string, Slot>(solveId, slot));
+            _entries.TryRemove(new KeyValuePair<string, SolveCacheSlot>(solveId, slot));
             logger.LogError(e, "solve {SolveId} failed", solveId);
             return null;
         }
@@ -79,7 +79,7 @@ public sealed class SolveCacheService(
     {
         while (_entries.Count > _capacity)
         {
-            KeyValuePair<string, Slot>? stalest = null;
+            KeyValuePair<string, SolveCacheSlot>? stalest = null;
             foreach (var pair in _entries)
             {
                 if (pair.Value.Entry.IsValueCreated
@@ -93,13 +93,6 @@ public sealed class SolveCacheService(
                 return;
             }
         }
-    }
-
-    private sealed class Slot(Lazy<SolveEntry> entry)
-    {
-        public Lazy<SolveEntry> Entry { get; } = entry;
-
-        public long LastUsed { get; set; }
     }
 
     /// <summary>The craft list: priced items cheapest first, unreachable items after them, ties
