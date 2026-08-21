@@ -698,7 +698,9 @@ show. Screens:
   whole entry as compact little-endian binary: the garage and weights that
   produced it (a replica that only ever sees the solveId still needs them for
   pins, seeds and legality), the table's arrays, the craft-list ranks,
-  reachable count and converged flag — about two megabytes. A solve checks the
+  reachable count and converged flag — Brotli-compressed at the fastest
+  level behind a clear magic and format version, about 0.7 MB for a full
+  solve; a value in any other format is recomputed, never served. A solve checks the
   store before computing, and writes behind the response — the client never
   waits for Valkey, and a failed write costs a later process one recompute;
   every read endpoint reads through on an in-process miss, so a 404 means no

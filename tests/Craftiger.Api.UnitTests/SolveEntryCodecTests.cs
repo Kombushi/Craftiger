@@ -69,6 +69,32 @@ public sealed class SolveEntryCodecTests : IDisposable
     }
 
     [Fact]
+    public void AnEarlierFormatIsRefused()
+    {
+        var codec = new SolveEntryCodec(_artifact);
+        var payload = codec.Encode(_entry);
+        // Same magic, previous format version: the body is unreadable to this reader.
+        BitConverter.GetBytes(1).CopyTo(payload, sizeof(int));
+
+        Assert.Null(codec.Decode(payload));
+    }
+
+    [Fact]
+    public void TheStoredFormIsCompressed()
+    {
+        var codec = new SolveEntryCodec(_artifact);
+        // The fixture's table is tiny; a few thousand weight overrides give the frame something
+        // to squeeze, and they must come out smaller than their doubles alone.
+        var weights = Enumerable.Range(0, 5000).ToDictionary(i => $"item-{i:D5}", _ => 7.5);
+        var bulky = _entry with { Weights = new WeightSettings(5, weights) };
+
+        var payload = codec.Encode(bulky);
+
+        Assert.True(payload.Length < weights.Count * sizeof(double), $"{payload.Length} bytes for {weights.Count} weights");
+        Assert.Equal(weights, codec.Decode(payload)!.Weights.ItemWeights);
+    }
+
+    [Fact]
     public void TruncatedBytesAreRefused()
     {
         var codec = new SolveEntryCodec(_artifact);

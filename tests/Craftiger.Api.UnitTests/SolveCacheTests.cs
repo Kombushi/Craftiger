@@ -112,15 +112,18 @@ public sealed class SolveCacheTests : IDisposable
         var cache = Cache();
         var solveId = (await cache.SolveAsync(Request(3))).SolveId;
         await WaitForWrites(1);
-        var foreign = _store.Entries[solveId];
-        foreign[^1] ^= 0xFF;
-        foreign[8] ^= 0x01;
+        // The same solve as another build would have stored it, then as damaged bytes.
+        var otherBuild = new SolveEntryCodec(_artifact with { BuildId = "another-build" });
+        _store.Entries[solveId] = otherBuild.Encode((await cache.GetAsync(solveId))!);
         var stranger = Cache();
 
-        var entry = await stranger.GetAsync(solveId);
+        var fromOtherBuild = await stranger.GetAsync(solveId);
+        _store.Entries[solveId][^1] ^= 0xFF;
+        var damaged = await stranger.GetAsync(solveId);
         var response = await stranger.SolveAsync(Request(3));
 
-        Assert.Null(entry);
+        Assert.Null(fromOtherBuild);
+        Assert.Null(damaged);
         Assert.Equal(solveId, response.SolveId);
         Assert.Equal(2, _solver.Calls);
     }

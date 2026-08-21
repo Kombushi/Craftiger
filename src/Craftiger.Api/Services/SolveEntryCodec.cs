@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
 using Craftiger.Api.Interfaces;
@@ -7,20 +8,51 @@ using Craftiger.Solver.Models;
 
 namespace Craftiger.Api.Services;
 
-/// <summary>A compact little-endian layout: a header naming the format and the artifact
-/// (schema, pack, build), then the garage and weights, then the table's arrays as raw bytes
-/// and the craft-list ranks. About two megabytes for a full solve.</summary>
+/// <summary>A compact little-endian layout: the magic and format version in the clear, then —
+/// Brotli-compressed — the artifact identity (schema, pack, build), the garage and weights, the
+/// table's arrays as raw bytes and the craft-list ranks. The fastest Brotli level takes a
+/// 2.5 MB solve to about 0.7 MB in a few milliseconds; the slower levels buy almost nothing
+/// more and cost up to seconds.</summary>
 public sealed class SolveEntryCodec(PlannerArtifact artifact) : ISolveEntryCodec
 {
     private const int Magic = 0x45534643;
-    private const int FormatVersion = 1;
+    private const int FormatVersion = 2;
+    private const int HeaderLength = 2 * sizeof(int);
+
+    /// <summary>Reads out of the decoder come in large chunks instead of per field.</summary>
+    private const int BufferSize = 1 << 20;
 
     public byte[] Encode(SolveEntry entry)
     {
         using var stream = new MemoryStream();
-        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
-        writer.Write(Magic);
-        writer.Write(FormatVersion);
+        using (var header = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
+        {
+            header.Write(Magic);
+            header.Write(FormatVersion);
+        }
+        // The encoder closes a block at every write it receives, which costs a third of the
+        // ratio on split input, so the body is laid out in full first and compressed in one write.
+        using var body = new MemoryStream(BodyCapacity(entry));
+        using (var writer = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+        {
+            WriteBody(writer, entry);
+        }
+        using (var compressed = new BrotliStream(stream, CompressionLevel.Fastest, leaveOpen: true))
+        {
+            compressed.Write(body.GetBuffer().AsSpan(0, (int)body.Length));
+        }
+        return stream.ToArray();
+    }
+
+    /// <summary>The arrays dominate; the rest is a few strings and counts.</summary>
+    private static int BodyCapacity(SolveEntry entry) =>
+        entry.Table.Costs.Length * (sizeof(double) + 2 * sizeof(int))
+        + entry.Table.PickArray.Length * sizeof(ushort)
+        + entry.Sorted.Count * sizeof(int)
+        + 4096;
+
+    private void WriteBody(BinaryWriter writer, SolveEntry entry)
+    {
         writer.Write(PlannerArtifactRepository.SupportedSchemaVersion);
         writer.Write(artifact.PackVersion);
         writer.Write(artifact.BuildId);
@@ -61,18 +93,24 @@ public sealed class SolveEntryCodec(PlannerArtifact artifact) : ISolveEntryCodec
         WriteArray(writer, entry.Table.PickStarts);
         WriteArray(writer, entry.Table.PickArray);
         WriteArray(writer, entry.Sorted is int[] ranks ? ranks : [.. entry.Sorted]);
-        writer.Flush();
-        return stream.ToArray();
     }
 
     public SolveEntry? Decode(byte[] payload)
     {
         try
         {
-            using var reader = new BinaryReader(new MemoryStream(payload, writable: false), Encoding.UTF8);
-            if (reader.ReadInt32() != Magic
-                || reader.ReadInt32() != FormatVersion
-                || reader.ReadInt32() != PlannerArtifactRepository.SupportedSchemaVersion
+            if (payload.Length < HeaderLength
+                || BitConverter.ToInt32(payload, 0) != Magic
+                || BitConverter.ToInt32(payload, sizeof(int)) != FormatVersion)
+            {
+                return null;
+            }
+            using var decompressed = new BrotliStream(
+                new MemoryStream(payload, HeaderLength, payload.Length - HeaderLength, writable: false),
+                CompressionMode.Decompress);
+            using var buffered = new BufferedStream(decompressed, BufferSize);
+            using var reader = new BinaryReader(buffered, Encoding.UTF8);
+            if (reader.ReadInt32() != PlannerArtifactRepository.SupportedSchemaVersion
                 || reader.ReadString() != artifact.PackVersion
                 || reader.ReadString() != artifact.BuildId)
             {
@@ -128,7 +166,9 @@ public sealed class SolveEntryCodec(PlannerArtifact artifact) : ISolveEntryCodec
                 sorted,
                 reachable);
         }
-        catch (Exception e) when (e is EndOfStreamException or IOException or FormatException)
+        // The Brotli decoder reports damaged input as InvalidOperationException; a damaged
+        // cache value is recomputed, never a failed request.
+        catch (Exception e) when (e is EndOfStreamException or IOException or FormatException or InvalidDataException or InvalidOperationException)
         {
             return null;
         }
@@ -140,13 +180,20 @@ public sealed class SolveEntryCodec(PlannerArtifact artifact) : ISolveEntryCodec
         writer.Write(MemoryMarshal.AsBytes(values));
     }
 
+    /// <summary>A decompressing stream hands out what it has, so the read loops until the
+    /// array is full or the stream ends short.</summary>
     private static T[] ReadArray<T>(BinaryReader reader) where T : unmanaged
     {
         var values = new T[reader.ReadInt32()];
         var bytes = MemoryMarshal.AsBytes(values.AsSpan());
-        if (reader.Read(bytes) != bytes.Length)
+        while (bytes.Length > 0)
         {
-            throw new EndOfStreamException();
+            var read = reader.Read(bytes);
+            if (read <= 0)
+            {
+                throw new EndOfStreamException();
+            }
+            bytes = bytes[read..];
         }
         return values;
     }
