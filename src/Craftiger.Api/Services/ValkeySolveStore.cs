@@ -36,6 +36,5 @@ public sealed class ValkeySolveStore : ISolveStore
         return value.IsNull ? null : (byte[]?)value;
     }
 
-    public Task PutAsync(string solveId, byte[] payload) =>
-        _database.StringSetAsync(_prefix + solveId, payload);
+    public Task PutAsync(string solveId, byte[] payload) => _database.StringSetAsync(_prefix + solveId, payload);
 }
