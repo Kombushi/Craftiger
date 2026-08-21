@@ -207,7 +207,8 @@ public sealed class CostSolverService(
     /// the same price, the pointer moves to the one with the better composite score — form
     /// rank first, then chain depth of the chosen inputs (a leaf beats a detour through
     /// intermediates), then the leaf weight of the chosen leaves (a lighter-era material
-    /// beats a heavier one) — unless the new recipe's inputs can reach the item over chosen
+    /// beats a heavier one), then the count of catalyst slots wearing a tool (the assembler
+    /// beats the wrench) — unless the new recipe's inputs can reach the item over chosen
     /// edges, leaves included, which would close a pointer loop. Costs never change here,
     /// only pointers.</summary>
     private void PreferForms(
@@ -227,7 +228,7 @@ public sealed class CostSolverService(
         }
 
         var reach = new ReachWalk(index.ItemCount);
-        var candidates = new List<(int Recipe, ushort[] Picks, (int, int, double) Score)>();
+        var candidates = new List<(int Recipe, ushort[] Picks, (int, int, double, int) Score)>();
         foreach (var item in won)
         {
             var current = best[item];
@@ -275,8 +276,9 @@ public sealed class CostSolverService(
     }
 
     /// <summary>The tie-break key of a recipe over its chosen inputs: worst form rank, deepest
-    /// chain, heaviest chosen leaf. Lexicographically smaller is better.</summary>
-    private static (int Rank, int Depth, double Weight) Score(
+    /// chain, heaviest chosen leaf, then the catalyst slots wearing a tool. Lexicographically
+    /// smaller is better.</summary>
+    private static (int Rank, int Depth, double Weight, int Tools) Score(
         SolverIndex index, int recipe, ushort[] picks, int[] rank, int[] depths, double[] leafWeight)
     {
         var worstRank = 0;
@@ -293,7 +295,7 @@ public sealed class CostSolverService(
                 weight = Math.Max(weight, leafWeight[item]);
             }
         }
-        return (worstRank, depth, weight);
+        return (worstRank, depth, weight, index.ToolSlots[recipe]);
     }
 
     /// <summary>Chain depth per item over chosen edges: leaves and unproduced items sit at 0,

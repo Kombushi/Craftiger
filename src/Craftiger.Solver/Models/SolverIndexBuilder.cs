@@ -16,6 +16,7 @@ public sealed class SolverIndexBuilder
     private readonly List<int> _tier = [];
     private readonly List<int> _multiTier = [];
     private readonly List<int> _heat = [];
+    private readonly List<int> _toolSlots = [];
     private readonly List<int> _slotStart = [0];
     private readonly List<int> _alternativeStart = [0];
     private readonly List<int> _alternativeItem = [];
@@ -70,7 +71,19 @@ public sealed class SolverIndexBuilder
         _tier.Add(tier);
         _multiTier.Add(multiTier ?? -1);
         _heat.Add(heat ?? -1);
+        _toolSlots.Add(0);
         _recipeOpen = true;
+    }
+
+    /// <summary>Counts one catalyst slot of the open recipe that holds a wearing tool. The
+    /// catalyst rows themselves never enter the index.</summary>
+    public void AddToolSlot()
+    {
+        if (!_recipeOpen)
+        {
+            throw new InvalidOperationException("a tool slot needs an open recipe");
+        }
+        _toolSlots[^1]++;
     }
 
     /// <summary>Opens the next input slot of the open recipe.</summary>
@@ -138,6 +151,7 @@ public sealed class SolverIndexBuilder
             [.. _tier],
             [.. _multiTier],
             [.. _heat],
+            [.. _toolSlots],
             slotStart,
             alternativeStart,
             alternativeItem,

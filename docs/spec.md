@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.33
+# GTNH Crafting Planner — Specification v1.34
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -160,6 +160,9 @@ Builder responsibilities, in order:
    whole slot: its members are alternatives for the same role. Condemned
    slots are not dropped — they ship as catalyst-flagged rows (§9): a recipe
    that needs a mortar in place shows the mortar, it just never pays for it.
+   A member that is such a wearing tool carries the `tool` flag too, so the
+   solver can tell a slot that wears a wrench from one that holds a circuit
+   when two routes tie (§5).
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
 4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). Two tiers
@@ -306,11 +309,13 @@ Builder responsibilities, in order:
 - `recipes(id, machine, tier, multi_tier NULL, heat NULL, duration_ticks, eu_t)`
   — `multi_tier` for maps whose multiblock lowers the tier, `heat` for
   coil-gated recipes only
-- `recipe_inputs(recipe_id, item_id, amount, slot, catalyst)` — amount in
-  units, or mB for fluids; rows sharing a `slot` are alternatives the recipe
-  accepts any one of; `catalyst = 1` rows are the tool, mold, and circuit
-  slots the recipe needs in place but never consumes — display only, never
-  read by the solver (§9)
+- `recipe_inputs(recipe_id, item_id, amount, slot, catalyst, tool)` — amount
+  in units, or mB for fluids; rows sharing a `slot` are alternatives the
+  recipe accepts any one of; `catalyst = 1` rows are the tool, mold, and
+  circuit slots the recipe needs in place but never consumes — never priced
+  (§9); `tool = 1` marks a catalyst row whose item is a wearing tool (§3 step
+  2), and whether a slot holds one is the only thing the solver reads of
+  catalysts, to break exact ties (§5)
 - `recipe_outputs(recipe_id, item_id, amount, chance)` — `chance ∈ (0, 1]`
 - `item_tiers(item_id, tier)` — tiered materials: ingots, gems and dusts (§4)
 - `item_parents(item_id, parent_item_id, divisor)` — fraction leaves (small and
@@ -450,7 +455,8 @@ Why this shape:
   surcharge cannot separate a 1:1-derived pair — the ingot inherits its
   dust's price, penalty included — so the preference runs after the solve
   instead. Each garage-legal producer at the same price within ε scores a
-  composite key over its chosen inputs, compared lexicographically:
+  composite key over its chosen inputs and its catalyst slots, compared
+  lexicographically:
   1. *Form rank* — leaf classes carry a configured priority (ingot and gem
      first, then dust, then nugget, then the piles; unlisted classes and
      non-leaf inputs rank best), and a recipe scores as the worst form it
@@ -463,6 +469,13 @@ Why this shape:
      among cost-tied leaves the lower-era material wins (plain steel beats
      magnetic steel, whose polarizer chain equalized the price but not the
      era ceiling).
+  4. *Tool slots* — how many of the recipe's catalyst slots hold a wearing
+     tool (§3 step 2), fewer first: catalysts never price, so a hand craft
+     that wears a wrench ties the assembler that only needs a circuit in
+     place, and the machine is the route worth planning — four rods assemble
+     into a frame box rather than wrench into one, an ingot macerates into
+     dust rather than grinds under a mortar. A tool route that is genuinely
+     cheaper, or shallower, still wins: the key is the last one judged.
   `bestRecipe` moves to the best-scoring producer — unless that recipe's
   chosen inputs can reach the item over chosen edges, where rerouting would
   close a pointer loop, so the incumbent is kept. The reachability walk runs
@@ -778,7 +791,8 @@ All "does not / never" rules live here; other sections only reference this one.
 - **Catalyst costs** — tool, mold, and circuit slots (§3 step 2) never price
   and never gate eras: a mortar survives its crafts, so charging one per run
   would overprice every hand-ground dust. They ship as `catalyst`-flagged
-  `recipe_inputs` rows for display only, and the solver never reads them.
+  `recipe_inputs` rows; the solver reads only whether a slot holds a wearing
+  tool, to break exact ties (§5), never what it costs.
 - **Byproduct credit** — sibling outputs never reduce a recipe's cost;
   crediting them collapses all prices toward zero through recycling loops.
 - **Pseudo-recipe sources** — bee breeding, mob drops, dungeon/chest loot,
@@ -1016,3 +1030,8 @@ All "does not / never" rules live here; other sections only reference this one.
     without recomputing; an entry stored for a different artifact build, or
     unreadable bytes, are recomputed rather than served; a process evicting
     an entry from memory still answers for it from the store.
+41. Where a hand craft that wears a tool ties a machine recipe exactly, the
+    plan lands on the route with fewer tool slots — the frame box assembles
+    rather than wrenches — while a tool route that is genuinely cheaper, or
+    shallower, keeps winning; only a wearing tool carries the flag, never a
+    circuit, mold or shape, and a tool slot's price is still nothing.

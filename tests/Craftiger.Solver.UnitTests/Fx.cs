@@ -21,7 +21,7 @@ internal static class Fx
 
     public static SolverRecipe Recipe(
         string id, string machine = "Crafting Table", int tier = 0, int? multiTier = null,
-        int? heat = null,
+        int? heat = null, int toolSlots = 0,
         (string ItemId, long Amount)[]? inputs = null,
         (string ItemId, long Amount)[][]? slots = null,
         params (string ItemId, long Amount, double Chance)[] outputs)
@@ -38,7 +38,8 @@ internal static class Fx
         }
         return new SolverRecipe(
             id, machine, tier, multiTier, heat, slotList,
-            outputs.Select(o => new SolverOutput(o.ItemId, o.Amount, o.Chance)).ToList());
+            outputs.Select(o => new SolverOutput(o.ItemId, o.Amount, o.Chance)).ToList(),
+            toolSlots);
     }
 
     public static SolverGraph Graph(IEnumerable<SolverItem> items, params SolverRecipe[] recipes) =>

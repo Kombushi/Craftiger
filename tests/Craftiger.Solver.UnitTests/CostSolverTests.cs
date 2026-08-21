@@ -297,4 +297,63 @@ public sealed class CostSolverTests
         Assert.Equal("fromDust", table.BestRecipeId("metal"));
         Assert.Equal(4, Cost(table, "metal"));
     }
+
+    [Fact]
+    public void AToolFreeRouteWinsAnExactTie()
+    {
+        // Wrenching eight rods into two frames ties assembling four into one exactly, and the
+        // hand craft set the price first; the recipe that wears no tool takes the pointer.
+        var graph = Fx.Graph(
+            [Fx.Leaf("rod", tier: 0)],
+            Fx.Recipe("wrench", toolSlots: 1, inputs: [("rod", 8)], outputs: ("frame", 2, 1.0)),
+            Fx.Recipe("assemble", machine: "Assembler", tier: 1, inputs: [("rod", 4)], outputs: ("frame", 1, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(defaultTier: 1), Fx.Weights());
+
+        Assert.Equal("assemble", table.BestRecipeId("frame"));
+        Assert.Equal(16, Cost(table, "frame"));
+    }
+
+    [Fact]
+    public void FewerToolSlotsWinAmongToolRoutes()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("plate", tier: 0)],
+            Fx.Recipe("twoTools", toolSlots: 2, inputs: [("plate", 1)], outputs: ("casing", 1, 1.0)),
+            Fx.Recipe("oneTool", toolSlots: 1, inputs: [("plate", 1)], outputs: ("casing", 1, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal("oneTool", table.BestRecipeId("casing"));
+    }
+
+    [Fact]
+    public void ACheaperToolRouteStillWins()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("rod", tier: 0)],
+            Fx.Recipe("wrench", toolSlots: 1, inputs: [("rod", 3)], outputs: ("frame", 1, 1.0)),
+            Fx.Recipe("assemble", machine: "Assembler", tier: 1, inputs: [("rod", 4)], outputs: ("frame", 1, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(defaultTier: 1), Fx.Weights());
+
+        Assert.Equal("wrench", table.BestRecipeId("frame"));
+        Assert.Equal(12, Cost(table, "frame"));
+    }
+
+    [Fact]
+    public void TheToolKeyComesAfterTheChainDepth()
+    {
+        // The tool-free route goes through a rod bent from the ingot; the hand craft takes the
+        // ingot directly. Depth is judged first, so the shallower tool route keeps the item.
+        var graph = Fx.Graph(
+            [Fx.Leaf("steel", tier: 0)],
+            Fx.Recipe("bend", inputs: [("steel", 1)], outputs: ("rod", 1, 1.0)),
+            Fx.Recipe("hand", toolSlots: 1, inputs: [("steel", 1)], outputs: ("part", 1, 1.0)),
+            Fx.Recipe("assemble", machine: "Assembler", tier: 1, inputs: [("rod", 1)], outputs: ("part", 1, 1.0)));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(defaultTier: 1), Fx.Weights());
+
+        Assert.Equal("hand", table.BestRecipeId("part"));
+    }
 }

@@ -52,7 +52,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         var list = await Client.GetFromJsonAsync<ListResponse>(
             $"/api/list?solveId={solveId}&pageSize=10");
 
-        Assert.Equal(8, list!.Total);
+        Assert.Equal(10, list!.Total);
         Assert.Equal("nug", list.Items[0].ItemId);
         Assert.Equal(4.0 / 9, list.Items[0].Cost!.Value, 9);
         Assert.Equal("wire", list.Items[1].ItemId);
@@ -73,10 +73,10 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         var reachable = await Client.GetFromJsonAsync<ListResponse>(
             $"/api/list?solveId={solveId}&pageSize=10&hideUnreachable=true");
 
-        Assert.Equal(8, full!.Total);
+        Assert.Equal(10, full!.Total);
         Assert.Contains(full.Items, item => item.ItemId == "rod" && item.Cost is null);
         Assert.Null(full.Items[^1].Cost);
-        Assert.Equal(6, reachable!.Total);
+        Assert.Equal(7, reachable!.Total);
         Assert.DoesNotContain(reachable.Items, item => item.ItemId == "rod");
         Assert.DoesNotContain(reachable.Items, item => item.ItemId == "saw");
     }
@@ -282,6 +282,19 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Null(result.Items["saw"].Cost);
         Assert.Equal(4, result.Items["ing"].Cost);
         Assert.Equal(2, result.Items["wire"].Cost);
+    }
+
+    [Fact]
+    public async Task AToolFreeRouteWinsTheTieOverTheWearingTool()
+    {
+        var solveId = await SolveAsync();
+
+        var detail = await Client.GetFromJsonAsync<ItemDetailResponse>($"/api/item/frame?solveId={solveId}");
+
+        Assert.Equal(4, detail!.Cost);
+        Assert.Equal("r_frame_asm", detail.BestRecipeId);
+        Assert.Equal(2, detail.Recipes.Count);
+        Assert.All(detail.Recipes, recipe => Assert.Equal(4, recipe.CandidateCost));
     }
 
     [Fact]

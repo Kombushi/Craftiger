@@ -17,6 +17,7 @@ public sealed class SolverIndex
         int[] tier,
         int[] multiTier,
         int[] heat,
+        int[] toolSlots,
         int[] slotStart,
         int[] alternativeStart,
         int[] alternativeItem,
@@ -41,6 +42,7 @@ public sealed class SolverIndex
         Tier = tier;
         MultiTier = multiTier;
         Heat = heat;
+        ToolSlots = toolSlots;
         SlotStart = slotStart;
         AlternativeStart = alternativeStart;
         AlternativeItem = alternativeItem;
@@ -81,6 +83,10 @@ public sealed class SolverIndex
 
     /// <summary>The heat a coil-gated recipe needs, or -1.</summary>
     public int[] Heat { get; }
+
+    /// <summary>Catalyst slots holding a wearing tool per recipe — the only thing the solver
+    /// knows about catalysts, read to break exact ties and never to price.</summary>
+    public int[] ToolSlots { get; }
 
     /// <summary>Recipe <c>r</c> owns slots <c>SlotStart[r]</c> to <c>SlotStart[r + 1]</c>.</summary>
     public int[] SlotStart { get; }
@@ -171,6 +177,10 @@ public sealed class SolverIndex
         foreach (var recipe in recipes)
         {
             builder.BeginRecipe(recipe.Id, recipe.Machine, recipe.Tier, recipe.MultiTier, recipe.Heat);
+            for (var tool = 0; tool < recipe.ToolSlots; tool++)
+            {
+                builder.AddToolSlot();
+            }
             foreach (var slot in recipe.Slots)
             {
                 builder.BeginSlot();

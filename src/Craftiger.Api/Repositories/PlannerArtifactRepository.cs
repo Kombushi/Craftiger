@@ -7,11 +7,10 @@ using Microsoft.Data.Sqlite;
 
 namespace Craftiger.Api.Repositories;
 
-public sealed class PlannerArtifactRepository(
-    GarageRules rules, ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
+public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 6;
+    public const int SupportedSchemaVersion = 7;
 
     public PlannerArtifact Load(string artifactsDir)
     {
@@ -46,10 +45,9 @@ public sealed class PlannerArtifactRepository(
                 row => row.Id,
                 row => new ArtifactItem(
                     row.Id, row.Name, row.Oredict, row.IsFluid != 0, row.LeafClass, row.AtlasIdx,
-                    // Typed explicitly, or the empty branch would become a fresh list per item.
                     aliases.TryGetValue(row.Id, out var names)
-                        ? (IReadOnlyList<string>)names.Where(name => name != row.Name).Distinct().Order(StringComparer.Ordinal).ToList()
-                        : Array.Empty<string>()));
+                        ? [.. names.Where(name => name != row.Name).Distinct().Order(StringComparer.Ordinal)]
+                        : []));
 
         var tiers = db.Query<(string ItemId, long Tier)>("SELECT item_id, tier FROM item_tiers")
             .ToDictionary(row => row.ItemId, row => (int)row.Tier);
@@ -110,9 +108,8 @@ public sealed class PlannerArtifactRepository(
             JsonSerializer.Deserialize<List<string>>(meta.GetValueOrDefault("tier_names") ?? "[]") ?? [],
             JsonSerializer.Deserialize<List<CoilDto>>(meta.GetValueOrDefault("coils") ?? "[]") ?? [],
             machineDtos,
-            meta.ContainsKey("atlas_width")
-                ? new AtlasDto(
-                    int.Parse(meta["atlas_width"]), int.Parse(meta["atlas_height"]), int.Parse(meta["atlas_cell"]))
+            meta.TryGetValue("atlas_width", out var value)
+                ? new AtlasDto(int.Parse(value), int.Parse(meta["atlas_height"]), int.Parse(meta["atlas_cell"]))
                 : null,
             path);
 
@@ -126,8 +123,7 @@ public sealed class PlannerArtifactRepository(
     /// by the recipe's row — straight into the index builder, so no recipe ever exists as an
     /// object. The row order inside a slot fixes which alternative wins ties, so it must be
     /// stable; catalyst rows never reach the solver, they are display-only tool slots.</summary>
-    private static (SolverIndex Index, ArtifactRecipeData Recipes, Dictionary<string, (bool MultiTier, bool Heat)> Machines)
-        LoadRecipes(string connectionString, IEnumerable<SolverItem> leaves)
+    private static (SolverIndex Index, ArtifactRecipeData Recipes, Dictionary<string, (bool MultiTier, bool Heat)> Machines) LoadRecipes(string connectionString, IEnumerable<SolverItem> leaves)
     {
         var builder = new SolverIndexBuilder(leaves);
         var durations = new List<long>();
@@ -147,7 +143,7 @@ public sealed class PlannerArtifactRepository(
         outputsDb.Open();
         using var inputs = inputsDb.Query<InputRow>(
             """
-            SELECT i.recipe_id AS RecipeId, i.item_id AS ItemId, i.amount, i.slot, i.catalyst
+            SELECT i.recipe_id AS RecipeId, i.item_id AS ItemId, i.amount, i.slot, i.catalyst, i.tool
             FROM recipe_inputs i JOIN recipes r ON r.id = i.recipe_id
             ORDER BY r.rowid, i.slot, i.rowid
             """, buffered: false).GetEnumerator();
@@ -173,6 +169,7 @@ public sealed class PlannerArtifactRepository(
             long slot = -1;
             var catalyst = false;
             var catalystSlotOpen = false;
+            var toolCounted = false;
             while (input is not null && input.RecipeId == recipe.Id)
             {
                 var isCatalyst = input.Catalyst != 0;
@@ -180,6 +177,7 @@ public sealed class PlannerArtifactRepository(
                 {
                     slot = input.Slot;
                     catalyst = isCatalyst;
+                    toolCounted = false;
                     if (isCatalyst)
                     {
                         if (catalystSlotOpen)
@@ -195,6 +193,12 @@ public sealed class PlannerArtifactRepository(
                 }
                 if (isCatalyst)
                 {
+                    // One wearing tool among the alternatives makes the slot a tool slot, once.
+                    if (input.Tool != 0 && !toolCounted)
+                    {
+                        builder.AddToolSlot();
+                        toolCounted = true;
+                    }
                     if (!catalystIds.TryGetValue(input.ItemId, out var shared))
                     {
                         catalystIds[input.ItemId] = shared = input.ItemId;
@@ -224,8 +228,12 @@ public sealed class PlannerArtifactRepository(
         return (
             builder.Build(),
             new ArtifactRecipeData(
-                durations.ToArray(), euT.ToArray(),
-                catalystSlotStart.ToArray(), catalystAlternativeStart.ToArray(), catalystItemId.ToArray(), catalystAmount.ToArray()),
+                [.. durations],
+                [.. euT],
+                [.. catalystSlotStart],
+                [.. catalystAlternativeStart],
+                [.. catalystItemId],
+                [.. catalystAmount]),
             machines);
     }
 }

@@ -20,7 +20,7 @@ public sealed class ApiFixture : IDisposable
     {
         Dir = Path.Combine(Path.GetTempPath(), "craftiger-api-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Dir);
-        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 6);
+        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 7);
         File.WriteAllText(Path.Combine(Dir, "atlas-offsets.json"), "{}");
         _factory = Create(Dir);
         Client = _factory.CreateClient();
@@ -37,8 +37,9 @@ public sealed class ApiFixture : IDisposable
         });
 
     /// <summary>The fixture graph: two tiered ingots, a nugget fraction, a wiremill recipe
-    /// with a catalyst saw, a heat-1900 EBF recipe, an MV extruder recipe, and an LV recipe
-    /// on a late-era machine.</summary>
+    /// with a catalyst saw, a heat-1900 EBF recipe, an MV extruder recipe, an LV recipe on a
+    /// late-era machine, and a frame made two ways at one price — by hand with a wearing saw,
+    /// or assembled with a card that never wears.</summary>
     public static void WriteArtifact(string path, int schemaVersion)
     {
         using var db = new SqliteConnection($"Data Source={path}");
@@ -66,6 +67,7 @@ public sealed class ApiFixture : IDisposable
                 amount INTEGER NOT NULL,
                 slot INTEGER NOT NULL,
                 catalyst INTEGER NOT NULL,
+                tool INTEGER NOT NULL,
                 UNIQUE(recipe_id, slot, item_id));
             CREATE TABLE recipe_outputs(recipe_id TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, chance REAL NOT NULL);
             CREATE TABLE item_tiers(item_id TEXT PRIMARY KEY, tier INTEGER NOT NULL);
@@ -85,36 +87,47 @@ public sealed class ApiFixture : IDisposable
                 ('sil', 'Silver Ingot', 'ingotSilverium', 0, 'ingot', 4),
                 ('rod', 'Extruded Rod', NULL, 0, NULL, 5),
                 ('chip', 'Late Chip', NULL, 0, NULL, 6),
-                ('saw', 'Test Saw', NULL, 0, NULL, 7);
+                ('saw', 'Test Saw', NULL, 0, NULL, 7),
+                ('frame', 'Frame Box', NULL, 0, NULL, 8),
+                ('card', 'Logic Card', NULL, 0, NULL, 9);
             INSERT INTO item_aliases VALUES ('ing', 'ingotIronium'), ('ing', 'Ferrum Ingot'), ('sil', 'silberlötzinn');
             INSERT INTO item_search (item_id, text) VALUES
                 ('ing', 'iron ingot'), ('ing', 'ingotironium'), ('ing', 'ferrum ingot'),
                 ('nug', 'iron nugget'), ('wire', 'iron wire'), ('hot', 'hot thing'),
                 ('sil', 'silver ingot'), ('sil', 'silberlötzinn'), ('rod', 'extruded rod'),
-                ('chip', 'late chip'), ('saw', 'test saw');
+                ('chip', 'late chip'), ('saw', 'test saw'), ('frame', 'frame box'), ('card', 'logic card');
             INSERT INTO recipes VALUES
                 ('r_wire', 'Wiremill', 1, NULL, NULL, 100, 32),
                 ('r_ebf', 'Electric Blast Furnace', 1, NULL, 1900, 200, 120),
                 ('r_rod', 'Extruder', 2, NULL, NULL, 100, 96),
-                ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32);
+                ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32),
+                ('r_frame_hand', 'Crafting Table', 0, NULL, NULL, 0, 0),
+                ('r_frame_asm', 'Assembler', 1, NULL, NULL, 64, 7);
             INSERT INTO recipe_inputs VALUES
-                ('r_wire', 'ing', 1, 0, 0),
-                ('r_wire', 'saw', 1, 1, 1),
-                ('r_ebf', 'ing', 1, 0, 0),
-                ('r_rod', 'ing', 1, 0, 0),
-                ('r_chip', 'ing', 1, 0, 0);
+                ('r_wire', 'ing', 1, 0, 0, 0),
+                ('r_wire', 'saw', 1, 1, 1, 1),
+                ('r_ebf', 'ing', 1, 0, 0, 0),
+                ('r_rod', 'ing', 1, 0, 0, 0),
+                ('r_chip', 'ing', 1, 0, 0, 0),
+                ('r_frame_hand', 'ing', 2, 0, 0, 0),
+                ('r_frame_hand', 'saw', 1, 1, 1, 1),
+                ('r_frame_asm', 'ing', 1, 0, 0, 0),
+                ('r_frame_asm', 'card', 1, 1, 1, 0);
             INSERT INTO recipe_outputs VALUES
                 ('r_wire', 'wire', 2, 1.0),
                 ('r_ebf', 'hot', 1, 1.0),
                 ('r_rod', 'rod', 1, 1.0),
-                ('r_chip', 'chip', 1, 1.0);
+                ('r_chip', 'chip', 1, 1.0),
+                ('r_frame_hand', 'frame', 2, 1.0),
+                ('r_frame_asm', 'frame', 1, 1.0);
             INSERT INTO item_tiers VALUES ('ing', 0), ('sil', 1);
             INSERT INTO item_parents VALUES ('nug', 'ing', 9.0);
             INSERT INTO machine_eras VALUES
                 ('Wiremill', 0, 0),
                 ('Electric Blast Furnace', 1, 1),
                 ('Extruder', NULL, 0),
-                ('Circuit Assembly Line', 3, 0);
+                ('Circuit Assembly Line', 3, 0),
+                ('Assembler', 1, 0);
             """);
         db.Execute(
             "INSERT INTO meta VALUES ('schema_version', @Version), " +

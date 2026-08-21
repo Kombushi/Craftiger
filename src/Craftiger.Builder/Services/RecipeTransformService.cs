@@ -71,7 +71,7 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
 
             var inputs = new Dictionary<string, long>();
             var choices = new List<PlannerChoice>();
-            var catalysts = new List<PlannerChoice>();
+            var catalysts = new List<PlannerCatalystSlot>();
             var slots = new List<IReadOnlyList<string>>();
             foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
             {
@@ -84,7 +84,8 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
                 var alternatives = members.DistinctBy(member => member.ItemId).ToList();
                 if (catalyst)
                 {
-                    catalysts.Add(new PlannerChoice(alternatives));
+                    catalysts.Add(new PlannerCatalystSlot(
+                        alternatives.Select(member => new PlannerCatalyst(member.ItemId, member.Amount, member.Tool)).ToList()));
                     continue;
                 }
 
@@ -92,7 +93,7 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
                 {
                     // A real choice of ingredient: ship every option at its own amount so
                     // the solver can take the cheapest, rather than freezing one at build time.
-                    choices.Add(new PlannerChoice(alternatives));
+                    choices.Add(new PlannerChoice(alternatives.Select(member => (member.ItemId, member.Amount)).ToList()));
                     slots.Add(alternatives.Select(member => member.ItemId).ToList());
                     continue;
                 }
@@ -251,8 +252,10 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
     /// <summary>Every member of an input slot, flagged as a catalyst when the recipe does not
     /// consume it: a zero-size stack by the dump's own mark, or a tool that crafts into its
     /// own worn self by Forge's container-item data, whatever mod it comes from. One catalyst
-    /// still condemns the whole slot: its members are alternatives for the same role.</summary>
-    private static (List<(string ItemId, long Amount)> Members, bool Catalyst) ResolveSlot(
+    /// still condemns the whole slot: its members are alternatives for the same role. Each
+    /// member also says whether it is such a wearing tool, which the solver reads only to
+    /// break exact ties.</summary>
+    private static (List<(string ItemId, long Amount, bool Tool)> Members, bool Catalyst) ResolveSlot(
         Dump dump, UnifiedItems unified, ToolIndex tools, string groupId)
     {
         if (!dump.GroupStacks.TryGetValue(groupId, out var stacks))
@@ -261,15 +264,16 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
         }
 
         var catalyst = false;
-        var members = new List<(string ItemId, long Amount)>();
+        var members = new List<(string ItemId, long Amount, bool Tool)>();
         foreach (var stack in stacks.OrderBy(stack => unified.Canonical(stack.ItemId), StringComparer.Ordinal))
         {
             var canonical = unified.Canonical(stack.ItemId);
-            if (stack.Size <= 0 || tools.IsTool(stack.ItemId) || tools.IsTool(canonical))
+            var tool = tools.IsTool(stack.ItemId) || tools.IsTool(canonical);
+            if (stack.Size <= 0 || tool)
             {
                 catalyst = true;
             }
-            members.Add((canonical, Math.Max(1, stack.Size)));
+            members.Add((canonical, Math.Max(1, stack.Size), tool));
         }
         return (members, catalyst);
     }

@@ -447,6 +447,25 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             "SELECT item_id FROM recipe_inputs WHERE recipe_id = 'r_tinker_cut' AND catalyst = 1"));
 
     [Fact]
+    public void OnlyWearingToolsCarryTheToolFlag()
+    {
+        // Both saws wear; the mold is a catalyst that never does. In a mixed slot the flag is
+        // per member: the saw carries it, the ingot beside it does not.
+        Assert.Equal(1, _fixture.Scalar<int>(
+            "SELECT tool FROM recipe_inputs WHERE recipe_id = 'r_planks' AND catalyst = 1"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            "SELECT tool FROM recipe_inputs WHERE recipe_id = 'r_tinker_cut' AND catalyst = 1"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT tool FROM recipe_inputs WHERE recipe_id = 'r_extrude' AND catalyst = 1"));
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT tool FROM recipe_inputs WHERE recipe_id = 'r_tool_choice' AND item_id = '{FixtureDump.Saw}'"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT tool FROM recipe_inputs WHERE recipe_id = 'r_tool_choice' AND item_id = '{FixtureDump.IronIngot}'"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM recipe_inputs WHERE catalyst = 0 AND tool = 1"));
+    }
+
+    [Fact]
     public void AContainerReturningItemStaysAnIngredient() =>
         Assert.Equal(0, _fixture.Scalar<int>(
             "SELECT COUNT(*) FROM recipe_inputs WHERE recipe_id = 'r_soup' AND catalyst = 1"));

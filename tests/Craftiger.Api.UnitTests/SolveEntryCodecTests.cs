@@ -17,7 +17,7 @@ public sealed class SolveEntryCodecTests : IDisposable
     {
         _dir = Path.Combine(Path.GetTempPath(), "craftiger-codec-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
-        ApiFixture.WriteArtifact(Path.Combine(_dir, "planner.sqlite"), schemaVersion: 6);
+        ApiFixture.WriteArtifact(Path.Combine(_dir, "planner.sqlite"), schemaVersion: 7);
         var rules = new GarageRulesOptions().ToRules();
         _artifact = new PlannerArtifactRepository(rules, NullLogger<PlannerArtifactRepository>.Instance).Load(_dir);
         var solver = new CostSolverService(
@@ -27,7 +27,7 @@ public sealed class SolveEntryCodecTests : IDisposable
             new HashSet<string> { "Electric Blast Furnace" }, new Dictionary<string, int> { ["Electric Blast Furnace"] = 2700 });
         var weights = new WeightSettings(5, new Dictionary<string, double> { ["sil"] = 7.5 });
         var table = solver.Solve(_artifact.Graph, garage, weights);
-        _entry = new SolveEntry(table, garage, weights, [3, 1, 4, 0, 2, 5, 6, 7], 6);
+        _entry = new SolveEntry(table, garage, weights, [3, 1, 4, 0, 2, 5, 6, 7, 8, 9], 6);
     }
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);
