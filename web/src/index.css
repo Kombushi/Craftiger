@@ -849,6 +849,16 @@ a:focus-visible {
   gap: 4px;
 }
 
+/* Square glyph buttons large enough to hit over the canvas. */
+.chain-controls .ghost-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 17px;
+  line-height: 1;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+}
+
 .chain-tabs {
   display: flex;
   gap: 4px;
