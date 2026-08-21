@@ -149,6 +149,10 @@ public sealed class PlannerRepository : IPlannerRepository
             data.Meta.Select(m => new { m.Key, m.Value }), tx);
         db.Execute("INSERT INTO meta VALUES ('schema_version', @Version)",
             new { Version = SchemaVersion.ToString() }, tx);
+        // Every build is its own artifact even at the same pack and schema: a reader that keeps
+        // solved tables outside the process keys them by this, never by the pack alone.
+        db.Execute("INSERT INTO meta VALUES ('build_id', @BuildId)",
+            new { BuildId = Guid.NewGuid().ToString("N") }, tx);
 
         db.Execute("""
             CREATE INDEX idx_recipe_inputs_recipe ON recipe_inputs(recipe_id);

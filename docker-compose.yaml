@@ -1,0 +1,8 @@
+# Local Valkey for the API's solve store (spec §8). Production runs its own; both must evict
+# by LRU, since solved tables carry no TTL.
+services:
+  valkey:
+    image: valkey/valkey:8
+    command: ["valkey-server", "--maxmemory", "2gb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+    ports:
+      - "6379:6379"

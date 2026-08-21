@@ -18,7 +18,8 @@ behavior must change, update `spec.md` in the same commit as the code.
   I/O, no dump dependency; referenced by the API, tested against fixtures
   (spec §8).
 - `src/Craftiger.Api/` — .NET minimal API. Stateless; loads the artifacts
-  read-only; hosts the solver and its solve cache in memory (spec §8).
+  read-only; hosts the solver and its solve cache in memory, with every
+  solved entry also kept in Valkey so any replica can serve it (spec §8).
 - `web/` — React SPA. All user state lives in browser `localStorage` and
   travels with each request; the API stores nothing per user.
 - `tests/Craftiger.Builder.UnitTests/` — xUnit tests for the Builder; Solver
@@ -53,7 +54,8 @@ types and identifiers.
   `Microsoft.Extensions.DependencyInjection`, xUnit.
 - Task runner: `mise`. Every build/test/run command is a named `mise` task;
   docs reference targets by name only. Targets: `build`, `test`, `builder`,
-  `api`, `web`, `dump:convert`, plus `docker:login` / `docker:build` /
+  `api`, `web`, `valkey` (the local Valkey the API needs, via
+  `docker-compose.yaml`), `dump:convert`, plus `docker:login` / `docker:build` /
   `docker:push` (the latter two take the image version via `TAG`) for the
   container images.
 - The NESQL dump is an HSQLDB database (Java-only format, ~600 MB), converted

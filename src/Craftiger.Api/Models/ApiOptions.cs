@@ -7,4 +7,6 @@ public sealed class ApiOptions
 
     /// <summary>Solved cost tables kept in memory; least recently used entries evict first.</summary>
     public int SolveCacheSize { get; init; } = 16;
+
+    public ValkeyOptions Valkey { get; init; } = new();
 }

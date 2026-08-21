@@ -27,15 +27,20 @@ builder.Services.AddSingleton<IGarageLegalityService, GarageLegalityService>();
 builder.Services.AddSingleton<ICostSolverService, CostSolverService>();
 builder.Services.AddSingleton<IBomService, BomService>();
 builder.Services.AddSingleton<IClosureService, ClosureService>();
+builder.Services.AddSingleton<ISolveEntryCodec, SolveEntryCodec>();
+builder.Services.AddSingleton<ISolveStore, ValkeySolveStore>();
 builder.Services.AddSingleton<ISolveCacheService, SolveCacheService>();
 builder.Services.AddSingleton<IPlannerQueryService, PlannerQueryService>();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Load the artifact eagerly so a wrong schema_version refuses at startup, not first request.
+// Load the artifact and connect the store eagerly: a wrong schema_version, a missing
+// connection string or an unreachable Valkey refuse at startup, not on the first request.
 app.Services.GetRequiredService<PlannerArtifact>();
+app.Services.GetRequiredService<ISolveStore>();
 
+// Validation problems surface as 400s rather than 500s.
 app.Use(async (context, next) =>
 {
     try
@@ -51,27 +56,27 @@ app.Use(async (context, next) =>
 
 app.MapGet("/api/meta", (IPlannerQueryService query) => query.Meta());
 
-app.MapPost("/api/solve", (SolveRequest request, ISolveCacheService cache) => cache.Solve(request));
+app.MapPost("/api/solve", (SolveRequest request, ISolveCacheService cache) => cache.SolveAsync(request));
 
-app.MapGet("/api/list", (
+app.MapGet("/api/list", async (
     string solveId, int? page, int? pageSize, bool? hideUnreachable,
     ISolveCacheService cache, IPlannerQueryService query) =>
-    cache.Get(solveId) is { } entry
+    await cache.GetAsync(solveId) is { } entry
         ? Results.Ok(query.List(
             entry, Math.Max(0, page ?? 0), Math.Clamp(pageSize ?? 100, 1, 500),
             hideUnreachable ?? false))
         : Results.NotFound());
 
 // Search works before the first solve; without a solveId every cost is null.
-app.MapGet("/api/search", (
+app.MapGet("/api/search", async (
     string q, string? solveId, ISolveCacheService cache, IPlannerQueryService query) =>
     solveId is null
         ? Results.Ok(query.Search(null, q))
-        : cache.Get(solveId) is { } entry ? Results.Ok(query.Search(entry, q)) : Results.NotFound());
+        : await cache.GetAsync(solveId) is { } entry ? Results.Ok(query.Search(entry, q)) : Results.NotFound());
 
-app.MapGet("/api/item/{id}", (
+app.MapGet("/api/item/{id}", async (
     string id, string solveId, ISolveCacheService cache, IPlannerQueryService query) =>
-    cache.Get(solveId) is { } entry
+    await cache.GetAsync(solveId) is { } entry
         ? query.ItemDetail(entry, id) is { } detail ? Results.Ok(detail) : Results.NotFound()
         : Results.NotFound());
 
@@ -79,15 +84,16 @@ app.MapGet("/api/machines", (string targets, IPlannerQueryService query) =>
     query.Machines(targets.Split(
         ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
 
-app.MapPost("/api/bom", (
+app.MapPost("/api/bom", async (
     BomRequest request, ISolveCacheService cache, IPlannerQueryService query) =>
-    cache.Get(request.SolveId) is { } entry
+    await cache.GetAsync(request.SolveId) is { } entry
         ? Results.Ok(query.Bom(entry, request))
         : Results.NotFound());
 
 app.MapGet("/atlas.webp", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas.webp", "image/webp"));
 app.MapGet("/atlas-offsets.json", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas-offsets.json", "application/json"));
 
+// Both probes are bare: the artifact loads and the store connects eagerly, so a live process is ready.
 app.MapHealthChecks("/livez");
 app.MapHealthChecks("/readyz");
 

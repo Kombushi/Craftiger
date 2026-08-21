@@ -14,6 +14,7 @@ public sealed class SolveCacheTests : IDisposable
     private readonly string _dir;
     private readonly PlannerArtifact _artifact;
     private readonly CountingSolver _solver;
+    private readonly FakeSolveStore _store = new();
 
     public SolveCacheTests()
     {
@@ -28,51 +29,109 @@ public sealed class SolveCacheTests : IDisposable
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
-    private SolveCacheService Cache(int capacity) => new(
-        _artifact, _solver, Options.Create(new ApiOptions { SolveCacheSize = capacity }),
-        NullLogger<SolveCacheService>.Instance);
+    private SolveCacheService Cache(int capacity = 16) => new(
+        _artifact, _solver, _store, new SolveEntryCodec(_artifact),
+        Options.Create(new ApiOptions { SolveCacheSize = capacity }), NullLogger<SolveCacheService>.Instance);
 
     private static SolveRequest Request(int tier) =>
         new(new GarageDto(tier, new Dictionary<string, int?>(), [], new Dictionary<string, string>()), 4, null);
 
     [Fact]
-    public void ConcurrentIdenticalRequestsSolveOnce()
+    public async Task ConcurrentIdenticalRequestsSolveOnce()
     {
-        var cache = Cache(16);
+        var cache = Cache();
 
-        var responses = new SolveResponse[32];
-        Parallel.For(0, responses.Length, i => responses[i] = cache.Solve(Request(3)));
+        var responses = await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(() => cache.SolveAsync(Request(3)))));
 
         Assert.Equal(1, _solver.Calls);
         Assert.All(responses, response => Assert.Equal(responses[0].SolveId, response.SolveId));
     }
 
     [Fact]
-    public void TheLeastRecentlyUsedEntryIsEvictedFirst()
+    public async Task TheLeastRecentlyUsedEntryIsEvictedFirst()
     {
-        var cache = Cache(2);
-        var first = cache.Solve(Request(1)).SolveId;
-        var second = cache.Solve(Request(2)).SolveId;
+        var cache = Cache(capacity: 2);
+        var first = (await cache.SolveAsync(Request(1))).SolveId;
+        var second = (await cache.SolveAsync(Request(2))).SolveId;
 
-        Assert.NotNull(cache.Get(first));
-        var third = cache.Solve(Request(3)).SolveId;
+        Assert.NotNull(await cache.GetAsync(first));
+        var third = (await cache.SolveAsync(Request(3))).SolveId;
 
-        Assert.NotNull(cache.Get(first));
-        Assert.Null(cache.Get(second));
-        Assert.NotNull(cache.Get(third));
+        // The evicted entry is still in the store, so it reads through rather than vanishing.
+        _store.Entries.Clear();
+        Assert.NotNull(await cache.GetAsync(first));
+        Assert.Null(await cache.GetAsync(second));
+        Assert.NotNull(await cache.GetAsync(third));
     }
 
     [Fact]
-    public void AFailedSolveIsNotCached()
+    public async Task AFailedSolveIsNotCachedAndSurfaces()
     {
-        var cache = Cache(16);
+        var cache = Cache();
         _solver.FailNext = true;
 
-        Assert.Throws<InvalidOperationException>(() => cache.Solve(Request(3)));
-        var response = cache.Solve(Request(3));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => cache.SolveAsync(Request(3)));
+        var response = await cache.SolveAsync(Request(3));
 
         Assert.Equal(2, _solver.Calls);
-        Assert.NotNull(cache.Get(response.SolveId));
+        Assert.NotNull(await cache.GetAsync(response.SolveId));
+    }
+
+    [Fact]
+    public async Task ASolveIsWrittenToTheStore()
+    {
+        var cache = Cache();
+
+        var response = await cache.SolveAsync(Request(3));
+        await WaitForWrites(1);
+
+        var stored = new SolveEntryCodec(_artifact).Decode(_store.Entries[response.SolveId]);
+        Assert.NotNull(stored);
+        Assert.Equal(response.PricedItems, stored.ReachableCount);
+    }
+
+    [Fact]
+    public async Task AnotherProcessReadsASolveThroughFromTheStore()
+    {
+        var first = Cache();
+        var response = await first.SolveAsync(Request(3));
+        await WaitForWrites(1);
+
+        var second = Cache();
+        var entry = await second.GetAsync(response.SolveId);
+        var again = await second.SolveAsync(Request(3));
+
+        Assert.NotNull(entry);
+        Assert.Equal(response.SolveId, again.SolveId);
+        Assert.Equal(1, _solver.Calls);
+    }
+
+    [Fact]
+    public async Task AStoredEntryOfAnotherArtifactIsRecomputed()
+    {
+        var cache = Cache();
+        var solveId = (await cache.SolveAsync(Request(3))).SolveId;
+        await WaitForWrites(1);
+        var foreign = _store.Entries[solveId];
+        foreign[^1] ^= 0xFF;
+        foreign[8] ^= 0x01;
+        var stranger = Cache();
+
+        var entry = await stranger.GetAsync(solveId);
+        var response = await stranger.SolveAsync(Request(3));
+
+        Assert.Null(entry);
+        Assert.Equal(solveId, response.SolveId);
+        Assert.Equal(2, _solver.Calls);
+    }
+
+    private async Task WaitForWrites(int count)
+    {
+        for (var i = 0; i < 100 && _store.Writes < count; i++)
+        {
+            await Task.Delay(10);
+        }
+        Assert.Equal(count, _store.Writes);
     }
 
     private sealed class CountingSolver(ICostSolverService inner) : ICostSolverService

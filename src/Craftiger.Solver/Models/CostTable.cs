@@ -89,4 +89,15 @@ public sealed class CostTable
 
     /// <summary>The raw cost array for the solver's own arithmetic.</summary>
     internal double[] CostArray => _cost;
+
+    /// <summary>The table's storage, for a store that keeps solved tables outside the process:
+    /// cost per position, best recipe per position, each item's offset into the picks, and the
+    /// picks. The constructor takes the same four arrays back.</summary>
+    public ReadOnlySpan<double> Costs => _cost;
+
+    public ReadOnlySpan<int> BestRecipes => _best;
+
+    public ReadOnlySpan<int> PickStarts => _pickStart;
+
+    public ReadOnlySpan<ushort> PickArray => _picks;
 }

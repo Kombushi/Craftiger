@@ -25,6 +25,10 @@ run = "dotnet run --project src/Craftiger.Api"
 # dotnet run starts the app in the project directory, so point it back at the repo's artifacts.
 env = { ApiOptions__ArtifactsDir = "{{config_root}}/artifacts" }
 
+[tasks.valkey]
+description = "Start the local Valkey the API needs (docker compose)"
+run = "docker compose up -d valkey"
+
 [tasks.web]
 description = "Run the web dev server"
 dir = "web"

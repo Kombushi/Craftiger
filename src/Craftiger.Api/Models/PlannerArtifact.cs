@@ -10,6 +10,7 @@ public sealed record PlannerArtifact(
     IReadOnlyList<string> CraftListOrder,
     IReadOnlyDictionary<string, ArtifactRecipe> Recipes,
     string PackVersion,
+    string BuildId,
     IReadOnlyList<string> TierNames,
     IReadOnlyList<CoilDto> Coils,
     IReadOnlyList<MachineDto> Machines,

@@ -11,13 +11,18 @@ using Microsoft.Extensions.Options;
 
 namespace Craftiger.Api.Services;
 
-/// <summary>The in-process solve cache. Entries live in a concurrent map whose values are
-/// lazies, so a solve runs exactly once per id while every concurrent request for that id
-/// waits on the same computation and nothing else waits at all; recency is a tick per entry
-/// and eviction drops the stalest settled one, so no lock is held anywhere.</summary>
+/// <summary>The solve cache in two tiers. In this process, entries live in a concurrent map
+/// whose values are lazily started tasks, so a solve runs exactly once per id while every
+/// concurrent request for that id awaits the same work and nothing else waits at all;
+/// recency is a tick per entry and eviction drops the stalest settled one, so no lock is held
+/// anywhere. Behind it, the store keeps every solved entry for any replica and across
+/// restarts: an id this process does not hold is fetched before it is computed, and a fresh
+/// solve is written behind the response.</summary>
 public sealed class SolveCacheService(
     PlannerArtifact artifact,
     ICostSolverService solver,
+    ISolveStore store,
+    ISolveEntryCodec codec,
     IOptions<ApiOptions> options,
     ILogger<SolveCacheService> logger) : ISolveCacheService
 {
@@ -31,34 +36,89 @@ public sealed class SolveCacheService(
         .Select(id => artifact.Graph.Index.TryGetItem(id, out var item) ? item : -1)
         .ToArray();
 
-    public SolveResponse Solve(SolveRequest request)
+    public async Task<SolveResponse> SolveAsync(SolveRequest request)
     {
         var (garage, weights) = Translate(request);
         var solveId = SolveIdOf(request);
-        var slot = _entries.GetOrAdd(solveId, id => new SolveCacheSlot(new Lazy<SolveEntry>(
-            () => Compute(id, garage, weights), LazyThreadSafetyMode.ExecutionAndPublication)));
-        var entry = Settle(solveId, slot) ?? throw new InvalidOperationException($"solve {solveId} failed");
+        var slot = _entries.GetOrAdd(solveId, id => new SolveCacheSlot(new Lazy<Task<SolveEntry>>(
+            () => FetchOrComputeAsync(id, garage, weights), LazyThreadSafetyMode.ExecutionAndPublication)));
+        var entry = await SettleAsync(solveId, slot);
         Evict();
         return new SolveResponse(solveId, entry.ReachableCount, entry.Table.Converged);
     }
 
-    public SolveEntry? Get(string solveId) =>
-        _entries.TryGetValue(solveId, out var slot) ? Settle(solveId, slot) : null;
+    public async Task<SolveEntry?> GetAsync(string solveId)
+    {
+        if (_entries.TryGetValue(solveId, out var slot))
+        {
+            return await SettleAsync(solveId, slot);
+        }
+        // Read-through: another replica may have solved it, or this process may have restarted.
+        var fetched = await FetchAsync(solveId);
+        if (fetched is null)
+        {
+            return null;
+        }
+        var adopted = _entries.GetOrAdd(solveId, _ => new SolveCacheSlot(new Lazy<Task<SolveEntry>>(Task.FromResult(fetched))));
+        var entry = await SettleAsync(solveId, adopted);
+        Evict();
+        return entry;
+    }
 
-    /// <summary>The slot's entry, waiting for an in-flight solve; a solve that threw is dropped
-    /// so the next request recomputes instead of replaying the failure.</summary>
-    private SolveEntry? Settle(string solveId, SolveCacheSlot slot)
+    /// <summary>The slot's entry, awaiting work in flight; a slot whose work threw is dropped so
+    /// the next request starts over instead of replaying the failure, and the error surfaces.</summary>
+    private async Task<SolveEntry> SettleAsync(string solveId, SolveCacheSlot slot)
     {
         slot.LastUsed = Interlocked.Increment(ref _clock);
         try
         {
-            return slot.Entry.Value;
+            return await slot.Entry.Value;
+        }
+        catch
+        {
+            _entries.TryRemove(new KeyValuePair<string, SolveCacheSlot>(solveId, slot));
+            throw;
+        }
+    }
+
+    private async Task<SolveEntry> FetchOrComputeAsync(string solveId, Garage garage, WeightSettings weights)
+    {
+        var stored = await FetchAsync(solveId);
+        if (stored is not null)
+        {
+            return stored;
+        }
+        var entry = Compute(solveId, garage, weights);
+        _ = StoreAsync(solveId, entry);
+        return entry;
+    }
+
+    private async Task<SolveEntry?> FetchAsync(string solveId)
+    {
+        var payload = await store.GetAsync(solveId);
+        if (payload is null)
+        {
+            return null;
+        }
+        var entry = codec.Decode(payload);
+        if (entry is null)
+        {
+            logger.LogWarning("solve {SolveId}: stored entry is not this artifact's or is unreadable; recomputing", solveId);
+        }
+        return entry;
+    }
+
+    /// <summary>Write-behind: the response never waits for the store, and a failed write only
+    /// costs the next process a recompute.</summary>
+    private async Task StoreAsync(string solveId, SolveEntry entry)
+    {
+        try
+        {
+            await store.PutAsync(solveId, codec.Encode(entry));
         }
         catch (Exception e)
         {
-            _entries.TryRemove(new KeyValuePair<string, SolveCacheSlot>(solveId, slot));
-            logger.LogError(e, "solve {SolveId} failed", solveId);
-            return null;
+            logger.LogError(e, "solve {SolveId} could not be written to the store", solveId);
         }
     }
 
@@ -72,9 +132,9 @@ public sealed class SolveCacheService(
         return new SolveEntry(table, garage, weights, sorted, reachable);
     }
 
-    /// <summary>Drops the least recently used settled entries until the cache fits; a solve
-    /// still in flight is never evicted. Two requests evicting at once may drop one entry
-    /// more than needed, which costs a recompute and nothing else.</summary>
+    /// <summary>Drops the least recently used settled entries until the cache fits; work still
+    /// in flight is never evicted. Two requests evicting at once may drop one entry more than
+    /// needed, which costs a fetch and nothing else.</summary>
     private void Evict()
     {
         while (_entries.Count > _capacity)
@@ -82,7 +142,7 @@ public sealed class SolveCacheService(
             KeyValuePair<string, SolveCacheSlot>? stalest = null;
             foreach (var pair in _entries)
             {
-                if (pair.Value.Entry.IsValueCreated
+                if (pair.Value.IsSettled
                     && (stalest is null || pair.Value.LastUsed < stalest.Value.Value.LastUsed))
                 {
                     stalest = pair;

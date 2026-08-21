@@ -141,6 +141,8 @@ public sealed class PlannerArtifactRepository(
                 row.DurationTicks, row.EuT,
                 catalystsByRecipe.GetValueOrDefault(row.Id) ?? [])),
             meta.GetValueOrDefault("pack_version") ?? "unknown",
+            meta.GetValueOrDefault("build_id")
+                ?? throw new InvalidOperationException("planner.sqlite carries no build_id; rebuild it with the current builder"),
             JsonSerializer.Deserialize<List<string>>(meta.GetValueOrDefault("tier_names") ?? "[]") ?? [],
             JsonSerializer.Deserialize<List<CoilDto>>(meta.GetValueOrDefault("coils") ?? "[]") ?? [],
             machines,

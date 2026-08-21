@@ -1,10 +1,13 @@
+using Craftiger.Api.Interfaces;
 using Dapper;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Craftiger.Api.UnitTests;
 
-/// <summary>Boots the API once over a hand-written schema-v4 artifact.</summary>
+/// <summary>Boots the API once over a hand-written artifact at the current schema.</summary>
 public sealed class ApiFixture : IDisposable
 {
     public string Dir { get; }
@@ -23,9 +26,15 @@ public sealed class ApiFixture : IDisposable
         Client = _factory.CreateClient();
     }
 
-    public static WebApplicationFactory<Program> Create(string artifactsDir) =>
+    /// <summary>Boots the API over the given artifacts with an in-memory solve store in place
+    /// of Valkey; the connection string only has to be present for startup validation.</summary>
+    public static WebApplicationFactory<Program> Create(string artifactsDir, FakeSolveStore? store = null) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("ApiOptions:ArtifactsDir", artifactsDir));
+        {
+            builder.UseSetting("ApiOptions:ArtifactsDir", artifactsDir);
+            builder.UseSetting("ApiOptions:Valkey:ConnectionString", "test");
+            builder.ConfigureTestServices(services => services.AddSingleton<ISolveStore>(store ?? new FakeSolveStore()));
+        });
 
     /// <summary>The fixture graph: two tiered ingots, a nugget fraction, a wiremill recipe
     /// with a catalyst saw, a heat-1900 EBF recipe, an MV extruder recipe, and an LV recipe
@@ -109,7 +118,7 @@ public sealed class ApiFixture : IDisposable
             """);
         db.Execute(
             "INSERT INTO meta VALUES ('schema_version', @Version), " +
-            "('pack_version', 'test-pack'), " +
+            "('pack_version', 'test-pack'), ('build_id', 'test-build'), " +
             "('tier_names', '[\"Steam\",\"LV\",\"MV\",\"HV\"]'), " +
             "('coils', '[{\"Name\":\"Cupronickel\",\"MaxHeat\":1800,\"Tier\":1},{\"Name\":\"Kanthal\",\"MaxHeat\":2700,\"Tier\":2}]'), " +
             "('atlas_width', '192'), ('atlas_height', '32'), ('atlas_cell', '32')",

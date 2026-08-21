@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.32
+# GTNH Crafting Planner — Specification v1.33
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -329,8 +329,11 @@ Builder responsibilities, in order:
   gate (§2).
 - `meta(key, value)` — `schema_version` first of all: the version of this
   contract, bumped on any schema change, so a reader can refuse an artifact
-  written for a contract it does not know. Beside it the pack version, dump
-  date, atlas dimensions, coil list, and the price check's verdict (§3 step 7).
+  written for a contract it does not know. Beside it `build_id`, a fresh
+  identifier per build — the same pack at the same schema is rebuilt, and a
+  reader that keeps solved tables outside the process keys them by the exact
+  build (§8) — the pack version, dump date, atlas dimensions, coil list, and
+  the price check's verdict (§3 step 7).
 
 The artifact is written once and shipped read-only. Journal sidecars left by
 an interrupted run are cleared before writing, alternatives, aliases, and
@@ -682,6 +685,25 @@ show. Screens:
   and holds the solver and its cost-table cache in memory. The artifacts
   directory and the garage rules of §2/§9 (always-owned machines, heat-exempt
   and heat-bonus maps) are configuration.
+- **Solve store**: solved entries also live in a Valkey server, reached
+  through GLIDE, so any replica serves a solve another one computed and a
+  restart keeps them. Two tiers: an in-process LRU of a few entries, and
+  behind it the store, keyed `craftiger:{schema}:{pack}:{build_id}:{solveId}`
+  — the artifact's exact build is in the key, and inside the value, so a
+  rebuilt artifact never reads another build's tables (§9). The value is the
+  whole entry as compact little-endian binary: the garage and weights that
+  produced it (a replica that only ever sees the solveId still needs them for
+  pins, seeds and legality), the table's arrays, the craft-list ranks,
+  reachable count and converged flag — about two megabytes. A solve checks the
+  store before computing, and writes behind the response — the client never
+  waits for Valkey, and a failed write costs a later process one recompute;
+  every read endpoint reads through on an in-process miss, so a 404 means no
+  replica ever solved it. Values carry no expiry: the server must evict by
+  LRU (`maxmemory` with `allkeys-lru`; the repo's `docker-compose.yaml` runs a
+  local one that way, `mise run valkey`). The connection string
+  (`ApiOptions:Valkey:ConnectionString`) is mandatory — the API refuses to
+  start without it or without reaching the server — and a store error at
+  request time surfaces as an error, never as a silent fallback.
 - **Frontend**: React SPA served statically by nginx in its own container
   (`web/Dockerfile`). Both containers share one public origin: the cluster's
   reverse proxy routes `/api` and the two atlas paths to the API and
@@ -743,6 +765,9 @@ All "does not / never" rules live here; other sections only reference this one.
 
 - **Crafting-tree and step-list views** — the result is always the flat BOM grid.
 - **Energy and machine time in prices** — cost is material-only.
+- **A solved table never outlives its artifact build** — the store's key and
+  the stored value both name the build, and an entry from any other build, or
+  one the reader cannot parse, is recomputed, never served.
 - **Catalyst costs** — tool, mold, and circuit slots (§3 step 2) never price
   and never gate eras: a mortar survives its crafts, so charging one per run
   would overprice every hand-ground dust. They ship as `catalyst`-flagged
@@ -980,3 +1005,7 @@ All "does not / never" rules live here; other sections only reference this one.
     on every script — an uppercase query finds a lowercase non-ASCII name and
     vice versa — both through the trigram index and on the short-query scan,
     and lists the cheapest matches first, then by name.
+40. A solve computed by one process is served by another from the store
+    without recomputing; an entry stored for a different artifact build, or
+    unreadable bytes, are recomputed rather than served; a process evicting
+    an entry from memory still answers for it from the store.

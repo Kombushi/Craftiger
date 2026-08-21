@@ -370,6 +370,10 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));
 
     [Fact]
+    public void ArtifactStampsAUniqueBuildId() =>
+        Assert.Matches("^[0-9a-f]{32}$", _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'build_id'"));
+
+    [Fact]
     public void ArtifactIndexesCaseFoldedSearchText()
     {
         Assert.Equal(1, _fixture.Scalar<int>(
