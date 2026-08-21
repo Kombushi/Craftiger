@@ -228,15 +228,4 @@ public sealed class PlannerArtifactRepository(
                 catalystSlotStart.ToArray(), catalystAlternativeStart.ToArray(), catalystItemId.ToArray(), catalystAmount.ToArray()),
             machines);
     }
-
-    private sealed record ItemRow(
-        string Id, string Name, string? Oredict, long IsFluid, string? LeafClass, long AtlasIdx);
-
-    private sealed record RecipeRow(
-        string Id, string Machine, long Tier, long? MultiTier, long? Heat,
-        long DurationTicks, long EuT);
-
-    private sealed record InputRow(string RecipeId, string ItemId, long Amount, long Slot, long Catalyst);
-
-    private sealed record OutputRow(string RecipeId, string ItemId, long Amount, double Chance);
 }
