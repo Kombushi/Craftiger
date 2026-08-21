@@ -37,6 +37,9 @@ tasks:
 
   api:
     desc: Run the API (Development settings point at the local Valkey)
+    # A web project runs with its own directory as cwd, so the artifacts dir is made absolute.
+    env:
+      ApiOptions__ArtifactsDir: "{{.ROOT_DIR}}/artifacts"
     cmds:
       - dotnet run --project src/Craftiger.Api
 
