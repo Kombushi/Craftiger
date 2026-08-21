@@ -688,8 +688,8 @@ show. Screens:
   directory and the garage rules of §2/§9 (always-owned machines, heat-exempt
   and heat-bonus maps) are configuration.
 - **Solve store**: solved entries also live in a Valkey server, reached
-  through GLIDE, so any replica serves a solve another one computed and a
-  restart keeps them. Two tiers: an in-process LRU of a few entries, and
+  through StackExchange.Redis (RESP, zero-copy binary values), so any replica
+  serves a solve another one computed and a restart keeps them. Two tiers: an in-process LRU of a few entries, and
   behind it the store, keyed `craftiger:{schema}:{pack}:{build_id}:{solveId}`
   — the artifact's exact build is in the key, and inside the value, so a
   rebuilt artifact never reads another build's tables (§9). The value is the

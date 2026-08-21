@@ -2,14 +2,16 @@ using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
 using Craftiger.Api.Repositories;
 using Microsoft.Extensions.Options;
-using Valkey.Glide;
+using StackExchange.Redis;
 
 namespace Craftiger.Api.Services;
 
-/// <summary>The solve store on Valkey through GLIDE. Keys carry the schema, pack and build of
-/// the artifact, so a rebuilt artifact never reads another build's tables; values carry no
-/// expiry — the server evicts by LRU. Connecting happens here, at startup, so an unreachable
-/// server refuses the process rather than the first request.</summary>
+/// <summary>The solve store on Valkey through StackExchange.Redis, whose values wrap a byte
+/// array without copying it — a solved entry is a couple of megabytes and must not be
+/// re-encoded on the way in or out. Keys carry the schema, pack and build of the artifact, so
+/// a rebuilt artifact never reads another build's tables; values carry no expiry — the server
+/// evicts by LRU. Connecting happens here, at startup, so an unreachable server refuses the
+/// process rather than the first request.</summary>
 public sealed class ValkeySolveStore : ISolveStore
 {
     private readonly IDatabase _database;
@@ -22,7 +24,7 @@ public sealed class ValkeySolveStore : ISolveStore
         {
             throw new InvalidOperationException("ApiOptions:Valkey:ConnectionString is required");
         }
-        var multiplexer = ConnectionMultiplexer.ConnectAsync(connectionString).GetAwaiter().GetResult();
+        var multiplexer = ConnectionMultiplexer.Connect(connectionString);
         _database = multiplexer.GetDatabase();
         _prefix = $"craftiger:{PlannerArtifactRepository.SupportedSchemaVersion}:{artifact.PackVersion}:{artifact.BuildId}:";
         logger.LogInformation("solve store on Valkey {ConnectionString}, keys {Prefix}*", connectionString, _prefix);
