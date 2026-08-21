@@ -4,22 +4,15 @@ namespace Craftiger.Solver.Models;
 /// recipes as the positional index — nothing else is retained. Recipe records only exist as
 /// an input form (<see cref="Build"/>) for fixtures and tests; a real artifact streams into
 /// the index builder directly.</summary>
-public sealed class SolverGraph
+public sealed class SolverGraph(IReadOnlyDictionary<string, SolverItem> items, SolverIndex index)
 {
-    public SolverGraph(IReadOnlyDictionary<string, SolverItem> items, SolverIndex index)
-    {
-        Items = items;
-        Index = index;
-    }
-
     /// <summary>The leaves by id; every other item the graph knows is an index position only.</summary>
-    public IReadOnlyDictionary<string, SolverItem> Items { get; }
+    public IReadOnlyDictionary<string, SolverItem> Items { get; } = items;
 
-    public SolverIndex Index { get; }
+    public SolverIndex Index { get; } = index;
 
     /// <summary>An item absent from the item set is simply not a leaf.</summary>
-    public bool IsLeaf(string itemId) =>
-        Items.TryGetValue(itemId, out var item) && item.IsLeaf;
+    public bool IsLeaf(string itemId) => Items.TryGetValue(itemId, out var item) && item.IsLeaf;
 
     public static SolverGraph Build(IEnumerable<SolverItem> items, IEnumerable<SolverRecipe> recipes)
     {
