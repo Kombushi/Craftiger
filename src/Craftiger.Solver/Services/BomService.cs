@@ -32,7 +32,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         // A seed hangs its route off the loop it starts, so the walk is rerun until every loop
         // has been offered one and the seeds' own subtrees are ordered after their loops.
         var seeds = new Dictionary<string, LoopSeed?>();
-        List<Component> components;
+        List<BomComponent> components;
         while (true)
         {
             var (walked, cyclePin) = Walk(graph, costs, activePins, roots, SeedsByItem(seeds));
@@ -43,7 +43,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
                 continue;
             }
             var seeded = false;
-            foreach (var component in walked!.Where(component => component.Loop))
+            foreach (var component in walked.Where(component => component.Loop))
             {
                 var key = LoopKey(component.Items);
                 if (seeds.ContainsKey(key))
@@ -69,7 +69,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             wholeDemand[target.ItemId] = wholeDemand.GetValueOrDefault(target.ItemId) + target.Count;
         }
 
-        var walk = new WalkState(graph, costs, garage, activePins, roots.ToHashSet(), demand, wholeDemand, warnings);
+        var walk = new BomWalkState(graph, costs, garage, activePins, roots.ToHashSet(), demand, wholeDemand, warnings);
         foreach (var component in components)
         {
             if (component.Loop)
@@ -89,33 +89,6 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             walk.Nodes);
     }
 
-    /// <summary>Everything one walk accumulates, shared by the item and loop expansions.</summary>
-    private sealed record WalkState(
-        SolverGraph Graph, CostTable Costs, Garage Garage, Dictionary<string, SolverRecipe> Pins,
-        HashSet<string> Roots, Dictionary<string, double> Demand, Dictionary<string, long> WholeDemand,
-        List<BomWarning> Warnings)
-    {
-        public Dictionary<string, (double Amount, long Whole)> Leaves { get; } = new();
-
-        public List<BomNode> Nodes { get; } = [];
-
-        public int Loops { get; set; }
-
-        public void Add(string itemId, double amount, long whole)
-        {
-            Demand[itemId] = Demand.GetValueOrDefault(itemId) + amount;
-            WholeDemand[itemId] = WholeDemand.GetValueOrDefault(itemId) + whole;
-        }
-    }
-
-    /// <summary>A strongly connected component of the chosen-edge graph: one item, or a loop
-    /// of items whose chosen recipes consume each other.</summary>
-    private sealed record Component(List<string> Items, bool Loop);
-
-    /// <summary>The one outside unit that starts a loop: which member, through which recipe,
-    /// with which input stacks.</summary>
-    private sealed record LoopSeed(string ItemId, SolverRecipe Recipe, IReadOnlyList<SolverStack> Inputs);
-
     /// <summary>Loops keep their identity across walks by their smallest member id.</summary>
     private static string LoopKey(IEnumerable<string> members) => members.Min(StringComparer.Ordinal)!;
 
@@ -124,7 +97,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             .Where(seed => seed is not null)
             .ToDictionary(seed => seed!.ItemId, seed => seed!);
 
-    private void ExpandItem(WalkState walk, string itemId)
+    private void ExpandItem(BomWalkState walk, string itemId)
     {
         var demanded = walk.Demand.GetValueOrDefault(itemId);
         if (demanded <= 0)
@@ -139,7 +112,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
             return;
         }
 
-        if (Chosen(walk.Graph, walk.Pins, walk.Costs, itemId) is not { } recipe)
+        if (Chosen(walk.Pins, walk.Costs, itemId) is not { } recipe)
         {
             walk.Warnings.Add(new BomWarning(
                 walk.Roots.Contains(itemId) ? "unreachable_target" : "unreachable_input", itemId));
@@ -164,9 +137,9 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
     /// by iterating the same equations on integers until they settle — with the seed's one
     /// unit already supplied: the loop only makes what the outside demand and its own feeding
     /// need beyond that, so a single unit is just the seed route.</summary>
-    private static void ExpandLoop(WalkState walk, Component component, LoopSeed? seed)
+    private static void ExpandLoop(BomWalkState walk, BomComponent component, LoopSeed? seed)
     {
-        var system = AnalyzeLoop(walk.Graph, walk.Costs, walk.Pins, component.Items);
+        var system = AnalyzeLoop(walk.Costs, walk.Pins, component.Items);
         var members = component.Items;
         var count = members.Count;
         var external = members.Select(id => walk.Demand.GetValueOrDefault(id)).ToArray();
@@ -276,7 +249,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         var bestCost = double.PositiveInfinity;
         foreach (var itemId in members)
         {
-            var chosen = Chosen(graph, pins, costs, itemId);
+            var chosen = Chosen(pins, costs, itemId);
             foreach (var producer in graph.Producers.GetValueOrDefault(itemId) ?? [])
             {
                 if (producer.Id == chosen?.Id || !legality.IsLegal(producer, garage))
@@ -330,14 +303,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         return false;
     }
 
-    /// <summary>A loop's recipes and the gain matrix between its members: how many units of
-    /// member <c>i</c> one unit of member <c>j</c> consumes through <c>j</c>'s recipe.</summary>
-    private sealed record LoopSystem(
-        IReadOnlyDictionary<string, int> Index, SolverRecipe[] Recipes, double[] Yields,
-        IReadOnlyList<SolverStack>[] Inputs, double[,] Gain);
-
-    private static LoopSystem AnalyzeLoop(
-        SolverGraph graph, CostTable costs, Dictionary<string, SolverRecipe> pins, List<string> members)
+    private static LoopSystem AnalyzeLoop(CostTable costs, Dictionary<string, SolverRecipe> pins, List<string> members)
     {
         var index = members.Select((id, i) => (id, i)).ToDictionary(pair => pair.id, pair => pair.i);
         var count = members.Count;
@@ -347,7 +313,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         var gain = new double[count, count];
         for (var j = 0; j < count; j++)
         {
-            recipes[j] = Chosen(graph, pins, costs, members[j])!;
+            recipes[j] = Chosen(pins, costs, members[j])!;
             yields[j] = ExpectedYield(recipes[j], members[j]);
             inputs[j] = SlotChoice.Inputs(costs, members[j], recipes[j]);
             foreach (var input in inputs[j])
@@ -466,7 +432,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
     /// <summary>Tarjan's walk over chosen edges from the roots. Returns the components with
     /// consumers before producers, or the pinned item of the first loop that has no finite plan
     /// — a pin is the only way to build one, since the solve's own loops converge.</summary>
-    private static (List<Component>? Components, string? CyclePin) Walk(
+    private static (List<BomComponent> Components, string? CyclePin) Walk(
         SolverGraph graph, CostTable costs, Dictionary<string, SolverRecipe> pins,
         List<string> roots, Dictionary<string, LoopSeed> seeds)
     {
@@ -475,7 +441,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         var low = new Dictionary<string, int>();
         var onStack = new HashSet<string>();
         var stack = new Stack<string>();
-        var components = new List<Component>();
+        var components = new List<BomComponent>();
         foreach (var root in roots)
         {
             if (indices.ContainsKey(root))
@@ -528,19 +494,19 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
                 var loop = members.Count > 1 || children.Contains(id);
                 if (loop)
                 {
-                    var system = AnalyzeLoop(graph, costs, pins, members);
+                    var system = AnalyzeLoop(costs, pins, members);
                     if (Eliminate(system.Gain, new double[members.Count]) is null)
                     {
                         var pinned = members.FirstOrDefault(pins.ContainsKey);
                         if (pinned is not null)
                         {
-                            return (null, pinned);
+                            return ([], pinned);
                         }
                         throw new InvalidOperationException(
                             $"recipe loop through '{id}' never converges and contains no pin; the solve is inconsistent");
                     }
                 }
-                components.Add(new Component(members, loop));
+                components.Add(new BomComponent(members, loop));
             }
         }
         components.Reverse();
@@ -553,7 +519,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         SolverGraph graph, CostTable costs, Dictionary<string, SolverRecipe> pins,
         Dictionary<string, LoopSeed> seeds, string itemId)
     {
-        if (graph.IsLeaf(itemId) || Chosen(graph, pins, costs, itemId) is not { } recipe)
+        if (graph.IsLeaf(itemId) || Chosen(pins, costs, itemId) is not { } recipe)
         {
             return [];
         }
@@ -565,11 +531,8 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         return children;
     }
 
-    private static SolverRecipe? Chosen(
-        SolverGraph graph, Dictionary<string, SolverRecipe> pins, CostTable costs, string itemId) =>
-        pins.TryGetValue(itemId, out var pinned)
-            ? pinned
-            : costs.BestRecipes.GetValueOrDefault(itemId);
+    private static SolverRecipe? Chosen(Dictionary<string, SolverRecipe> pins, CostTable costs, string itemId) =>
+        pins.TryGetValue(itemId, out var pinned) ? pinned : costs.BestRecipes.GetValueOrDefault(itemId);
 
     /// <summary>The expected amount one run yields, summing chanced twin rows.</summary>
     private static double ExpectedYield(SolverRecipe recipe, string itemId) =>
@@ -587,7 +550,7 @@ public sealed class BomService(IGarageLegalityService legality) : IBomService
         SolverGraph graph, CostTable costs, Dictionary<string, SolverRecipe> pins, BomTarget target)
     {
         if (graph.IsLeaf(target.ItemId)
-            || Chosen(graph, pins, costs, target.ItemId) is not { } recipe)
+            || Chosen(pins, costs, target.ItemId) is not { } recipe)
         {
             return new BomTargetResult(target.ItemId, target.Count, null, []);
         }

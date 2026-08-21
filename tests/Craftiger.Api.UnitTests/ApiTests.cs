@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using Craftiger.Api.Models;
-using Craftiger.Solver.Models;
 
 namespace Craftiger.Api.UnitTests;
 
@@ -9,7 +8,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     private HttpClient Client => fixture.Client;
 
-    private static readonly object HvGarage = new
+    private static readonly object _hvGarage = new
     {
         defaultTier = 3,
         coils = new Dictionary<string, string> { ["Electric Blast Furnace"] = "Kanthal" }
@@ -18,7 +17,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     private async Task<string> SolveAsync(object? garage = null, double b = 4)
     {
         var response = await Client.PostAsJsonAsync(
-            "/api/solve", new { garage = garage ?? HvGarage, b });
+            "/api/solve", new { garage = garage ?? _hvGarage, b });
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<SolveResponse>())!.SolveId;
     }
@@ -131,7 +130,8 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         var results = await Client.GetFromJsonAsync<List<ItemSummaryDto>>(
             $"/api/search?q=Ferrum&solveId={solveId}");
 
-        Assert.Equal("ing", results!.Single().ItemId);
+        Assert.NotNull(results);
+        Assert.Equal("ing", results.Single().ItemId);
         Assert.Equal(4, results.Single().Cost);
     }
 
@@ -140,7 +140,8 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         var results = await Client.GetFromJsonAsync<List<ItemSummaryDto>>("/api/search?q=Ferrum");
 
-        Assert.Equal("ing", results!.Single().ItemId);
+        Assert.NotNull(results);
+        Assert.Equal("ing", results.Single().ItemId);
         Assert.Null(results[0].Cost);
     }
 
