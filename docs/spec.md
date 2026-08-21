@@ -465,8 +465,12 @@ Why this shape:
   ties still lose during the solve, and the walk then ends on the best
   form's leaf. A route where a worse form is genuinely cheaper is a real
   gap, not a tie, and keeps winning.
-- Full-pack scale (a few hundred thousand recipes) converges in well under a
-  second in memory.
+- Full-pack scale (a few hundred thousand recipes) converges in about a second
+  in memory. The fixpoint runs over an integer-indexed copy of the graph built
+  once when the artifact loads (`SolverIndex`), never over id-keyed lookups;
+  the layout changes nothing about the result — evaluation order, tie
+  outcomes and the recorded alternatives are exactly those of the id-keyed
+  walk it replaced.
 
 Caching and pins:
 

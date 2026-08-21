@@ -16,9 +16,13 @@ public sealed class SolverGraph
         RecipesById = recipesById;
         Producers = producers;
         Consumers = consumers;
+        Index = SolverIndex.Build(items, recipes);
     }
 
     public IReadOnlyDictionary<string, SolverItem> Items { get; }
+
+    /// <summary>The same graph as integer-indexed arrays, for the solve's hot loop.</summary>
+    public SolverIndex Index { get; }
 
     public IReadOnlyList<SolverRecipe> Recipes { get; }
 
@@ -41,14 +45,14 @@ public sealed class SolverGraph
         {
             foreach (var itemId in recipe.Outputs.Select(o => o.ItemId).Distinct())
             {
-                Index(producers, itemId, recipe);
+                Register(producers, itemId, recipe);
             }
             foreach (var itemId in recipe.Slots
                 .SelectMany(slot => slot.Alternatives)
                 .Select(a => a.ItemId)
                 .Distinct())
             {
-                Index(consumers, itemId, recipe);
+                Register(consumers, itemId, recipe);
             }
         }
 
@@ -60,7 +64,7 @@ public sealed class SolverGraph
             consumers.ToDictionary(c => c.Key, c => (IReadOnlyList<SolverRecipe>)c.Value));
     }
 
-    private static void Index(Dictionary<string, List<SolverRecipe>> index, string itemId, SolverRecipe recipe)
+    private static void Register(Dictionary<string, List<SolverRecipe>> index, string itemId, SolverRecipe recipe)
     {
         if (!index.TryGetValue(itemId, out var list))
         {
