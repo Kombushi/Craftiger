@@ -682,7 +682,8 @@ show. Screens:
 ### Runtime
 
 - **Backend**: the minimal API, stateless, deployed on the `ryokutek` k8s
-  cluster as a container image (`Dockerfile.api`) with the three artifacts
+  cluster as a container image (`src/Craftiger.Api/Dockerfile`, built from the
+  repo root) with the three artifacts
   baked in. Loads `planner.sqlite` read-only into memory at startup — refusing
   an artifact whose `schema_version` it does not know before serving anything —
   and holds the solver and its cost-table cache in memory. The artifacts

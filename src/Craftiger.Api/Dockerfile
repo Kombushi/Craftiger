@@ -1,5 +1,7 @@
-# API image. Build context is the repo root: the gitignored artifacts/ directory must
-# exist locally (mise run builder) — the three planner artifacts are baked into the image.
+# API image. Build from the repo root (`docker build -f src/Craftiger.Api/Dockerfile .`): the
+# Solver project sits beside this one and the gitignored artifacts/ directory must exist
+# locally (task builder) — the three planner artifacts are baked into the image, while the
+# dump and icon archive kept there are excluded by .dockerignore.
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
 COPY nuget.config ./

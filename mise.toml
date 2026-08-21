@@ -49,7 +49,7 @@ depends = ["docker:build:api", "docker:build:web"]
 
 [tasks."docker:build:api"]
 description = "Build the API image (planner artifacts baked in)"
-run = 'docker build -f Dockerfile.api -t "${CRAFTIGER_API_IMAGE}:${TAG:?set TAG to the image version}" .'
+run = 'docker build -f src/Craftiger.Api/Dockerfile -t "${CRAFTIGER_API_IMAGE}:${TAG:?set TAG to the image version}" .'
 
 [tasks."docker:build:web"]
 description = "Build the web image"
