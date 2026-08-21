@@ -266,9 +266,53 @@ a:focus-visible {
   gap: 8px;
 }
 
+/* The level slider in the same chrome as the slots: a recessed track and a square amber thumb,
+   drawn per engine since a native range cannot be sized. */
 .derived-range {
   width: 160px;
-  accent-color: var(--accent);
+  height: 22px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.derived-range::-webkit-slider-runnable-track {
+  height: 12px;
+  background: var(--slot-bg);
+  border: 2px solid;
+  border-color: var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+}
+
+.derived-range::-moz-range-track {
+  height: 8px;
+  background: var(--slot-bg);
+  border: 2px solid;
+  border-color: var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+}
+
+.derived-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  background: var(--accent);
+  border: 2px solid;
+  border-color: var(--bevel-hi) var(--accent-dark) var(--accent-dark) var(--bevel-hi);
+}
+
+.derived-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 0;
+  background: var(--accent);
+  border: 2px solid;
+  border-color: var(--bevel-hi) var(--accent-dark) var(--accent-dark) var(--bevel-hi);
+}
+
+.derived-range:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .derived-stepper-label {
