@@ -666,6 +666,13 @@ a:focus-visible {
   grid-row: 2;
 }
 
+/* No switch behind the picker — multiblock-only maps and single-map machines — so the picker
+   takes the switch column too and every row ends flush right. */
+.garage-row:not(:has(.garage-built)) select,
+.garage-row:not(:has(.garage-built)) .garage-owned {
+  grid-column: 2 / 4;
+}
+
 .garage-built {
   grid-column: 3;
   grid-row: 1;
