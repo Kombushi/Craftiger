@@ -224,13 +224,7 @@ function MachineRow({
           onChange={(event) => onTier(event.target.value)}
           title={availability}
         >
-          <option value="default">
-            {lateByDefault
-              ? 'Not built'
-              : machine.multiblockOnly
-                ? `Built (${tierNames[defaultTier] ?? defaultTier} hatches)`
-                : 'Default'}
-          </option>
+          <option value="default">{lateByDefault ? 'Not built' : 'Default'}</option>
           <option value="none">{machine.multiblockOnly ? 'Not built' : 'None'}</option>
           {tierNames.map((tier, index) => (
             <option key={tier} value={index}>

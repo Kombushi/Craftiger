@@ -272,7 +272,7 @@ function RecipeCard({ card, bom, onHover }: CardProps) {
         </span>
       </header>
       <div
-        className={`card-grid${node.machine === 'Crafting Table' ? ' card-grid-bench' : ''}`}
+        className="card-grid"
         style={{
           left: PAD,
           top: bodyTop,

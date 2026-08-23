@@ -269,8 +269,8 @@ a:focus-visible {
 /* The level slider in the same chrome as the slots: a recessed track and a square amber thumb,
    drawn per engine since a native range cannot be sized. */
 .derived-range {
-  width: 160px;
-  height: 22px;
+  width: 200px;
+  height: 26px;
   margin: 0;
   appearance: none;
   background: transparent;
@@ -278,14 +278,14 @@ a:focus-visible {
 }
 
 .derived-range::-webkit-slider-runnable-track {
-  height: 12px;
+  height: 14px;
   background: var(--slot-bg);
   border: 2px solid;
   border-color: var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
 }
 
 .derived-range::-moz-range-track {
-  height: 8px;
+  height: 10px;
   background: var(--slot-bg);
   border: 2px solid;
   border-color: var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
@@ -293,17 +293,17 @@ a:focus-visible {
 
 .derived-range::-webkit-slider-thumb {
   appearance: none;
-  width: 18px;
-  height: 18px;
-  margin-top: -5px;
+  width: 20px;
+  height: 20px;
+  margin-top: -3px;
   background: var(--accent);
   border: 2px solid;
   border-color: var(--bevel-hi) var(--accent-dark) var(--accent-dark) var(--bevel-hi);
 }
 
 .derived-range::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 0;
   background: var(--accent);
   border: 2px solid;
@@ -616,12 +616,14 @@ a:focus-visible {
   padding-right: 10px;
 }
 
-/* Fixed columns: the name, the multiblock switch, then every picker at one width in one
-   column — the tier picker on the first line, the coil picker under it — so the pickers line
-   up down the list and a picker's width never follows its longest option. */
+/* Fixed columns: the name, every picker at one width in one column — the tier picker on the
+   first line, the coil picker under it — and the multiblock switch after the picker, so the
+   pickers line up down the list and a picker's width never follows its longest option. */
 .garage-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 180px;
+  /* The switch column is reserved even where there is no switch: each row is its own grid,
+     so only a fixed width keeps the pickers at one x down the list. */
+  grid-template-columns: minmax(0, 1fr) 140px 46px;
   align-items: center;
   column-gap: 6px;
   row-gap: 4px;
@@ -642,7 +644,7 @@ a:focus-visible {
 /* Pickers and the always-owned label share one control height so the list keeps one rhythm. */
 .garage-row select,
 .garage-owned {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 1;
   width: 100%;
   height: 33px;
@@ -665,7 +667,7 @@ a:focus-visible {
 }
 
 .garage-built {
-  grid-column: 2;
+  grid-column: 3;
   grid-row: 1;
   display: inline-flex;
   align-items: center;
@@ -931,12 +933,6 @@ a:focus-visible {
   display: grid;
   gap: 4px;
   align-content: start;
-}
-
-.card-grid-bench {
-  background:
-    repeating-linear-gradient(0deg, transparent 0 40px, var(--bevel-lo) 40px 44px),
-    repeating-linear-gradient(90deg, transparent 0 40px, var(--bevel-lo) 40px 44px);
 }
 
 .card-arrow {
