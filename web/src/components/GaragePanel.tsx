@@ -211,7 +211,7 @@ function MachineRow({
       ? 'Availability unknown — assumed owned at the default tier'
       : `First craftable at ${tierNames[machine.era] ?? machine.era}`
   return (
-    <li className="garage-row">
+    <li className={machine.multiblockOnly ? 'garage-row garage-row-multi' : 'garage-row'}>
       <span className="garage-name" title={`${machine.name} — ${availability}`}>
         {machine.name}
       </span>

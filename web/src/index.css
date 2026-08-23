@@ -666,10 +666,10 @@ a:focus-visible {
   grid-row: 2;
 }
 
-/* No switch behind the picker — multiblock-only maps and single-map machines — so the picker
-   takes the switch column too and every row ends flush right. */
-.garage-row:not(:has(.garage-built)) select,
-.garage-row:not(:has(.garage-built)) .garage-owned {
+/* A multiblock-only map never has the switch, so its picker takes the switch column too and
+   the Multiblocks section ends flush right; a switchless machine row keeps the picker width
+   of its section. */
+.garage-row-multi select {
   grid-column: 2 / 4;
 }
 
