@@ -282,6 +282,7 @@ public class FactoryEndToEndTests
             {
                 ["Crafting Table"] = [new FactoryMachineBlock("mac-hv", 3, false, false, 3, 1, [])],
             },
+            [],
             []);
         var data = new Dictionary<string, (long, long, long)> { ["smelt"] = (160, 4, 1) };
 
@@ -309,6 +310,7 @@ public class FactoryEndToEndTests
             {
                 ["Crafting Table"] = [new FactoryMachineBlock("multi", null, true, false, 0, 4, [])],
             },
+            [],
             []);
 
         var plan = Solve(
@@ -320,5 +322,103 @@ public class FactoryEndToEndTests
         Assert.Equal(4, line.Parallels);
         Assert.Equal(1, line.BusyMachines, 5);
         Assert.Equal(1, plan.BusyMachines, 5);
+    }
+
+    [Fact]
+    public void EnergyTargetBurnsFuelThroughItsChain()
+    {
+        // Example 2 in miniature: logs pyrolyse into benzene, a gas turbine burns it, and the
+        // pyrolyse oven's own draw is netted out of the export.
+        var graph = SolverGraph.Build(
+            [Leaf("log", weight: 1)],
+            [Recipe("pyro", inputs: [("log", 1)], outputs: ("benzene", 100, 1.0))]);
+        var machines = new FactoryMachineData(
+            new Dictionary<string, IReadOnlyList<FactoryMachineBlock>>
+            {
+                ["Gas Turbine Fuel"] =
+                [
+                    new FactoryMachineBlock("turbine-mv", 2, false, false, 2, 1, [],
+                        GeneratorEfficiency: 95, GeneratorEuT: 128, GeneratorAmps: 1),
+                ],
+            },
+            [],
+            [new FactoryFuel("Gas Turbine Fuel", "benzene", 1, 360, null, null)]);
+
+        var plan = Solve(
+            graph,
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 128, GeneratorTier: 2)],
+                [], new Dictionary<string, string>()),
+            new Dictionary<string, (long, long, long)> { ["pyro"] = (100, 20, 1) },
+            machines,
+            garageTier: 2);
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        var generator = Assert.Single(plan.Lines, l => l.MachineItemId == "turbine-mv");
+        // 126 net EU/t per machine after the 2 EU/amp loss; the plan overshoots to cover the
+        // pyrolyse ovens' own draw.
+        Assert.Equal(128, plan.ExportEuT - plan.DrawEuT, 1e-2);
+        Assert.True(generator.RunsPerSecond > 128.0 / 126);
+        Assert.True(Assert.Single(plan.Inflows, i => i.ItemId == "log").Rate > 0);
+    }
+
+    [Fact]
+    public void TimedFuelBurnsAtItsLifetime()
+    {
+        var graph = SolverGraph.Build([Leaf("pellet", weight: 5)], []);
+        var machines = new FactoryMachineData(
+            new Dictionary<string, IReadOnlyList<FactoryMachineBlock>>
+            {
+                ["Rtg"] =
+                [
+                    new FactoryMachineBlock("rtg-hv", 3, false, false, 3, 1, [],
+                        GeneratorEfficiency: null, GeneratorEuT: 512, GeneratorAmps: 1),
+                ],
+            },
+            [],
+            [new FactoryFuel("Rtg", "pellet", 1, null, 480, 2000)]);
+
+        var plan = Solve(
+            graph,
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 476)],
+                [], new Dictionary<string, string>()),
+            machines: machines,
+            garageTier: 3);
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        // 480 EU/t minus the 4 EU/amp HV loss nets 476: one machine, consuming its pellet
+        // over the 2,000-tick lifetime.
+        var line = Assert.Single(plan.Lines);
+        Assert.Equal(1, line.RunsPerSecond, 1e-3);
+        Assert.Equal(0.01, Assert.Single(plan.Inflows).Rate, 1e-5);
+    }
+
+    [Fact]
+    public void EnergyTierBandRejectsLowGenerators()
+    {
+        var graph = SolverGraph.Build([Leaf("fuel", weight: 1)], []);
+        var machines = new FactoryMachineData(
+            new Dictionary<string, IReadOnlyList<FactoryMachineBlock>>
+            {
+                ["Gen"] =
+                [
+                    new FactoryMachineBlock("gen-lv", 1, false, false, 1, 1, [],
+                        GeneratorEfficiency: 100, GeneratorEuT: 32, GeneratorAmps: 1),
+                ],
+            },
+            [],
+            [new FactoryFuel("Gen", "fuel", 1, 100, null, null)]);
+
+        var plan = Solve(
+            graph,
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 512, GeneratorTier: 3)],
+                [], new Dictionary<string, string>()),
+            machines: machines,
+            garageTier: 3);
+
+        Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
+        Assert.Contains(new FactoryWarning("no_generator", ""), plan.Warnings);
     }
 }

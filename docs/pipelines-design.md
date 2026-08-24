@@ -518,7 +518,14 @@ guard.
   lexicographic solve returns Optimal in ~9 s (resource 0.9 s, energy
   3.3 s, machines 8.4 s cumulative, canonicalization instant), 96 active
   columns. The traded-away routes are exotic byproduct synergies more than
-  4× off the cost optimum.
+  4× off the cost optimum. Generator (block, fuel) pairs are pruned the same
+  way, by fuel weight per net EU/t (band 4×, floor 10⁻³, kept per quality
+  band so a tier demand never starves). Energy-target solves at the
+  worst-case everything-owned HV garage measure ~80 s — every surviving
+  fuel's upstream chain joins the walk and the EU row couples the model, so
+  presolve keeps ~170k live columns; real garages are far smaller and the
+  factory cache absorbs first-solve latency, but this stays a watch item
+  for the API budget.
 - **Diagnostics** (three tiers, *never a bare "infeasible"*): (1) pre-LP
   checks reusing existing machinery — target outside the garage-legal
   closure → the existing `uncraftable`-style warning; energy target with no

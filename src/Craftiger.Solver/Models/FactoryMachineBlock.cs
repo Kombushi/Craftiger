@@ -3,7 +3,8 @@ namespace Craftiger.Solver.Models;
 /// <summary>One machine block serving a map: <paramref name="Tier"/> is the single-block
 /// voltage tier, null on multiblocks, whose voltage comes from the garage instead;
 /// <paramref name="Era"/> gates craftability. A block without extracted bonus data runs at one
-/// parallel with no modifiers — a flagged, conservative overestimate.</summary>
+/// parallel with no modifiers — a flagged, conservative overestimate. Generator blocks carry
+/// their fuel efficiency and per-amp output; null on everything else.</summary>
 public sealed record FactoryMachineBlock(
     string ItemId,
     int? Tier,
@@ -11,4 +12,7 @@ public sealed record FactoryMachineBlock(
     bool Steam,
     int? Era,
     long MaxParallel,
-    IReadOnlyList<FactoryMachineBonus> Bonuses);
+    IReadOnlyList<FactoryMachineBonus> Bonuses,
+    double? GeneratorEfficiency = null,
+    long? GeneratorEuT = null,
+    long? GeneratorAmps = null);

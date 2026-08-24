@@ -24,6 +24,10 @@ public sealed class PipelineSolverService(
 
     private const double PruneFloor = 1.0;
 
+    /// <summary>The generator band's floor, in fuel weight per net EU/t — far below the item
+    /// floor, because competitive fuel chains price near zero.</summary>
+    private const double GeneratorPruneFloor = 1e-3;
+
     /// <summary>Below this, a rate is layer-tolerance noise, not flow: the lexicographic
     /// slack legitimately leaves slivers up to roughly the relative tolerance behind.</summary>
     private const double RateEpsilon = 1e-5;
@@ -41,6 +45,7 @@ public sealed class PipelineSolverService(
         Run,
         Split,
         Buy,
+        Generate,
     }
 
     /// <summary>What a column means when reading the solution back: the recipe and variant
@@ -57,6 +62,13 @@ public sealed class PipelineSolverService(
         double DurationSeconds,
         double EuPerRun,
         bool Estimated);
+
+    /// <summary>Normalized targets: produce rates by item position, the summed net EU/t
+    /// export, and the per-tier quality bands energy targets demand.</summary>
+    private sealed record Targets(
+        Dictionary<int, double> Produce,
+        double EnergyEuT,
+        IReadOnlyList<(int Tier, double Rate)> Bands);
 
     public FactoryPlan Solve(
         SolverGraph graph,
@@ -75,9 +87,24 @@ public sealed class PipelineSolverService(
             return Empty(FactoryPlanStatus.Failed, warnings);
         }
 
-        var candidates = CandidateRecipes(index, costs, garage, targets.Keys, request.Pins, warnings);
+        var generators = targets.EnergyEuT > 0
+            ? EligibleGenerators(index, machines, garage, costs, targets.Bands)
+            : [];
+        if (targets.EnergyEuT > 0 && generators.Count == 0)
+        {
+            warnings.Add(new FactoryWarning("no_generator", ""));
+            return Empty(FactoryPlanStatus.Infeasible, warnings);
+        }
+        if (targets.Bands.Count > 0 && targets.Bands.Any(band => !generators.Any(g => g.Tier >= band.Tier)))
+        {
+            warnings.Add(new FactoryWarning("no_generator", ""));
+            return Empty(FactoryPlanStatus.Infeasible, warnings);
+        }
+
+        var seeds = targets.Produce.Keys.Concat(generators.Select(g => g.FuelItem)).Distinct();
+        var candidates = CandidateRecipes(index, costs, garage, seeds, request.Pins, warnings);
         var unreachable = false;
-        foreach (var target in targets.Keys.Order())
+        foreach (var target in targets.Produce.Keys.Order())
         {
             if (!index.IsLeaf(target) && !candidates.Any(r => Produces(index, r, target)))
             {
@@ -90,7 +117,8 @@ public sealed class PipelineSolverService(
             return Empty(FactoryPlanStatus.Infeasible, warnings);
         }
 
-        var model = BuildModel(graph, recipes, machines, garage, weights, request, targets, candidates, warnings);
+        var model = BuildModel(
+            graph, recipes, machines, garage, weights, request, targets, candidates, generators, warnings);
         var result = solver.Solve(model.Program);
         if (result.Status != LpSolveStatus.Optimal)
         {
@@ -110,33 +138,161 @@ public sealed class PipelineSolverService(
 
     private static FactoryPlan Empty(FactoryPlanStatus status, List<FactoryWarning> warnings)
     {
-        return new FactoryPlan(status, [], [], [], warnings, 0, 0, 0);
+        return new FactoryPlan(status, [], [], [], warnings, 0, 0, 0, 0);
     }
 
-    /// <summary>Produce targets as item position → rate, duplicates summed; null when any
+    /// <summary>Produce and energy targets normalized, duplicates summed; null when any
     /// target cannot enter the model at all.</summary>
-    private static Dictionary<int, double>? NormalizeTargets(
+    private static Targets? NormalizeTargets(
         SolverIndex index, FactoryRequest request, List<FactoryWarning> warnings)
     {
-        var targets = new Dictionary<int, double>();
+        var produce = new Dictionary<int, double>();
+        var energy = 0.0;
+        var bands = new Dictionary<int, double>();
+        var failed = false;
         foreach (var target in request.Targets)
         {
+            if (target.Kind == FactoryTargetKind.Energy)
+            {
+                if (target.Rate > 0)
+                {
+                    energy += target.Rate;
+                    if (target.GeneratorTier is { } tier)
+                    {
+                        bands[tier] = bands.GetValueOrDefault(tier) + target.Rate;
+                    }
+                }
+                continue;
+            }
             if (target.Kind != FactoryTargetKind.Produce)
             {
                 warnings.Add(new FactoryWarning("target_unsupported", target.ItemId ?? ""));
+                failed = true;
                 continue;
             }
             if (target.ItemId is null || !index.TryGetItem(target.ItemId, out var item))
             {
                 warnings.Add(new FactoryWarning("target_unknown", target.ItemId ?? ""));
+                failed = true;
                 continue;
             }
             if (target.Rate > 0)
             {
-                targets[item] = targets.GetValueOrDefault(item) + target.Rate;
+                produce[item] = produce.GetValueOrDefault(item) + target.Rate;
             }
         }
-        return warnings.Count > 0 ? null : targets;
+        return failed
+            ? null
+            : new Targets(produce, energy, [.. bands.OrderBy(b => b.Key).Select(b => (b.Key, b.Value))]);
+    }
+
+    /// <summary>One garage-legal way to burn a fuel: a generator block and the fuel it turns
+    /// into EU, with per-machine consumption and net output after the Enet transfer loss.</summary>
+    private sealed record GeneratorVariant(
+        string Map,
+        string BlockItemId,
+        int Tier,
+        string FuelItemId,
+        int FuelItem,
+        double UnitsPerSecond,
+        double NetEuT);
+
+    /// <summary>Every (eligible generator block, fuel) pair, in map, block, fuel order.
+    /// Standard fuels burn at the block's full output; timed fuels burn at their fixed EU/t
+    /// over their lifetime. Output loses <c>2^max(0, tier−1)</c> EU per amp emitted. Pairs
+    /// far above the cheapest fuel weight per net EU/t are pruned the way recipes are — each
+    /// quality band keeps its own cheapest qualifying pairs, so a tier demand never starves.</summary>
+    private List<GeneratorVariant> EligibleGenerators(
+        SolverIndex index,
+        FactoryMachineData machines,
+        Garage garage,
+        CostTable costs,
+        IReadOnlyList<(int Tier, double Rate)> bands)
+    {
+        var variants = new List<GeneratorVariant>();
+        foreach (var fuel in machines.Fuels
+            .OrderBy(f => f.Map, StringComparer.Ordinal)
+            .ThenBy(f => f.ItemId, StringComparer.Ordinal))
+        {
+            if (!index.TryGetItem(fuel.ItemId, out var fuelItem)
+                || !machines.BlocksByMap.TryGetValue(fuel.Map, out var blocks))
+            {
+                continue;
+            }
+            foreach (var block in blocks.OrderBy(b => b.ItemId, StringComparer.Ordinal))
+            {
+                if (block.Steam || block.Multiblock
+                    || block.Era is not { } era || era > garage.DefaultTier
+                    || block.Tier is not { } tier
+                    || block.GeneratorEuT is not { } outEuT)
+                {
+                    continue;
+                }
+                var amps = block.GeneratorAmps ?? 1;
+                var loss = Math.Pow(2, Math.Max(0, tier - 1)) * amps;
+                double unitsPerSecond;
+                double rawEuT;
+                if (fuel.EuT is { } fixedEuT && fuel.DurationTicks is { } lifetime && lifetime > 0)
+                {
+                    unitsPerSecond = fuel.Amount * TicksPerSecond / lifetime;
+                    rawEuT = fixedEuT;
+                }
+                else if (fuel.EuPerUnit is { } euPerUnit && euPerUnit > 0)
+                {
+                    var effective = euPerUnit * (block.GeneratorEfficiency ?? 100) / 100;
+                    rawEuT = outEuT * (double)amps;
+                    unitsPerSecond = rawEuT * TicksPerSecond / effective;
+                }
+                else
+                {
+                    continue;
+                }
+                var netEuT = rawEuT - loss;
+                if (netEuT <= 0 || !costs.TryCost(fuelItem, out _))
+                {
+                    continue;
+                }
+                variants.Add(new GeneratorVariant(
+                    fuel.Map, block.ItemId, tier, fuel.ItemId, fuelItem, unitsPerSecond, netEuT));
+            }
+        }
+        return PruneGenerators(variants, costs, bands);
+    }
+
+    /// <summary>Keeps pairs within the cost band of the cheapest fuel weight per net EU/t —
+    /// overall, and per quality band among the pairs whose tier satisfies it.</summary>
+    private static List<GeneratorVariant> PruneGenerators(
+        List<GeneratorVariant> variants,
+        CostTable costs,
+        IReadOnlyList<(int Tier, double Rate)> bands)
+    {
+        if (variants.Count == 0)
+        {
+            return variants;
+        }
+
+        double WeightPerEu(GeneratorVariant variant) =>
+            costs.Cost(variant.FuelItem) * variant.UnitsPerSecond / variant.NetEuT;
+
+        var cheapest = variants.Min(WeightPerEu);
+        var cheapestPerBand = bands
+            .Select(band => (band.Tier, Best: variants
+                .Where(v => v.Tier >= band.Tier)
+                .Select(WeightPerEu)
+                .DefaultIfEmpty(double.PositiveInfinity)
+                .Min()))
+            .ToList();
+
+        return
+        [
+            .. variants.Where(variant =>
+            {
+                var weight = WeightPerEu(variant);
+                return weight <= PruneFactor * cheapest + GeneratorPruneFloor
+                    || cheapestPerBand.Any(band =>
+                        variant.Tier >= band.Tier && weight <= PruneFactor * band.Best + GeneratorPruneFloor);
+            }),
+        ];
     }
 
     /// <summary>Garage-legal recipes upstream of the targets, walking producers through every
@@ -234,6 +390,7 @@ public sealed class PipelineSolverService(
         LinearProgram Program,
         IReadOnlyList<ColumnMeta> Columns,
         IReadOnlyList<RunVariant> Variants,
+        IReadOnlyList<GeneratorVariant> Generators,
         IReadOnlyList<int> RowItems,
         IReadOnlyDictionary<string, double> Weights);
 
@@ -445,8 +602,9 @@ public sealed class PipelineSolverService(
         Garage garage,
         WeightSettings weights,
         FactoryRequest request,
-        Dictionary<int, double> targets,
+        Targets targets,
         List<int> candidates,
+        List<GeneratorVariant> generators,
         List<FactoryWarning> warnings)
     {
         var index = graph.Index;
@@ -466,15 +624,33 @@ public sealed class PipelineSolverService(
             {
                 row = rows.Count;
                 rowOf[item] = row;
-                rows.Add(new LpRow(targets.GetValueOrDefault(item), double.PositiveInfinity));
+                rows.Add(new LpRow(targets.Produce.GetValueOrDefault(item), double.PositiveInfinity));
                 rowItems.Add(item);
             }
             return row;
         }
 
-        foreach (var target in targets.Keys.Order())
+        foreach (var target in targets.Produce.Keys.Order())
         {
             RowOf(target);
+        }
+
+        // The EU balance: generators feed it, every machine's duty-cycled draw taxes it, and
+        // the bound is the demanded net export. Band rows repeat the demand over generators
+        // of sufficient voltage tier.
+        var euRow = -1;
+        var bandRows = new List<(int Tier, int Row)>();
+        if (targets.EnergyEuT > 0)
+        {
+            euRow = rows.Count;
+            rows.Add(new LpRow(targets.EnergyEuT, double.PositiveInfinity));
+            rowItems.Add(-1);
+            foreach (var (tier, rate) in targets.Bands)
+            {
+                bandRows.Add((tier, rows.Count));
+                rows.Add(new LpRow(rate, double.PositiveInfinity));
+                rowItems.Add(-1);
+            }
         }
 
         foreach (var recipe in candidates)
@@ -511,7 +687,14 @@ public sealed class PipelineSolverService(
             var entries = Sorted(net);
             foreach (var variant in Variants(index, recipes, machines, garage, recipe))
             {
-                columns.Add(new LpColumn(0, upper, entries));
+                var variantEntries = entries;
+                if (euRow >= 0 && variant.EuPerRun > 0)
+                {
+                    net[euRow] = -variant.EuPerRun / TicksPerSecond;
+                    variantEntries = Sorted(net);
+                    net.Remove(euRow);
+                }
+                columns.Add(new LpColumn(0, upper, variantEntries));
                 metas.Add(new ColumnMeta(ColumnKind.Run, recipe, -1, 0, variants.Count));
                 variants.Add(variant);
             }
@@ -534,6 +717,27 @@ public sealed class PipelineSolverService(
             }
         }
 
+        // One column per generator line: the variable is machines running, feeding the EU
+        // rows and drawing fuel from its item's balance.
+        for (var g = 0; g < generators.Count; g++)
+        {
+            var generator = generators[g];
+            var entries = new Dictionary<int, double>
+            {
+                [RowOf(generator.FuelItem)] = -generator.UnitsPerSecond,
+                [euRow] = generator.NetEuT,
+            };
+            foreach (var (tier, row) in bandRows)
+            {
+                if (generator.Tier >= tier)
+                {
+                    entries[row] = generator.NetEuT;
+                }
+            }
+            columns.Add(new LpColumn(0, double.PositiveInfinity, Sorted(entries)));
+            metas.Add(new ColumnMeta(ColumnKind.Generate, -1, -1, 0, g));
+        }
+
         // Purchase variables close every leaf's balance; consuming internal flow offsets them.
         foreach (var (item, row) in rowOf.OrderBy(pair => pair.Key))
         {
@@ -549,7 +753,7 @@ public sealed class PipelineSolverService(
             rows,
             BuildObjectives(index, request, metas, variants, resolvedWeights),
             request.TimeLimitSeconds);
-        return new Model(program, metas, variants, rowItems, resolvedWeights);
+        return new Model(program, metas, variants, generators, rowItems, resolvedWeights);
     }
 
     /// <summary>Recipes a pin forces to zero: every other candidate producing the pinned item
@@ -631,9 +835,12 @@ public sealed class PipelineSolverService(
                     FactoryObjective.Resource when meta.Kind == ColumnKind.Buy =>
                         weights.GetValueOrDefault(index.ItemIds[meta.Item], 1),
                     FactoryObjective.Energy when meta.Kind == ColumnKind.Run =>
+                        // Generators are excluded: their cost is fuel, priced by the resource
+                        // layer through the fuel chain.
                         variants[meta.Variant].EuPerRun / 1000,
                     FactoryObjective.Machines when meta.Kind == ColumnKind.Run =>
                         variants[meta.Variant].DurationSeconds / variants[meta.Variant].Parallels,
+                    FactoryObjective.Machines when meta.Kind == ColumnKind.Generate => 1.0,
                     _ => 0.0,
                 };
                 if (coefficient != 0)
@@ -665,7 +872,7 @@ public sealed class PipelineSolverService(
     private static FactoryPlan Interpret(
         SolverIndex index,
         Model model,
-        Dictionary<int, double> targets,
+        Targets targets,
         IReadOnlyList<double> values,
         List<FactoryWarning> warnings)
     {
@@ -675,6 +882,7 @@ public sealed class PipelineSolverService(
         var lines = new List<FactoryLine>();
         var cost = 0.0;
         var drawEuT = 0.0;
+        var exportEuT = 0.0;
         var busyMachines = 0.0;
 
         for (var c = 0; c < model.Columns.Count; c++)
@@ -721,6 +929,24 @@ public sealed class PipelineSolverService(
                 case ColumnKind.Split:
                     consumed[meta.Item] = consumed.GetValueOrDefault(meta.Item) + meta.Amount * value;
                     break;
+                case ColumnKind.Generate:
+                    var generator = model.Generators[meta.Variant];
+                    consumed[generator.FuelItem] =
+                        consumed.GetValueOrDefault(generator.FuelItem) + generator.UnitsPerSecond * value;
+                    exportEuT += generator.NetEuT * value;
+                    busyMachines += value;
+                    // Item ids contain '~', so the synthetic id uses '|' as its separator.
+                    lines.Add(new FactoryLine(
+                        $"generator|{generator.BlockItemId}|{generator.FuelItemId}",
+                        generator.Map,
+                        generator.BlockItemId,
+                        value,
+                        0,
+                        1,
+                        value,
+                        Durationless: false,
+                        Estimated: false));
+                    break;
                 case ColumnKind.Buy:
                     bought[meta.Item] = bought.GetValueOrDefault(meta.Item) + value;
                     cost += value * model.Weights.GetValueOrDefault(index.ItemIds[meta.Item], 1);
@@ -735,7 +961,7 @@ public sealed class PipelineSolverService(
             var made = produced.GetValueOrDefault(item);
             var used = consumed.GetValueOrDefault(item);
             var buy = bought.GetValueOrDefault(item);
-            var surplus = Math.Max(0, made + buy - used - targets.GetValueOrDefault(item));
+            var surplus = Math.Max(0, made + buy - used - targets.Produce.GetValueOrDefault(item));
             if (made > RateEpsilon || used > RateEpsilon)
             {
                 flows.Add(new FactoryItemFlow(index.ItemIds[item], made, used, surplus));
@@ -748,6 +974,6 @@ public sealed class PipelineSolverService(
         }
 
         return new FactoryPlan(
-            FactoryPlanStatus.Solved, lines, flows, inflows, warnings, cost, drawEuT, busyMachines);
+            FactoryPlanStatus.Solved, lines, flows, inflows, warnings, cost, drawEuT, exportEuT, busyMachines);
     }
 }

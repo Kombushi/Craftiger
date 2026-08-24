@@ -269,4 +269,75 @@ public class PipelineSolverTests
         Assert.Equal(baseEu * 2, energy[2], 9);
         Assert.Equal([5.0, 1.25, 0.625], program.Objectives[2].Coefficients.Select(e => e.Value));
     }
+
+    [Fact]
+    public void EnergyTargetAddsEuRowDrawAndGenerators()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("ore"), Fx.Leaf("fuel")],
+            Fx.Recipe("smelt", inputs: [("ore", 1)], outputs: ("ingot", 1, 1.0)));
+        var machines = Fx.Machines(
+            new()
+            {
+                ["Gen"] = [Fx.Block("gen-lv", tier: 1) with { GeneratorEfficiency = 100, GeneratorEuT = 32, GeneratorAmps = 1 }],
+            },
+            fuels: [new FactoryFuel("Gen", "fuel", 1, 100, null, null)]);
+        var lp = new RecordingLpSolver();
+
+        Fx.Pipeline(lp).Solve(
+            graph, Fx.Data(graph, new() { ["smelt"] = (40, 10, 1) }), machines, Fx.Costs(graph),
+            Fx.Garage(defaultTier: 1), Fx.Weights(),
+            new FactoryRequest(
+                [
+                    new FactoryTarget(FactoryTargetKind.Produce, "ingot", 1),
+                    new FactoryTarget(FactoryTargetKind.Energy, null, 100),
+                ],
+                [], new Dictionary<string, string>()));
+
+        var program = lp.Program!;
+        // Rows: ingot target, EU export, ore, fuel. The run column draws 40 t x 10 EU/t / 20
+        // = 20 EU/t per run rate; the generator nets 31 EU/t after the 1 EU/amp loss and
+        // burns 32 x 20 / 100 = 6.4 fuel per second per machine.
+        Assert.Equal(100, program.Rows[1].Lower);
+        var run = program.Columns[0].Entries;
+        Assert.Contains(new LpEntry(1, -20), run);
+        var generator = program.Columns.Select((c, i) => (c, i))
+            .First(pair => pair.c.Entries.Any(e => e is { Index: 1, Value: 31 }));
+        Assert.Contains(new LpEntry(3, -6.4), generator.c.Entries);
+        // Machines layer prices a generator as one busy machine.
+        Assert.Contains(new LpEntry(generator.i, 1), lp.Program!.Objectives[2].Coefficients);
+    }
+
+    [Fact]
+    public void EnergyBandCountsOnlySufficientTiers()
+    {
+        var graph = Fx.Graph([Fx.Leaf("fuel")]);
+        var machines = Fx.Machines(
+            new()
+            {
+                ["Gen"] =
+                [
+                    Fx.Block("gen-lv", tier: 1) with { GeneratorEfficiency = 100, GeneratorEuT = 32, GeneratorAmps = 1 },
+                    Fx.Block("gen-hv", tier: 3, era: 3) with { GeneratorEfficiency = 100, GeneratorEuT = 512, GeneratorAmps = 1 },
+                ],
+            },
+            fuels: [new FactoryFuel("Gen", "fuel", 1, 100, null, null)]);
+        var lp = new RecordingLpSolver();
+
+        Fx.Pipeline(lp).Solve(
+            graph, Fx.Data(graph), machines, Fx.Costs(graph), Fx.Garage(defaultTier: 3), Fx.Weights(),
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 512, GeneratorTier: 3)],
+                [], new Dictionary<string, string>()));
+
+        var program = lp.Program!;
+        // Row 0 is the EU balance, row 1 the tier-3 band: both generators feed the balance,
+        // only the HV one feeds the band.
+        Assert.Equal(512, program.Rows[0].Lower);
+        Assert.Equal(512, program.Rows[1].Lower);
+        var feedsBalance = program.Columns.Count(c => c.Entries.Any(e => e.Index == 0 && e.Value > 0));
+        var feedsBand = program.Columns.Count(c => c.Entries.Any(e => e.Index == 1 && e.Value > 0));
+        Assert.Equal(2, feedsBalance);
+        Assert.Equal(1, feedsBand);
+    }
 }

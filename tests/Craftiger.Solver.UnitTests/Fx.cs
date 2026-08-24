@@ -77,8 +77,10 @@ internal static class Fx
         FactoryRecipeData.Build(graph.Index, recipes);
 
     public static FactoryMachineData Machines(
-        Dictionary<string, IReadOnlyList<FactoryMachineBlock>> blocks, IReadOnlyList<FactoryCoil>? coils = null) =>
-        new(blocks, coils ?? []);
+        Dictionary<string, IReadOnlyList<FactoryMachineBlock>> blocks,
+        IReadOnlyList<FactoryCoil>? coils = null,
+        IReadOnlyList<FactoryFuel>? fuels = null) =>
+        new(blocks, coils ?? [], fuels ?? []);
 
     public static FactoryMachineBlock Block(
         string itemId, int? tier = null, bool multiblock = false, bool steam = false, int? era = 0,
