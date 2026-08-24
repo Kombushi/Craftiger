@@ -14,7 +14,7 @@ public class PipelineSolverTests
             Fx.Recipe("smelt", inputs: [("ore", 1)], outputs: ("ingot", 1, 1.0)));
         var lp = new RecordingLpSolver();
 
-        Fx.Pipeline(lp).Solve(graph, Fx.Data(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 2)]));
+        Fx.Pipeline(lp).Solve(graph, Fx.Data(graph), Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 2)]));
 
         var program = lp.Program!;
         Assert.Equal(2, program.Rows.Count);
@@ -34,7 +34,7 @@ public class PipelineSolverTests
             Fx.Recipe("mix", slots: [[("x", 2), ("y", 3)]], outputs: ("out", 1, 1.0)));
         var lp = new RecordingLpSolver();
 
-        Fx.Pipeline(lp).Solve(graph, Fx.Data(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("out", 1)]));
+        Fx.Pipeline(lp).Solve(graph, Fx.Data(graph), Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("out", 1)]));
 
         var program = lp.Program!;
         // Rows: target, link; then x and y through the split columns. Columns: run, two
@@ -59,7 +59,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), Fx.Garage(), Fx.Weights(),
+            graph, Fx.Data(graph), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
             Fx.Request([("plate", 1)], pins: new() { ["plate"] = "route2" }));
 
         var program = lp.Program!;
@@ -75,7 +75,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         var plan = Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("nope", 1)]));
+            graph, Fx.Data(graph), Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("nope", 1)]));
 
         Assert.Equal(FactoryPlanStatus.Failed, plan.Status);
         Assert.Contains(new FactoryWarning("target_unknown", "nope"), plan.Warnings);
@@ -91,7 +91,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         var plan = Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), Fx.Garage(defaultTier: 1), Fx.Weights(), Fx.Request([("ingot", 1)]));
+            graph, Fx.Data(graph), Fx.Costs(graph, Fx.Garage(defaultTier: 1)), Fx.Garage(defaultTier: 1), Fx.Weights(), Fx.Request([("ingot", 1)]));
 
         Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
         Assert.Contains(new FactoryWarning("unreachable_target", "ingot"), plan.Warnings);
@@ -107,7 +107,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph, new() { ["smelt"] = (100, 30, 2) }), Fx.Garage(), Fx.Weights(),
+            graph, Fx.Data(graph, new() { ["smelt"] = (100, 30, 2) }), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
             Fx.Request([("ingot", 1)], priority: [FactoryObjective.Machines, FactoryObjective.Resource]));
 
         var program = lp.Program!;
@@ -126,7 +126,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph, new() { ["smelt"] = (100, 30, 2) }), Fx.Garage(), Fx.Weights(),
+            graph, Fx.Data(graph, new() { ["smelt"] = (100, 30, 2) }), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
             Fx.Request([("ingot", 1)]));
 
         // kEU per run: 100 ticks × 30 EU/t × 2 A ÷ 1000.
@@ -145,7 +145,7 @@ public class PipelineSolverTests
         };
 
         var plan = Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph, new() { ["smelt"] = (40, 8, 1) }), Fx.Garage(), Fx.Weights(),
+            graph, Fx.Data(graph, new() { ["smelt"] = (40, 8, 1) }), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
             Fx.Request([("ingot", 2)]));
 
         Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
@@ -175,7 +175,7 @@ public class PipelineSolverTests
         };
 
         var plan = Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 1)]));
+            graph, Fx.Data(graph), Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 1)]));
 
         Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
         Assert.Contains(new FactoryWarning("infeasible", ""), plan.Warnings);

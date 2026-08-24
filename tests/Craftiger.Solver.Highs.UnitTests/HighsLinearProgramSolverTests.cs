@@ -60,12 +60,13 @@ public class HighsLinearProgramSolverTests
         var xFirst = solver.Solve(Build(xFirst: true));
         var yFirst = solver.Solve(Build(xFirst: false));
 
+        // Values sit within the layer tolerance of the lexicographic ideal, never exactly on it.
         Assert.Equal(LpSolveStatus.Optimal, xFirst.Status);
-        Assert.Equal(0, xFirst.ColumnValues[0], 6);
-        Assert.Equal(10, xFirst.ColumnValues[1], 6);
+        Assert.Equal(0, xFirst.ColumnValues[0], 4);
+        Assert.Equal(10, xFirst.ColumnValues[1], 4);
         Assert.Equal(LpSolveStatus.Optimal, yFirst.Status);
-        Assert.Equal(10, yFirst.ColumnValues[0], 6);
-        Assert.Equal(0, yFirst.ColumnValues[1], 6);
+        Assert.Equal(10, yFirst.ColumnValues[0], 4);
+        Assert.Equal(0, yFirst.ColumnValues[1], 4);
     }
 
     [Fact]
@@ -88,8 +89,8 @@ public class HighsLinearProgramSolverTests
         var result = new HighsLinearProgramSolver().Solve(program);
 
         Assert.Equal(LpSolveStatus.Optimal, result.Status);
-        Assert.Equal(8, result.ColumnValues[0], 5);
-        Assert.Equal(16, result.ColumnValues[1], 5);
+        Assert.Equal(8, result.ColumnValues[0], 4);
+        Assert.Equal(16, result.ColumnValues[1], 4);
     }
 
     [Fact]

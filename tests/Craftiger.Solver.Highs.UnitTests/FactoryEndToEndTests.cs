@@ -42,13 +42,20 @@ public class FactoryEndToEndTests
         FactoryRequest request,
         Dictionary<string, (long DurationTicks, long EuT, long Amps)>? data = null)
     {
+        var costSolver = new CostSolverService(
+            new LeafWeightService(),
+            new GarageLegalityService(Rules),
+            new SolverPreferences(["ingot", "gem", "dust", "nugget", "dust_small", "dust_tiny"]));
         var service = new PipelineSolverService(
-            new LeafWeightService(), new GarageLegalityService(Rules), new HighsLinearProgramSolver());
+            new LeafWeightService(), new GarageLegalityService(Rules), costSolver, new HighsLinearProgramSolver());
+        var garage = new Garage(0, new Dictionary<string, int?>(), new HashSet<string>(), new Dictionary<string, int>());
+        var weights = new WeightSettings(4, new Dictionary<string, double>());
         return service.Solve(
             graph,
             FactoryRecipeData.Build(graph.Index, data),
-            new Garage(0, new Dictionary<string, int?>(), new HashSet<string>(), new Dictionary<string, int>()),
-            new WeightSettings(4, new Dictionary<string, double>()),
+            costSolver.Solve(graph, garage, weights),
+            garage,
+            weights,
             request);
     }
 
@@ -226,8 +233,18 @@ public class FactoryEndToEndTests
             Produce([("ingot", 1)], priority: [FactoryObjective.Resource, FactoryObjective.Machines, FactoryObjective.Energy]),
             data);
 
-        Assert.Equal("slowCool", Assert.Single(energyFirst.Lines).RecipeId);
-        Assert.Equal("fastHot", Assert.Single(machinesFirst.Lines).RecipeId);
+        // The layer tolerance legitimately leaves a sub-percent sliver on the losing route;
+        // the winning route must carry effectively all of the flow.
+        static void AssertDominant(FactoryPlan plan, string recipeId)
+        {
+            var total = plan.Lines.Sum(l => l.RunsPerSecond);
+            var dominant = plan.Lines.MaxBy(l => l.RunsPerSecond)!;
+            Assert.Equal(recipeId, dominant.RecipeId);
+            Assert.True(dominant.RunsPerSecond >= total * 0.99);
+        }
+
+        AssertDominant(energyFirst, "slowCool");
+        AssertDominant(machinesFirst, "fastHot");
     }
 
     [Fact]

@@ -158,5 +158,8 @@ public sealed class SolveCacheTests : IDisposable
 
         public double Candidate(CostTable table, int recipe, string itemId) =>
             inner.Candidate(table, recipe, itemId);
+
+        public double Candidate(CostTable table, int recipe, int item) =>
+            inner.Candidate(table, recipe, item);
     }
 }

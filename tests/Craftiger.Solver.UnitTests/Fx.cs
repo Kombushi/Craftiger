@@ -67,7 +67,10 @@ internal static class Fx
     public static BomService Bom() => new(Legality());
 
     public static PipelineSolverService Pipeline(ILinearProgramSolver lp) =>
-        new(new LeafWeightService(), Legality(), lp);
+        new(new LeafWeightService(), Legality(), Solver(), lp);
+
+    public static CostTable Costs(SolverGraph graph, Garage? garage = null, WeightSettings? weights = null) =>
+        Solver().Solve(graph, garage ?? Garage(), weights ?? Weights());
 
     public static FactoryRecipeData Data(
         SolverGraph graph, Dictionary<string, (long DurationTicks, long EuT, long Amps)>? recipes = null) =>

@@ -10,4 +10,7 @@ public interface ICostSolverService
     /// <summary>One recipe's candidate cost for one of its outputs against solved costs,
     /// or +∞ where an input is unreachable.</summary>
     double Candidate(CostTable table, int recipe, string itemId);
+
+    /// <summary>The same by item position — the factory walk's hot path.</summary>
+    double Candidate(CostTable table, int recipe, int item);
 }

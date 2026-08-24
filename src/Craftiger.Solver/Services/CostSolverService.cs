@@ -121,6 +121,9 @@ public sealed class CostSolverService(
             ? Candidate(table.Index, recipe, item, table.CostArray)
             : double.PositiveInfinity;
 
+    public double Candidate(CostTable table, int recipe, int item) =>
+        Candidate(table.Index, recipe, item, table.CostArray);
+
     /// <summary>Every slot at its cheapest alternative, or +∞ when one has no known price.</summary>
     private static double SlotTotal(SolverIndex index, int recipe, double[] cost)
     {

@@ -191,16 +191,27 @@ machines-first plans max-clock — both are correct outcomes of §4.1's per-`k`
 columns. EBF heat OCs (÷4 duration, ×4 power) are energy-neutral and always
 taken.
 
-Mechanics: HiGHS has native lexicographic multi-objective support since 1.9
-— use it if the bundled binary qualifies (verify in phase 2); otherwise
-sequential solves on one live solver instance, fixing layer `j` as
-`obj_j ≤ z*_j + max(ε_abs, ε_rel·|z*_j|)` with stated tolerances,
-warm-started from the previous basis (HiGHS hot-starts modified LPs
-automatically). Normalize units at model build (seconds, kEU) — coefficient
-ranges here legitimately span `0.05` dust to `2 × 10⁷` EU/t and unscaled rows
-trip solver tolerances. Pin solver settings for determinism (single-threaded
-dual simplex, fixed seed); flow2 documented HiGHS presolve falsely reporting
-infeasibility on tight cap rows — disable presolve on capped layers.
+Mechanics (settled by measurement on the real artifact, phase 2): HiGHS's
+native lexicographic mode re-solves lower layers cold and measured minutes
+against seconds, so layers run as **sequential solves on one live instance**,
+fixing layer `j` as `obj_j ≤ z*_j + max(ε_abs, ε_rel·|z*_j|)` with
+`ε_abs = 10⁻⁶, ε_rel = 10⁻³` — tighter corridors broke the simplex numerics
+(postsolve solutions landed outside them and feasibility recovery never
+converged), and a 0.1 % layer trade is invisible in any displayed plan. Each
+layer **clears the solver state first so it presolves from scratch**: a
+hot-started basis skips presolve and dual simplex crawls on the full column
+space (warm primal starts were measured correct but 30× too slow). The
+adapter equilibrates the matrix with exact power-of-two row and column
+scales and normalizes each layer's cost vector to unit geometric mean —
+coefficient ranges legitimately span chanced yields to `2 × 10⁷` EU/t and
+unscaled models broke presolve–postsolve equivalence. The canonicalization
+layer runs **support-restricted** (columns at zero after the user's layers
+are fixed at zero): its full-space form is a maximally-degenerate all-ones
+objective that measured minutes, and cleaning churn within the chosen
+support is its whole job. Layer-tolerance slivers below 10⁻⁵ runs/s are
+reporting noise, not lines. Pin solver settings for determinism
+(single-threaded simplex, fixed seed); the whole-solve time budget flows
+down the layers as each one's remaining time.
 
 ### 4.4 Machines, overclocking, parallels
 
@@ -493,11 +504,19 @@ guard.
   artifact, the through-leaves closure of Polyethylene Bar is 32,118 items /
   164,695 producing recipes unfiltered and 28,641 / 133,687 at an HV garage;
   the tier filter barely bites because the blowup is low-tier (every
-  macerator and crafting route of every reachable material). Column counts
-  multiply further by the (machine, OC-step) factors. If measured solve
-  times exceed the budget, the fallback is cost-guided pruning — drop
-  candidate recipes far above the cost engine's solved route cost, at the
-  risk of missing byproduct synergies, flagged if ever enabled.
+  macerator and crafting route of every reachable material). That unpruned
+  LP (167,806 columns) broke the solver numerics — its matrix spans
+  `2 × 10⁻⁴` chanced yields to `2.1 × 10⁹` sentinel amounts and no scaling
+  rescued presolve — so **cost-guided pruning is enabled, not a fallback**:
+  the candidate walk drops recipes no output of which prices within 4× the
+  item's solved cost (+1 weight-unit floor for near-zero-priced items);
+  pinned recipes always survive, and any pruning flags the plan
+  (`routes_pruned`). Measured on PE Bar at an HV garage: 100,122 columns ×
+  15,186 rows, matrix range `8 × 10⁻³ … 3 × 10²`, and the full four-layer
+  lexicographic solve returns Optimal in ~9 s (resource 0.9 s, energy
+  3.3 s, machines 8.4 s cumulative, canonicalization instant), 96 active
+  columns. The traded-away routes are exotic byproduct synergies more than
+  4× off the cost optimum.
 - **Diagnostics** (three tiers, *never a bare "infeasible"*): (1) pre-LP
   checks reusing existing machinery — target outside the garage-legal
   closure → the existing `uncraftable`-style warning; energy target with no

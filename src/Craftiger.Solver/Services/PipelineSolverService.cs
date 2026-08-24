@@ -8,14 +8,31 @@ namespace Craftiger.Solver.Services;
 /// purchase variable per leaf; balance rows keep every item's net non-negative, with produce
 /// targets raising the bound. The candidate walk continues through leaf-class items — unlike
 /// the cost closure, which ends at leaves — because a factory may produce a leaf (every ingot
-/// is one) and buying is just the competing route the purchase variable prices.</summary>
+/// is one) and buying is just the competing route the purchase variable prices. The walk
+/// prunes recipes priced far above their outputs' solved costs: the unpruned closure reaches
+/// two thirds of the artifact and its LP broke the solver numerics, so exotic byproduct
+/// synergies beyond the band are traded for a model that solves — flagged on the plan.</summary>
 public sealed class PipelineSolverService(
     ILeafWeightService leafWeights,
     IGarageLegalityService legality,
+    ICostSolverService costSolver,
     ILinearProgramSolver solver) : IPipelineSolverService
 {
-    /// <summary>Below this, a rate is solver noise, not flow.</summary>
-    private const double RateEpsilon = 1e-8;
+    /// <summary>A candidate survives when some output prices within this factor of the item's
+    /// solved cost; the floor keeps cheap recipes for items priced near zero.</summary>
+    private const double PruneFactor = 4.0;
+
+    private const double PruneFloor = 1.0;
+
+    /// <summary>Below this, a rate is layer-tolerance noise, not flow: the lexicographic
+    /// slack legitimately leaves slivers up to roughly the relative tolerance behind.</summary>
+    private const double RateEpsilon = 1e-5;
+
+    /// <summary>Each layer's optimum binds the next within a tenth of a percent. Tighter
+    /// corridors are invisible in any displayed plan but broke the simplex numerics: postsolve
+    /// solutions landed outside them and feasibility recovery on the full model never
+    /// converged.</summary>
+    private const double LayerTolerance = 1e-3;
 
     private const double TicksPerSecond = 20.0;
 
@@ -33,6 +50,7 @@ public sealed class PipelineSolverService(
     public FactoryPlan Solve(
         SolverGraph graph,
         FactoryRecipeData recipes,
+        CostTable costs,
         Garage garage,
         WeightSettings weights,
         FactoryRequest request)
@@ -45,15 +63,17 @@ public sealed class PipelineSolverService(
             return Empty(FactoryPlanStatus.Failed, warnings);
         }
 
-        var candidates = CandidateRecipes(index, garage, targets.Keys);
+        var candidates = CandidateRecipes(index, costs, garage, targets.Keys, request.Pins, warnings);
+        var unreachable = false;
         foreach (var target in targets.Keys.Order())
         {
             if (!index.IsLeaf(target) && !candidates.Any(r => Produces(index, r, target)))
             {
                 warnings.Add(new FactoryWarning("unreachable_target", index.ItemIds[target]));
+                unreachable = true;
             }
         }
-        if (warnings.Count > 0)
+        if (unreachable)
         {
             return Empty(FactoryPlanStatus.Infeasible, warnings);
         }
@@ -108,10 +128,28 @@ public sealed class PipelineSolverService(
     }
 
     /// <summary>Garage-legal recipes upstream of the targets, walking producers through every
-    /// slot alternative and through leaves, in recipe position order.</summary>
-    private List<int> CandidateRecipes(SolverIndex index, Garage garage, IEnumerable<int> targets)
+    /// slot alternative and through leaves, in recipe position order. Recipes outside the
+    /// cost band are pruned before the walk recurses into them; pinned recipes always
+    /// survive.</summary>
+    private List<int> CandidateRecipes(
+        SolverIndex index,
+        CostTable costs,
+        Garage garage,
+        IEnumerable<int> targets,
+        IReadOnlyDictionary<string, string> pins,
+        List<FactoryWarning> warnings)
     {
+        var pinned = new HashSet<int>();
+        foreach (var recipeId in pins.Values)
+        {
+            if (index.TryGetRecipe(recipeId, out var pin))
+            {
+                pinned.Add(pin);
+            }
+        }
+
         var candidates = new HashSet<int>();
+        var rejected = new HashSet<int>();
         var seen = new HashSet<int>();
         var pending = new Stack<int>();
         foreach (var target in targets)
@@ -127,10 +165,17 @@ public sealed class PipelineSolverService(
             for (var p = index.ProducerStart[item]; p < index.ProducerStart[item + 1]; p++)
             {
                 var recipe = index.ProducerRecipe[p];
-                if (!legality.IsLegal(index, recipe, garage) || !candidates.Add(recipe))
+                if (candidates.Contains(recipe) || rejected.Contains(recipe)
+                    || !legality.IsLegal(index, recipe, garage))
                 {
                     continue;
                 }
+                if (!pinned.Contains(recipe) && !WithinCostBand(index, costs, recipe))
+                {
+                    rejected.Add(recipe);
+                    continue;
+                }
+                candidates.Add(recipe);
                 var start = index.AlternativeStart[index.SlotStart[recipe]];
                 var end = index.AlternativeStart[index.SlotStart[recipe + 1]];
                 for (var a = start; a < end; a++)
@@ -139,7 +184,26 @@ public sealed class PipelineSolverService(
                 }
             }
         }
+        if (rejected.Count > 0)
+        {
+            warnings.Add(new FactoryWarning("routes_pruned", ""));
+        }
         return [.. candidates.Order()];
+    }
+
+    /// <summary>Whether some output of the recipe prices within the band of its solved cost.</summary>
+    private bool WithinCostBand(SolverIndex index, CostTable costs, int recipe)
+    {
+        for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
+        {
+            var item = index.OutputItem[o];
+            if (costs.TryCost(item, out var solved)
+                && costSolver.Candidate(costs, recipe, item) <= PruneFactor * solved + PruneFloor)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool Produces(SolverIndex index, int recipe, int item)
@@ -355,7 +419,7 @@ public sealed class PipelineSolverService(
                     coefficients.Add(new LpEntry(c, coefficient));
                 }
             }
-            objectives.Add(new LpObjective(Maximize: false, coefficients));
+            objectives.Add(new LpObjective(Maximize: false, coefficients, RelTolerance: LayerTolerance));
         }
 
         var canonical = new List<LpEntry>();
@@ -366,7 +430,8 @@ public sealed class PipelineSolverService(
                 canonical.Add(new LpEntry(c, 1));
             }
         }
-        objectives.Add(new LpObjective(Maximize: false, canonical));
+        objectives.Add(new LpObjective(
+            Maximize: false, canonical, RelTolerance: LayerTolerance, SupportRestricted: true));
         return objectives;
     }
 
