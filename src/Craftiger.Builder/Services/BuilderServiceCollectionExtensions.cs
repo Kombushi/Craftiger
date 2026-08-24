@@ -28,6 +28,8 @@ public static class BuilderServiceCollectionExtensions
             .Configure<FuelsConfiguration>(configuration.GetSection(nameof(FuelsConfiguration)))
             .Configure<RenewableSeedsConfiguration>(
                 configuration.GetSection(nameof(RenewableSeedsConfiguration)))
+            .Configure<MachineOverlayConfiguration>(
+                configuration.GetSection(nameof(MachineOverlayConfiguration)))
             .AddSingleton<IDumpRepository, DumpRepository>()
             .AddSingleton<IPlannerRepository, PlannerRepository>()
             .AddSingleton<IUnificationService, UnificationService>()

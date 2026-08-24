@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.37
+# GTNH Crafting Planner — Specification v1.38
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -358,16 +358,23 @@ Builder responsibilities, in order:
 - `boiler_fuels(item_id, boiler, burn_seconds)` — how long one unit burns
   per large-boiler generation, parsed from the dump's burn-time text;
   "Not allowed" generations ship no row
-- `machine_items(map, item_id, tier NULL, multiblock, steam)` — every machine
-  block serving a recipe map, the per-block flip side of `machine_eras`; rate
-  planning picks the serving block per recipe from here
+- `machine_items(map, item_id, tier NULL, multiblock, steam, era NULL)` —
+  every machine block serving a recipe map, the per-block flip side of
+  `machine_eras`; rate planning picks the serving block per recipe from here.
+  `era` is the block item's own craftability era where the era solve reached
+  it. Blocks whose tooltip carries GT's rigid deprecation banner are
+  superseded controllers and never ship
 - `machine_props(item_id, era NULL, generator_efficiency NULL, generator_eu_t
   NULL, generator_amps NULL, dynamo_eu_t NULL, dynamo_amps NULL, max_parallel
-  NULL, boiler_eu_t NULL)` — rate-planning stats of one machine block, merged
+  NULL, boiler_eu_t NULL, rotor_turbine)` — rate-planning stats of one
+  machine block, merged
   from the dump's generator, dynamo hatch, large boiler, and multiblock
-  exports; `era` is the block's own craftability era where the era solve
-  reached it. Only blocks carrying signal ship a row — a bonus-less
-  multiblock at one parallel is the model's default
+  exports, plus the builder's curated machine overlay (tooltip-prose
+  constants audited in game: the XL turbo turbines' parallel factor, and
+  `rotor_turbine` marking rotor-driven controllers); `era` is the block's
+  own craftability era where the era solve reached it. Only blocks carrying
+  signal ship a row — a bonus-less multiblock at one parallel is the
+  model's default
 - `machine_bonuses(item_id, kind, bonus, multiplicative, tier_axis NULL)` —
   a multiblock's typed parallel/speed/EU bonus lines; `bonus` is the
   displayed number (220 for "220 % Speed"), `tier_axis` the scaling axis

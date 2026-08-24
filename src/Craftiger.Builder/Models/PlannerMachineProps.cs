@@ -11,4 +11,5 @@ public sealed record PlannerMachineProps(
     long? DynamoEuT,
     long? DynamoAmps,
     int? MaxParallel,
-    int? BoilerEuT);
+    int? BoilerEuT,
+    bool RotorTurbine = false);

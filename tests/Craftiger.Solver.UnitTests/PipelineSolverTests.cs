@@ -402,4 +402,31 @@ public class PipelineSolverTests
             Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("meal", 1)], mobFarms: true));
         Assert.Empty(lp.Program!.Objectives[0].Coefficients);
     }
+
+    [Fact]
+    public void DominatedRotorsStayOffTheFrontier()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("benzene", weight: 1), Fx.Leaf("rotor-a", weight: 5), Fx.Leaf("rotor-b", weight: 5)]);
+        var machines = Fx.Machines(
+            new() { ["Gas Turbine Fuel"] = [Fx.Block("lgt", multiblock: true, rotorTurbine: true)] },
+            fuels: [new FactoryFuel("Gas Turbine Fuel", "benzene", 1, 360, null, null)],
+            rotors:
+            [
+                new FactoryRotorStats("rotor-a", "GAS", 0.80, 0.40, 1000, 1200, 800, 480),
+                new FactoryRotorStats("rotor-b", "GAS", 0.75, 0.35, 900, 1100, 675, 385),
+            ],
+            dynamos: [new FactoryDynamo("dyn", 0, 32768, 4)]);
+        var lp = new RecordingLpSolver();
+
+        Fx.Pipeline(lp).Solve(
+            graph, Fx.Data(graph), machines, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 100)],
+                [], new Dictionary<string, string>()));
+
+        // Two fits of the dominating rotor plus the fuel purchase; the rotor beaten on both
+        // axes at both fits adds no column.
+        Assert.Equal(3, lp.Program!.Columns.Count);
+    }
 }

@@ -9,7 +9,7 @@ public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader
     /// can refuse an artifact written for a contract it does not know.</summary>
-    public const int SchemaVersion = 9;
+    public const int SchemaVersion = 10;
 
     public void Write(string path, PlannerData data)
     {
@@ -93,6 +93,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 tier INTEGER,
                 multiblock INTEGER NOT NULL,
                 steam INTEGER NOT NULL,
+                era INTEGER,
                 UNIQUE(map, item_id));
             CREATE TABLE machine_props(
                 item_id TEXT PRIMARY KEY,
@@ -103,7 +104,8 @@ public sealed class PlannerRepository : IPlannerRepository
                 dynamo_eu_t INTEGER,
                 dynamo_amps INTEGER,
                 max_parallel INTEGER,
-                boiler_eu_t INTEGER);
+                boiler_eu_t INTEGER,
+                rotor_turbine INTEGER NOT NULL);
             CREATE TABLE machine_bonuses(
                 item_id TEXT NOT NULL,
                 kind TEXT NOT NULL,
@@ -224,18 +226,25 @@ public sealed class PlannerRepository : IPlannerRepository
         db.Execute("INSERT INTO boiler_fuels VALUES (@ItemId, @Boiler, @BurnSeconds)",
             data.Fuels.BoilerFuels, tx);
 
-        db.Execute("INSERT INTO machine_items VALUES (@Map, @ItemId, @Tier, @Multiblock, @Steam)",
+        db.Execute("INSERT INTO machine_items VALUES (@Map, @ItemId, @Tier, @Multiblock, @Steam, @Era)",
             data.MachineProps.MachineItems.Select(m => new
             {
                 m.Map, m.ItemId, m.Tier,
                 Multiblock = m.Multiblock ? 1 : 0,
                 Steam = m.Steam ? 1 : 0,
+                m.Era,
             }), tx);
 
         db.Execute(
             "INSERT INTO machine_props VALUES (@ItemId, @Era, @GeneratorEfficiency, " +
-            "@GeneratorEuT, @GeneratorAmps, @DynamoEuT, @DynamoAmps, @MaxParallel, @BoilerEuT)",
-            data.MachineProps.Props, tx);
+            "@GeneratorEuT, @GeneratorAmps, @DynamoEuT, @DynamoAmps, @MaxParallel, @BoilerEuT, " +
+            "@RotorTurbine)",
+            data.MachineProps.Props.Select(p => new
+            {
+                p.ItemId, p.Era, p.GeneratorEfficiency, p.GeneratorEuT, p.GeneratorAmps,
+                p.DynamoEuT, p.DynamoAmps, p.MaxParallel, p.BoilerEuT,
+                RotorTurbine = p.RotorTurbine ? 1 : 0,
+            }), tx);
 
         db.Execute(
             "INSERT INTO machine_bonuses VALUES (@ItemId, @Kind, @Bonus, @Multiplicative, @TierAxis)",

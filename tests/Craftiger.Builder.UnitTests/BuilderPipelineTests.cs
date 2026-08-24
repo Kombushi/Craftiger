@@ -215,6 +215,25 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
             "SELECT COUNT(*) FROM machine_items WHERE map = 'Blast Furnace' AND multiblock = 1"));
 
     [Fact]
+    public void DeprecatedControllersNeverShipAsMachineBlocks()
+    {
+        Assert.Equal(0, fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM machine_items WHERE item_id = '{FixtureDump.DeadTurbine}'"));
+        Assert.Equal(2, fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM machine_items WHERE map = 'Gas Turbine Fuel'"));
+    }
+
+    [Fact]
+    public void OverlayParallelsLandInMachineProps() =>
+        Assert.Equal(16, fixture.Scalar<int>(
+            $"SELECT max_parallel FROM machine_props WHERE item_id = '{FixtureDump.XlTurbine}'"));
+
+    [Fact]
+    public void MachineItemsCarryTheirOwnEra() =>
+        Assert.Equal(1, fixture.Scalar<int>(
+            "SELECT EXISTS(SELECT 1 FROM machine_items WHERE era IS NOT NULL)"));
+
+    [Fact]
     public void BoilerBurnTimesParsePerGenerationAndSkipNotAllowed()
     {
         Assert.Equal(2.0, fixture.Scalar<double>(

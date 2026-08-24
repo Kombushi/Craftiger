@@ -299,6 +299,26 @@ builder synthesizes **generator pseudo-recipes** per (generator item, fuel):
   `min(EUt/5, EUt^0.6)/2000` per tick would give a rotors-consumed rate if
   ever wanted). The Large Steam Turbine returns 1 L distilled water per
   160 L steam.
+
+  Shipped mechanics (gas and plasma; steam rides the steam carrier):
+  requires schema v10 — `machine_items.era` closes the era gap so turbine
+  controllers gate on their own craftability, deprecated superseded
+  controllers (GT's rigid `§4DEPRECATED` banner, 76 blocks) never ship, and
+  a curated overlay flags the rotor-driven controllers (`rotor_turbine` —
+  the dump cannot tell a Large Gas Turbine from the Universal Chemical Fuel
+  Engine on the same map) and the XL turbos' 16× throughput. One generator
+  column per (controller, frontier rotor, fit): craftable = priced by the
+  cost table, and the Pareto frontier on (efficiency, output) is judged
+  **under the dynamo cap** — measured on the real artifact, raw stats let
+  monster endgame rotors (~896k EU/t optimal) dominate every frontier, and
+  capped to an HV hatch they burn ~50,000 mB/s for 2,032 net EU/t, so every
+  turbine variant priced 1,760× off the pool optimum and pruning erased the
+  feature; capped judging keeps the modest high-efficiency rotors (51
+  variants survive at the HV bench garage). Each variant picks the hatch
+  that nets the most — capacity caps with voiding, the per-amp Enet loss
+  rises with hatch tier, amps ≤ 4 for large turbines and unrestricted for
+  the multi-amp XLs — and the fit enters as two competing variants until
+  the per-line user toggle pins one.
 - **RTGs and naquadah reactors**: RTG pellets burn at a fixed EU/t (the
   recipe's VOLTAGE column) for a fixed lifetime — the special value is the
   burn time in years (Po Pellet: 1 → 365 Minecraft days at 480 EU/t) — so a

@@ -288,7 +288,7 @@ public class FactoryEndToEndTests
                 ["Crafting Table"] = [new FactoryMachineBlock("mac-hv", 3, false, false, 3, 1, [])],
             },
             [],
-            []);
+            [], [], []);
         var data = new Dictionary<string, (long, long, long)> { ["smelt"] = (160, 4, 1) };
 
         var energyFirst = Solve(
@@ -316,7 +316,7 @@ public class FactoryEndToEndTests
                 ["Crafting Table"] = [new FactoryMachineBlock("multi", null, true, false, 0, 4, [])],
             },
             [],
-            []);
+            [], [], []);
 
         var plan = Solve(
             graph, Produce([("ingot", 1)]),
@@ -347,7 +347,7 @@ public class FactoryEndToEndTests
                 ],
             },
             [],
-            [new FactoryFuel("Gas Turbine Fuel", "benzene", 1, 360, null, null)]);
+            [new FactoryFuel("Gas Turbine Fuel", "benzene", 1, 360, null, null)], [], []);
 
         var plan = Solve(
             graph,
@@ -381,7 +381,7 @@ public class FactoryEndToEndTests
                 ],
             },
             [],
-            [new FactoryFuel("Rtg", "pellet", 1, null, 480, 2000)]);
+            [new FactoryFuel("Rtg", "pellet", 1, null, 480, 2000)], [], []);
 
         var plan = Solve(
             graph,
@@ -413,7 +413,7 @@ public class FactoryEndToEndTests
                 ],
             },
             [],
-            [new FactoryFuel("Gen", "fuel", 1, 100, null, null)]);
+            [new FactoryFuel("Gen", "fuel", 1, 100, null, null)], [], []);
 
         var plan = Solve(
             graph,
@@ -583,5 +583,148 @@ public class FactoryEndToEndTests
         Assert.Contains(new FactoryWarning("pin_illegal", "t"), plan.Warnings);
         Assert.Contains(new FactoryWarning("pin_conflict", "t"), plan.Warnings);
         Assert.DoesNotContain(plan.Warnings, w => w.Kind.StartsWith("infeasible"));
+    }
+
+    private static FactoryMachineData Turbines(
+        FactoryMachineBlock block,
+        FactoryDynamo dynamo,
+        params FactoryRotorStats[] rotors) =>
+        new(
+            new Dictionary<string, IReadOnlyList<FactoryMachineBlock>> { ["Gas Turbine Fuel"] = [block] },
+            [],
+            [new FactoryFuel("Gas Turbine Fuel", "benzene", 1, 360, null, null)],
+            rotors,
+            [dynamo]);
+
+    private static FactoryRotorStats Rotor(
+        string itemId,
+        double efficiency, double flow, double looseEfficiency = 0.4, double looseFlow = 0) =>
+        new(
+            itemId, "GAS", efficiency, looseEfficiency, flow, looseFlow,
+            efficiency * flow, looseEfficiency * looseFlow);
+
+    [Fact]
+    public void TurbineRunsAtOptimalFlowCappedByDynamo()
+    {
+        // Raw 2700 EU/t caps at the HV hatch's 4 x 512, then loses 4 EU per emitted amp;
+        // the fuel still burns at full optimal flow — capped excess is voided, not saved.
+        // The unpriced rotor never spins.
+        var graph = SolverGraph.Build(
+            [Leaf("benzene", weight: 1), Leaf("rotor-a", weight: 5)],
+            []);
+        var machines = Turbines(
+            new FactoryMachineBlock("lgt", null, true, false, 0, 1, [], RotorTurbine: true),
+            new FactoryDynamo("dyn-hv", 0, 512, 4),
+            Rotor("rotor-a", 0.75, 3600, looseEfficiency: 0.70, looseFlow: 4000),
+            Rotor("rotor-x", 0.99, 9000));
+
+        var plan = Solve(
+            graph,
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 2032)],
+                [], new Dictionary<string, string>()),
+            machines: machines);
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        // The layer corridor leaves a sub-percent sliver on the losing fit.
+        var line = plan.Lines.MaxBy(l => l.RunsPerSecond)!;
+        Assert.EndsWith("|rotor-a|tight", line.RecipeId);
+        Assert.True(line.RunsPerSecond >= plan.Lines.Sum(l => l.RunsPerSecond) * 0.99);
+        Assert.DoesNotContain(plan.Lines, l => l.RecipeId.Contains("rotor-x"));
+        Assert.Equal(2032, plan.ExportEuT, 1e-4);
+        Assert.Equal(200, Assert.Single(plan.Inflows, i => i.ItemId == "benzene").Rate, 0.5);
+    }
+
+    [Fact]
+    public void TurbineFitIsASolverChoice()
+    {
+        // Uncapped, the tight fit burns less fuel per EU and the loose fit makes more EU per
+        // machine — the priority order decides which one spins.
+        var graph = SolverGraph.Build(
+            [Leaf("benzene", weight: 1), Leaf("rotor-a", weight: 5)],
+            []);
+        var machines = Turbines(
+            new FactoryMachineBlock("lgt", null, true, false, 0, 1, [], RotorTurbine: true),
+            new FactoryDynamo("dyn-luv", 0, 32768, 4),
+            Rotor("rotor-a", 0.80, 1000, looseEfficiency: 0.40, looseFlow: 2500));
+
+        var thrifty = Solve(
+            graph,
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 500)],
+                [], new Dictionary<string, string>()),
+            machines: machines);
+        var compact = Solve(
+            graph,
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 500)],
+                [FactoryObjective.Machines, FactoryObjective.Resource, FactoryObjective.Energy],
+                new Dictionary<string, string>()),
+            machines: machines);
+
+        static void AssertDominantFit(FactoryPlan plan, string fit)
+        {
+            var dominant = plan.Lines.MaxBy(l => l.RunsPerSecond)!;
+            Assert.EndsWith(fit, dominant.RecipeId);
+            Assert.True(dominant.RunsPerSecond >= plan.Lines.Sum(l => l.RunsPerSecond) * 0.99);
+        }
+
+        AssertDominantFit(thrifty, "|tight");
+        AssertDominantFit(compact, "|loose");
+    }
+
+    [Fact]
+    public void CapAwareFrontierKeepsTheModestRotor()
+    {
+        // Raw stats let the monster rotor dominate everything, then the cap makes it burn
+        // 50x the fuel for the same emitted EU — the frontier must judge under the cap, or
+        // no turbine survives pruning at all.
+        var graph = SolverGraph.Build(
+            [Leaf("benzene", weight: 1), Leaf("modest", weight: 5), Leaf("monster", weight: 5)],
+            []);
+        var machines = Turbines(
+            new FactoryMachineBlock("lgt", null, true, false, 0, 1, [], RotorTurbine: true),
+            new FactoryDynamo("dyn-hv", 0, 512, 4),
+            Rotor("modest", 0.90, 2000),
+            Rotor("monster", 2.0, 100000));
+
+        var plan = Solve(
+            graph,
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 1500)],
+                [], new Dictionary<string, string>()),
+            machines: machines);
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        var line = plan.Lines.MaxBy(l => l.RunsPerSecond)!;
+        Assert.Contains("|modest|", line.RecipeId);
+        Assert.True(line.RunsPerSecond >= plan.Lines.Sum(l => l.RunsPerSecond) * 0.99);
+    }
+
+    [Fact]
+    public void XlTurbineFoldsItsThroughputIntoOneController()
+    {
+        // Parallels 16 multiply flow and output per controller, and the XL takes the
+        // multi-amp hatch a large turbine must refuse.
+        var graph = SolverGraph.Build(
+            [Leaf("benzene", weight: 1), Leaf("rotor-a", weight: 5)],
+            []);
+        var machines = Turbines(
+            new FactoryMachineBlock("xlgt", null, true, false, 0, 16, [], RotorTurbine: true),
+            new FactoryDynamo("dyn-16a", 0, 512, 16),
+            Rotor("rotor-a", 0.75, 133.33333333333334));
+
+        var plan = Solve(
+            graph,
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Energy, null, 1587.5)],
+                [], new Dictionary<string, string>()),
+            machines: machines);
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        var line = Assert.Single(plan.Lines);
+        Assert.Equal(1, line.RunsPerSecond, 1e-4);
+        Assert.Equal(1, line.BusyMachines, 1e-4);
+        Assert.Equal(1587.5, plan.ExportEuT, 1e-4);
     }
 }

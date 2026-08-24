@@ -40,6 +40,15 @@ public sealed class PipelineSolverService(
 
     private const double TicksPerSecond = 20.0;
 
+    /// <summary>Fuel maps whose multiblocks are rotor-driven large turbines, and the fuel
+    /// class their rotor stat rows use. Steam turbines join with the steam carrier.</summary>
+    private static readonly IReadOnlyDictionary<string, string> TurbineFuelClasses =
+        new Dictionary<string, string>
+        {
+            ["Gas Turbine Fuel"] = "GAS",
+            ["Plasma Generator Fuels"] = "PLASMA",
+        };
+
     private enum ColumnKind
     {
         Run,
@@ -198,7 +207,8 @@ public sealed class PipelineSolverService(
     }
 
     /// <summary>One garage-legal way to burn a fuel: a generator block and the fuel it turns
-    /// into EU, with per-machine consumption and net output after the Enet transfer loss.</summary>
+    /// into EU, with per-machine consumption and net output after the Enet transfer loss.
+    /// Turbine lines also carry the rotor they spin and its fit.</summary>
     private sealed record GeneratorVariant(
         string Map,
         string BlockItemId,
@@ -206,13 +216,17 @@ public sealed class PipelineSolverService(
         string FuelItemId,
         int FuelItem,
         double UnitsPerSecond,
-        double NetEuT);
+        double NetEuT,
+        string? RotorItemId = null,
+        bool Loose = false);
 
     /// <summary>Every (eligible generator block, fuel) pair, in map, block, fuel order.
     /// Standard fuels burn at the block's full output; timed fuels burn at their fixed EU/t
-    /// over their lifetime. Output loses <c>2^max(0, tier−1)</c> EU per amp emitted. Pairs
-    /// far above the cheapest fuel weight per net EU/t are pruned the way recipes are — each
-    /// quality band keeps its own cheapest qualifying pairs, so a tier demand never starves.</summary>
+    /// over their lifetime; large turbines spin every Pareto-best craftable rotor at each
+    /// fit's optimal flow, capped by the best garage-legal dynamo hatch. Output loses
+    /// <c>2^max(0, tier−1)</c> EU per amp emitted. Pairs far above the cheapest fuel weight
+    /// per net EU/t are pruned the way recipes are — each quality band keeps its own
+    /// cheapest qualifying pairs, so a tier demand never starves.</summary>
     private List<GeneratorVariant> EligibleGenerators(
         SolverIndex index,
         FactoryMachineData machines,
@@ -221,6 +235,7 @@ public sealed class PipelineSolverService(
         IReadOnlyList<(int Tier, double Rate)> bands)
     {
         var variants = new List<GeneratorVariant>();
+        var frontiers = new Dictionary<(string Fuel, bool Loose, double Cap), List<FactoryRotorStats>>();
         foreach (var fuel in machines.Fuels
             .OrderBy(f => f.Map, StringComparer.Ordinal)
             .ThenBy(f => f.ItemId, StringComparer.Ordinal))
@@ -232,10 +247,24 @@ public sealed class PipelineSolverService(
             }
             foreach (var block in blocks.OrderBy(b => b.ItemId, StringComparer.Ordinal))
             {
-                if (block.Steam || block.Multiblock
-                    || block.Era is not { } era || era > garage.DefaultTier
-                    || block.Tier is not { } tier
-                    || block.GeneratorEuT is not { } outEuT)
+                if (block.Steam || block.Era is not { } era || era > garage.DefaultTier)
+                {
+                    continue;
+                }
+                if (block.Multiblock)
+                {
+                    if (block.RotorTurbine
+                        && TurbineFuelClasses.TryGetValue(fuel.Map, out var fuelClass)
+                        && fuel.EuPerUnit is { } perUnit && perUnit > 0
+                        && costs.TryCost(fuelItem, out _))
+                    {
+                        AddTurbineVariants(
+                            variants, index, machines, garage, costs, frontiers,
+                            fuel, fuelItem, block, fuelClass, perUnit);
+                    }
+                    continue;
+                }
+                if (block.Tier is not { } tier || block.GeneratorEuT is not { } outEuT)
                 {
                     continue;
                 }
@@ -268,6 +297,140 @@ public sealed class PipelineSolverService(
             }
         }
         return PruneGenerators(variants, costs, bands);
+    }
+
+    /// <summary>One turbine line per rotor on the fuel class's Pareto frontier at each fit,
+    /// running at that rotor's optimal flow — off-optimal is strictly worse and excluded.
+    /// Per-machine numbers fold the block's parallel factor in (the XL turbos run sixteen
+    /// large turbines' throughput as one controller).</summary>
+    private static void AddTurbineVariants(
+        List<GeneratorVariant> variants,
+        SolverIndex index,
+        FactoryMachineData machines,
+        Garage garage,
+        CostTable costs,
+        Dictionary<(string Fuel, bool Loose, double Cap), List<FactoryRotorStats>> frontiers,
+        FactoryFuel fuel,
+        int fuelItem,
+        FactoryMachineBlock block,
+        string fuelClass,
+        double perUnit)
+    {
+        var parallels = (double)Math.Max(1, block.MaxParallel);
+        var capPerRotor = HatchCapacity(machines, garage, multiAmp: parallels > 1) / parallels;
+        if (capPerRotor <= 0)
+        {
+            return;
+        }
+        foreach (var loose in new[] { false, true })
+        {
+            if (!frontiers.TryGetValue((fuelClass, loose, capPerRotor), out var frontier))
+            {
+                frontier = RotorFrontier(index, machines, costs, fuelClass, loose, capPerRotor);
+                frontiers[(fuelClass, loose, capPerRotor)] = frontier;
+            }
+            foreach (var stats in frontier)
+            {
+                var flow = loose ? stats.LooseOptimalFlow : stats.OptimalFlow;
+                var output = loose ? stats.LooseOptimalEut : stats.OptimalEut;
+                if (BestHatch(machines, garage, output * parallels, multiAmp: parallels > 1)
+                    is not { } hatch || hatch.NetEuT <= 0)
+                {
+                    continue;
+                }
+                variants.Add(new GeneratorVariant(
+                    fuel.Map, block.ItemId, hatch.Tier, fuel.ItemId, fuelItem,
+                    flow / perUnit * TicksPerSecond * parallels, hatch.NetEuT,
+                    stats.ItemId, loose));
+            }
+        }
+    }
+
+    /// <summary>Craftable rotors not dominated on (efficiency, output) for the fuel class at
+    /// the fit, both measured against the hatch capacity: a capped rotor still burns its
+    /// full optimal flow, so raw stats made monster rotors dominate everything while netting
+    /// worst-in-pool fuel economy. A rotor beaten on both capped axes serves no objective.</summary>
+    private static List<FactoryRotorStats> RotorFrontier(
+        SolverIndex index,
+        FactoryMachineData machines,
+        CostTable costs,
+        string fuelClass,
+        bool loose,
+        double cap)
+    {
+        var craftable = machines.Rotors
+            .Where(r => r.Fuel == fuelClass
+                && index.TryGetItem(r.ItemId, out var item) && costs.TryCost(item, out _))
+            .OrderBy(r => r.ItemId, StringComparer.Ordinal)
+            .ToList();
+
+        double Out(FactoryRotorStats r) => Math.Min(loose ? r.LooseOptimalEut : r.OptimalEut, cap);
+        double Eff(FactoryRotorStats r)
+        {
+            var raw = loose ? r.LooseOptimalEut : r.OptimalEut;
+            return raw <= 0 ? 0 : (loose ? r.LooseEfficiency : r.Efficiency) * Out(r) / raw;
+        }
+
+        return
+        [
+            .. craftable.Where(rotor => !craftable.Any(other =>
+                other != rotor
+                && Eff(other) >= Eff(rotor) && Out(other) >= Out(rotor)
+                && (Eff(other) > Eff(rotor) || Out(other) > Out(rotor)
+                    || string.CompareOrdinal(other.ItemId, rotor.ItemId) < 0))),
+        ];
+    }
+
+    /// <summary>The largest voltage-times-amps a garage-legal hatch offers the line.</summary>
+    private static double HatchCapacity(FactoryMachineData machines, Garage garage, bool multiAmp)
+    {
+        var capacity = 0.0;
+        foreach (var hatch in machines.Dynamos)
+        {
+            if (hatch.Era is not { } era || era > garage.DefaultTier
+                || (!multiAmp && hatch.Amps > 4))
+            {
+                continue;
+            }
+            capacity = Math.Max(capacity, (double)hatch.EuT * hatch.Amps);
+        }
+        return capacity;
+    }
+
+    /// <summary>The dynamo hatch that nets the most: capacity caps the line (excess is
+    /// voided) while the Enet loss per amp emitted rises with hatch tier. Large turbines
+    /// accept one hatch of at most four amps; the XL turbos take multi-amp hatches.</summary>
+    private static (double NetEuT, int Tier)? BestHatch(
+        FactoryMachineData machines, Garage garage, double rawEuT, bool multiAmp)
+    {
+        (double NetEuT, int Tier)? best = null;
+        foreach (var hatch in machines.Dynamos.OrderBy(d => d.ItemId, StringComparer.Ordinal))
+        {
+            if (hatch.Era is not { } era || era > garage.DefaultTier
+                || (!multiAmp && hatch.Amps > 4))
+            {
+                continue;
+            }
+            var capped = Math.Min(rawEuT, (double)hatch.EuT * hatch.Amps);
+            var tier = TierOfVoltage(hatch.EuT);
+            var net = capped - Math.Pow(2, Math.Max(0, tier - 1)) * (capped / hatch.EuT);
+            if (best is null || net > best.Value.NetEuT)
+            {
+                best = (net, tier);
+            }
+        }
+        return best;
+    }
+
+    /// <summary>The GT ladder position of a voltage: <c>V = 8·4^tier</c>.</summary>
+    private static int TierOfVoltage(long voltage)
+    {
+        var tier = 0;
+        while (voltage > 8L << (2 * tier) && tier < 14)
+        {
+            tier++;
+        }
+        return tier;
     }
 
     /// <summary>Keeps pairs within the cost band of the cheapest fuel weight per net EU/t —
@@ -1303,8 +1466,11 @@ public sealed class PipelineSolverService(
                     exportEuT += generator.NetEuT * value;
                     busyMachines += value;
                     // Item ids contain '~', so the synthetic id uses '|' as its separator.
+                    var lineId = generator.RotorItemId is { } rotor
+                        ? $"generator|{generator.BlockItemId}|{generator.FuelItemId}|{rotor}|{(generator.Loose ? "loose" : "tight")}"
+                        : $"generator|{generator.BlockItemId}|{generator.FuelItemId}";
                     lines.Add(new FactoryLine(
-                        $"generator|{generator.BlockItemId}|{generator.FuelItemId}",
+                        lineId,
                         generator.Map,
                         generator.BlockItemId,
                         value,

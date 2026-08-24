@@ -7,10 +7,12 @@ namespace Craftiger.Solver.Models;
 public sealed record FactoryMachineData(
     IReadOnlyDictionary<string, IReadOnlyList<FactoryMachineBlock>> BlocksByMap,
     IReadOnlyList<FactoryCoil> Coils,
-    IReadOnlyList<FactoryFuel> Fuels)
+    IReadOnlyList<FactoryFuel> Fuels,
+    IReadOnlyList<FactoryRotorStats> Rotors,
+    IReadOnlyList<FactoryDynamo> Dynamos)
 {
     public static readonly FactoryMachineData Empty =
-        new(new Dictionary<string, IReadOnlyList<FactoryMachineBlock>>(), [], []);
+        new(new Dictionary<string, IReadOnlyList<FactoryMachineBlock>>(), [], [], [], []);
 
     /// <summary>The installed coil's tier on a map, zero without coils.</summary>
     public int CoilTier(Garage garage, string machine)

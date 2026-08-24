@@ -58,6 +58,9 @@ public static class FixtureDump
     public const string BerryIngot = "i~gregtech~gt.metaitem.01~11044";
     public const string ChoiceBrick = "i~miscutils~choiceBrick~0";
     public const string WirelessIngot = "i~gregtech~gt.metaitem.01~11666";
+    public const string DeadTurbine = "i~gregtech~gt.blockmachines~7001";
+    public const string LiveTurbine = "i~gregtech~gt.blockmachines~7002";
+    public const string XlTurbine = "i~gregtech~gt.blockmachines~15522";
     public const string DualOreOw = "i~gregtech~gt.blockores~555";
     public const string DualOreMars = "i~gregtech~gt.blockores3~555";
     public const string DualDust = "i~gregtech~gt.metaitem.01~2555";
@@ -593,7 +596,9 @@ public static class FixtureDump
         RecipeMap(db, "gt.recipe.dearmixer", "Dear Mixer", [(MixerLv, false, 1, false), (DearStack, true, null, false)]);
         // The fuel flag alone drops the tab; the machine name says nothing about fuels.
         RecipeMap(db, "gt.recipe.largeboilerfakefuels", "Large Boiler", [], isFuel: true);
-        RecipeMap(db, "gt.recipe.gasturbinefuel", "Gas Turbine Fuel", [], isFuel: true);
+        RecipeMap(db, "gt.recipe.gasturbinefuel", "Gas Turbine Fuel",
+            [(DeadTurbine, true, null, false), (LiveTurbine, true, null, false), (XlTurbine, true, null, false)],
+            isFuel: true);
         RecipeMap(db, "gtpp.recipe.RTGgenerators", "RTG", [], isFuel: true);
         RecipeMap(db, "gg.recipe.naquadah_reactor", "Large Naquadah Reactor", [], isFuel: true);
         RecipeMap(db, "gt.recipe.semifluidboilerfuels", "Semifluid Boiler", [], isFuel: true);
@@ -650,6 +655,10 @@ public static class FixtureDump
         // Machine stat tables: a generator, a dynamo, a boiler, the EBF's bonuses, one rotor.
         Item(db, "i~fixture~gas_turbine", "Fixture Gas Turbine", "fixture");
         db.Execute("INSERT INTO GREG_TECH_GENERATOR VALUES ('gtgen~1', 1, 95, 32, 'i~fixture~gas_turbine')");
+        Item(db, DeadTurbine, "Large Gas Turbine", "gregtech");
+        db.Execute($"INSERT INTO ITEM_TOOLTIP VALUES ('{DeadTurbine}', '\u00a74DEPRECATED - Controller will be removed in next major update!', 1)");
+        Item(db, LiveTurbine, "Large Gas Turbine", "gregtech");
+        Item(db, XlTurbine, "XL Turbo Gas Turbine", "gregtech");
         Item(db, "i~fixture~dynamo", "Fixture Dynamo Hatch", "fixture");
         db.Execute("INSERT INTO GREG_TECH_DYNAMO VALUES ('gtdyn~1', 4, 512, 8192, 'i~fixture~dynamo')");
         Item(db, "i~fixture~boiler", "Fixture Large Boiler", "fixture");

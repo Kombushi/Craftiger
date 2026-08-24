@@ -49,6 +49,10 @@ public sealed class Dump
 
     /// <summary>Distinct drops of soul-vial-capturable mobs: what an auto mob farm yields.</summary>
     public required HashSet<string> MobDropItemIds { get; init; }
+
+    /// <summary>Items whose tooltip carries GT's rigid deprecation banner — superseded
+    /// machine controllers among them never ship as machine blocks.</summary>
+    public required HashSet<string> DeprecatedItems { get; init; }
     public required string ExporterVersion { get; init; }
     public required DateTimeOffset ExportedAt { get; init; }
 

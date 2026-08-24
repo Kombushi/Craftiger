@@ -363,6 +363,7 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             MultiblockMachines = ReadMultiblockMachines(db),
             TurbineRotors = ReadTurbineRotors(db),
             MobDropItemIds = ReadMobDropItemIds(db),
+            DeprecatedItems = ReadDeprecatedItems(db),
             ExporterVersion = metadata.Version ?? "unknown",
             ExportedAt = DateTimeOffset.FromUnixTimeMilliseconds(metadata.CreatedMillis)
         };
@@ -438,6 +439,28 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             """).Select(r => new DumpTurbineRotor(
             r.ItemId, r.Size, r.Material, r.Durability, r.BaseEfficiency, (int)r.Overflow,
             stats.GetValueOrDefault(r.Id) ?? []))];
+    }
+
+    /// <summary>Items marked with GT's deprecation banner — a rigid tooltip line, not prose:
+    /// every machine-block match in the 2.9.0 dump is the same "superseded controller" wave.</summary>
+    private static HashSet<string> ReadDeprecatedItems(SqliteConnection db)
+    {
+        var deprecated = new HashSet<string>();
+        foreach (var (itemId, tooltip) in db.Query<(string, string)>(
+            """SELECT ITEM_ID, TOOLTIP FROM ITEM_TOOLTIP WHERE TOOLTIP LIKE '%DEPRECATED%'"""))
+        {
+            foreach (var line in tooltip.Split('\n'))
+            {
+                var text = line.TrimStart();
+                if (text.StartsWith("\u00a74DEPRECATED", StringComparison.Ordinal)
+                    || text.StartsWith("\u00a74[DEPRECATED", StringComparison.Ordinal))
+                {
+                    deprecated.Add(itemId);
+                    break;
+                }
+            }
+        }
+        return deprecated;
     }
 
     private HashSet<string> ReadMobDropItemIds(SqliteConnection db)

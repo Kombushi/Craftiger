@@ -79,13 +79,15 @@ internal static class Fx
     public static FactoryMachineData Machines(
         Dictionary<string, IReadOnlyList<FactoryMachineBlock>> blocks,
         IReadOnlyList<FactoryCoil>? coils = null,
-        IReadOnlyList<FactoryFuel>? fuels = null) =>
-        new(blocks, coils ?? [], fuels ?? []);
+        IReadOnlyList<FactoryFuel>? fuels = null,
+        IReadOnlyList<FactoryRotorStats>? rotors = null,
+        IReadOnlyList<FactoryDynamo>? dynamos = null) =>
+        new(blocks, coils ?? [], fuels ?? [], rotors ?? [], dynamos ?? []);
 
     public static FactoryMachineBlock Block(
         string itemId, int? tier = null, bool multiblock = false, bool steam = false, int? era = 0,
-        long maxParallel = 1, params FactoryMachineBonus[] bonuses) =>
-        new(itemId, tier, multiblock, steam, era, maxParallel, bonuses);
+        long maxParallel = 1, bool rotorTurbine = false, params FactoryMachineBonus[] bonuses) =>
+        new(itemId, tier, multiblock, steam, era, maxParallel, bonuses, RotorTurbine: rotorTurbine);
 
     public static FactorySeedData Seeds(params (string ItemId, string Kind)[] seeds) =>
         seeds.Length == 0
