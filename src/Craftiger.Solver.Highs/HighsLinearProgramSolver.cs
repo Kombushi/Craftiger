@@ -56,13 +56,7 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
             solver.changeColsCostByMask(allColumns, costs);
             solver.changeObjectiveSense(objective.Maximize ? HighsObjectiveSense.kMaximize : HighsObjectiveSense.kMinimize);
 
-            var restore = false;
-            if (objective.FreeColumns is not null && standing is not null)
-            {
-                CapToStanding(solver, program.Columns, standing, objective.FreeColumns.ToHashSet());
-                restore = true;
-            }
-            else if (objective.SupportRestricted && standing is not null)
+            if (objective.SupportRestricted && standing is not null)
             {
                 CapToStanding(solver, program.Columns, standing);
             }
@@ -89,11 +83,6 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
 
             // The optimum becomes a constraint for the layers below, slack by the tolerance.
             AddLockRow(solver, objective, costs, solver.getObjectiveValue(), infinity);
-
-            if (restore)
-            {
-                RestoreBounds(solver, program.Columns, columnScales, infinity);
-            }
         }
 
         var solution = new double[columnCount];
@@ -192,14 +181,12 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
         }
     }
 
-    /// <summary>Caps every column outside <paramref name="free"/> at its standing value, so
-    /// the layer can only shrink or rearrange the flow the earlier layers chose there — churn
-    /// cannot grow, unused columns stay unused, and the standing point remains feasible
-    /// exactly. Fixing zeros outright was tried and fails: solver-space dust on
-    /// wide-coefficient lock rows is macroscopic, and discarding it makes presolve prove the
-    /// restricted model infeasible.</summary>
-    private static void CapToStanding(
-        HighsLpSolver solver, IReadOnlyList<LpColumn> columns, double[] standing, HashSet<int>? free = null)
+    /// <summary>Caps every column at its standing value, so a support-restricted layer can
+    /// only shrink the flow the earlier layers chose — churn cannot grow, unused columns stay
+    /// unused, and the standing point remains feasible exactly. Fixing zeros outright was
+    /// tried and fails: solver-space dust on wide-coefficient lock rows is macroscopic, and
+    /// discarding it makes presolve prove the restricted model infeasible.</summary>
+    private static void CapToStanding(HighsLpSolver solver, IReadOnlyList<LpColumn> columns, double[] standing)
     {
         var mask = new bool[standing.Length];
         var lower = new double[standing.Length];
@@ -207,30 +194,11 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
 
         for (var i = 0; i < standing.Length; i++)
         {
-            if (columns[i].Lower <= 0 && free?.Contains(i) != true)
+            if (columns[i].Lower <= 0)
             {
                 mask[i] = true;
                 upper[i] = Math.Max(0, standing[i]);
             }
-        }
-
-        solver.changeColsBoundsByMask(mask, lower, upper);
-    }
-
-    /// <summary>Puts every column's declared bounds back — in the solver's scaled units —
-    /// after a capped layer.</summary>
-    private static void RestoreBounds(
-        HighsLpSolver solver, IReadOnlyList<LpColumn> columns, double[] columnScales, double infinity)
-    {
-        var mask = new bool[columns.Count];
-        var lower = new double[columns.Count];
-        var upper = new double[columns.Count];
-
-        for (var i = 0; i < columns.Count; i++)
-        {
-            mask[i] = true;
-            lower[i] = ClampBound(columns[i].Lower / columnScales[i], infinity);
-            upper[i] = ClampBound(columns[i].Upper / columnScales[i], infinity);
         }
 
         solver.changeColsBoundsByMask(mask, lower, upper);
