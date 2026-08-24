@@ -11,6 +11,7 @@ public interface IPipelineSolverService
         SolverGraph graph,
         FactoryRecipeData recipes,
         FactoryMachineData machines,
+        FactorySeedData seeds,
         CostTable costs,
         Garage garage,
         WeightSettings weights,

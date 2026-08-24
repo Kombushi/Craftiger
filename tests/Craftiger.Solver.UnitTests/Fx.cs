@@ -87,12 +87,19 @@ internal static class Fx
         long maxParallel = 1, params FactoryMachineBonus[] bonuses) =>
         new(itemId, tier, multiblock, steam, era, maxParallel, bonuses);
 
+    public static FactorySeedData Seeds(params (string ItemId, string Kind)[] seeds) =>
+        seeds.Length == 0
+            ? FactorySeedData.Empty
+            : new(seeds.ToDictionary(s => s.ItemId, s => s.Kind));
+
     public static FactoryRequest Request(
         (string ItemId, double Rate)[] produce,
         FactoryObjective[]? priority = null,
-        Dictionary<string, string>? pins = null) =>
+        Dictionary<string, string>? pins = null,
+        bool mobFarms = false) =>
         new(
             produce.Select(p => new FactoryTarget(FactoryTargetKind.Produce, p.ItemId, p.Rate)).ToList(),
             priority ?? [],
-            pins ?? new());
+            pins ?? new(),
+            mobFarms);
 }

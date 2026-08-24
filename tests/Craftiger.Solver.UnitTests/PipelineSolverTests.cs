@@ -14,7 +14,7 @@ public class PipelineSolverTests
             Fx.Recipe("smelt", inputs: [("ore", 1)], outputs: ("ingot", 1, 1.0)));
         var lp = new RecordingLpSolver();
 
-        Fx.Pipeline(lp).Solve(graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 2)]));
+        Fx.Pipeline(lp).Solve(graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 2)]));
 
         var program = lp.Program!;
         Assert.Equal(2, program.Rows.Count);
@@ -34,7 +34,7 @@ public class PipelineSolverTests
             Fx.Recipe("mix", slots: [[("x", 2), ("y", 3)]], outputs: ("out", 1, 1.0)));
         var lp = new RecordingLpSolver();
 
-        Fx.Pipeline(lp).Solve(graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("out", 1)]));
+        Fx.Pipeline(lp).Solve(graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("out", 1)]));
 
         var program = lp.Program!;
         // Rows: target, link; then x and y through the split columns. Columns: run, two
@@ -59,7 +59,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
+            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
             Fx.Request([("plate", 1)], pins: new() { ["plate"] = "route2" }));
 
         var program = lp.Program!;
@@ -75,7 +75,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         var plan = Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("nope", 1)]));
+            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("nope", 1)]));
 
         Assert.Equal(FactoryPlanStatus.Failed, plan.Status);
         Assert.Contains(new FactoryWarning("target_unknown", "nope"), plan.Warnings);
@@ -91,7 +91,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         var plan = Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Costs(graph, Fx.Garage(defaultTier: 1)), Fx.Garage(defaultTier: 1), Fx.Weights(), Fx.Request([("ingot", 1)]));
+            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph, Fx.Garage(defaultTier: 1)), Fx.Garage(defaultTier: 1), Fx.Weights(), Fx.Request([("ingot", 1)]));
 
         Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
         Assert.Contains(new FactoryWarning("unreachable_target", "ingot"), plan.Warnings);
@@ -107,7 +107,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph, new() { ["smelt"] = (100, 30, 2) }), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
+            graph, Fx.Data(graph, new() { ["smelt"] = (100, 30, 2) }), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
             Fx.Request([("ingot", 1)], priority: [FactoryObjective.Machines, FactoryObjective.Resource]));
 
         var program = lp.Program!;
@@ -126,7 +126,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph, new() { ["smelt"] = (100, 30, 2) }), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
+            graph, Fx.Data(graph, new() { ["smelt"] = (100, 30, 2) }), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
             Fx.Request([("ingot", 1)]));
 
         // kEU per run: 100 ticks × 30 EU/t × 2 A ÷ 1000.
@@ -145,7 +145,7 @@ public class PipelineSolverTests
         };
 
         var plan = Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph, new() { ["smelt"] = (40, 8, 1) }), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
+            graph, Fx.Data(graph, new() { ["smelt"] = (40, 8, 1) }), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
             Fx.Request([("ingot", 2)]));
 
         Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
@@ -179,7 +179,7 @@ public class PipelineSolverTests
         };
 
         var plan = Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 1)]));
+            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 1)]));
 
         Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
         Assert.Contains(new FactoryWarning("infeasible", ""), plan.Warnings);
@@ -200,7 +200,7 @@ public class PipelineSolverTests
 
         Fx.Pipeline(lp).Solve(
             graph, Fx.Data(graph, new() { ["smelt"] = (80, 8, 1) }), machines,
-            Fx.Costs(graph, garage), garage, Fx.Weights(), Fx.Request([("ingot", 1)]));
+            Fx.Seeds(), Fx.Costs(graph, garage), garage, Fx.Weights(), Fx.Request([("ingot", 1)]));
 
         // Five run columns: the LV block at k = 0..1, the MV block at k = 0..2, then the buy.
         var program = lp.Program!;
@@ -233,7 +233,7 @@ public class PipelineSolverTests
 
         Fx.Pipeline(lp).Solve(
             graph, Fx.Data(graph, new() { ["blast"] = (100, 10, 1) }), machines,
-            Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 1)]));
+            Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("ingot", 1)]));
 
         // 220 % speed and 90 % EU: per run 100 t x 10 EU/t x 0.9 x 100/220; busy divided by 8.
         var program = lp.Program!;
@@ -256,7 +256,7 @@ public class PipelineSolverTests
 
         Fx.Pipeline(lp).Solve(
             graph, Fx.Data(graph, new() { ["blast"] = (100, 10, 1) }), machines,
-            Fx.Costs(graph, garage), garage, Fx.Weights(), Fx.Request([("ingot", 1)]));
+            Fx.Seeds(), Fx.Costs(graph, garage), garage, Fx.Weights(), Fx.Request([("ingot", 1)]));
 
         // 1800 excess heat: one perfect step and a 0.95^2 EU discount. The first overclock is
         // energy-neutral and quarters the duration; the second is standard.
@@ -285,7 +285,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph, new() { ["smelt"] = (40, 10, 1) }), machines, Fx.Costs(graph),
+            graph, Fx.Data(graph, new() { ["smelt"] = (40, 10, 1) }), machines, Fx.Seeds(), Fx.Costs(graph),
             Fx.Garage(defaultTier: 1), Fx.Weights(),
             new FactoryRequest(
                 [
@@ -325,7 +325,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), machines, Fx.Costs(graph), Fx.Garage(defaultTier: 3), Fx.Weights(),
+            graph, Fx.Data(graph), machines, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(defaultTier: 3), Fx.Weights(),
             new FactoryRequest(
                 [new FactoryTarget(FactoryTargetKind.Energy, null, 512, GeneratorTier: 3)],
                 [], new Dictionary<string, string>()));
@@ -350,7 +350,7 @@ public class PipelineSolverTests
         var lp = new RecordingLpSolver();
 
         Fx.Pipeline(lp).Solve(
-            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
+            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Seeds(), Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
             new FactoryRequest(
                 [new FactoryTarget(FactoryTargetKind.Consume, "rawore", 2)],
                 [], new Dictionary<string, string>()));
@@ -365,5 +365,41 @@ public class PipelineSolverTests
         // Layers: maximize supply, resource, energy, machines, canonical.
         Assert.Equal(5, program.Objectives.Count);
         Assert.True(program.Objectives[0].Maximize);
+    }
+
+    [Fact]
+    public void SeedBuysAreWeightlessInTheResourceLayer()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("log", weight: 3)],
+            Fx.Recipe("saw", inputs: [("log", 1)], outputs: ("plank", 4, 1.0)));
+        var lp = new RecordingLpSolver();
+
+        Fx.Pipeline(lp).Solve(
+            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Seeds(("log", "FARM")),
+            Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("plank", 1)]));
+
+        // The log purchase would be the only resource coefficient; the seed zeroes it.
+        Assert.Empty(lp.Program!.Objectives[0].Coefficients);
+    }
+
+    [Fact]
+    public void MobSeedsCountOnlyWithTheToggle()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("bone", weight: 3)],
+            Fx.Recipe("grind", inputs: [("bone", 1)], outputs: ("meal", 3, 1.0)));
+        var seeds = Fx.Seeds(("bone", "MOB"));
+        var lp = new RecordingLpSolver();
+
+        Fx.Pipeline(lp).Solve(
+            graph, Fx.Data(graph), FactoryMachineData.Empty, seeds,
+            Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("meal", 1)]));
+        Assert.Equal(3, Assert.Single(lp.Program!.Objectives[0].Coefficients).Value);
+
+        Fx.Pipeline(lp).Solve(
+            graph, Fx.Data(graph), FactoryMachineData.Empty, seeds,
+            Fx.Costs(graph), Fx.Garage(), Fx.Weights(), Fx.Request([("meal", 1)], mobFarms: true));
+        Assert.Empty(lp.Program!.Objectives[0].Coefficients);
     }
 }

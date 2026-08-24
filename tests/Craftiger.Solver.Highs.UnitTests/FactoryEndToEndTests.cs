@@ -21,6 +21,7 @@ public class FactoryEndToEndTests
         string id,
         (string ItemId, long Amount)[]? inputs = null,
         (string ItemId, long Amount)[][]? slots = null,
+        int tier = 0,
         params (string ItemId, long Amount, double Chance)[] outputs)
     {
         var slotList = new List<SolverSlot>();
@@ -33,7 +34,7 @@ public class FactoryEndToEndTests
             slotList.Add(new SolverSlot(alternatives.Select(a => new SolverStack(a.ItemId, a.Amount)).ToList()));
         }
         return new SolverRecipe(
-            id, "Crafting Table", 0, null, null, slotList,
+            id, "Crafting Table", tier, null, null, slotList,
             outputs.Select(o => new SolverOutput(o.ItemId, o.Amount, o.Chance)).ToList());
     }
 
@@ -42,7 +43,8 @@ public class FactoryEndToEndTests
         FactoryRequest request,
         Dictionary<string, (long DurationTicks, long EuT, long Amps)>? data = null,
         FactoryMachineData? machines = null,
-        int garageTier = 0)
+        int garageTier = 0,
+        FactorySeedData? seeds = null)
     {
         var costSolver = new CostSolverService(
             new LeafWeightService(),
@@ -56,6 +58,7 @@ public class FactoryEndToEndTests
             graph,
             FactoryRecipeData.Build(graph.Index, data),
             machines ?? FactoryMachineData.Empty,
+            seeds ?? FactorySeedData.Empty,
             costSolver.Solve(graph, garage, weights),
             garage,
             weights,
@@ -65,11 +68,13 @@ public class FactoryEndToEndTests
     private static FactoryRequest Produce(
         (string ItemId, double Rate)[] targets,
         FactoryObjective[]? priority = null,
-        Dictionary<string, string>? pins = null) =>
+        Dictionary<string, string>? pins = null,
+        bool mobFarms = false) =>
         new(
             targets.Select(t => new FactoryTarget(FactoryTargetKind.Produce, t.ItemId, t.Rate)).ToList(),
             priority ?? [],
-            pins ?? new Dictionary<string, string>());
+            pins ?? new Dictionary<string, string>(),
+            mobFarms);
 
     [Fact]
     public void ChancedOutputsRunAtExpectedValue()
@@ -467,4 +472,116 @@ public class FactoryEndToEndTests
         Assert.Empty(plan.Lines);
     }
 
+    [Fact]
+    public void AutoInfiniteBadgesFollowTheGarage()
+    {
+        // Oxygen is auto-infinite only while the tier-1 water chain is legal; without it the
+        // plan buys oxygen at its weight and nothing downstream badges.
+        var graph = SolverGraph.Build(
+            [Leaf("water", weight: 2), Leaf("oxygen", weight: 1)],
+            [
+                Recipe("electrolyze", inputs: [("water", 1)], tier: 1, outputs: ("oxygen", 1, 1.0)),
+                Recipe("bottle", inputs: [("oxygen", 1)], outputs: ("gas", 1, 1.0)),
+            ]);
+        var seeds = new FactorySeedData(new Dictionary<string, string> { ["water"] = "WORLD" });
+
+        var chained = Solve(graph, Produce([("gas", 1)]), garageTier: 1, seeds: seeds);
+        Assert.Equal(FactoryPlanStatus.Solved, chained.Status);
+        var water = Assert.Single(chained.Inflows, i => i.ItemId == "water");
+        Assert.Equal(0, water.Weight);
+        Assert.True(water.AutoInfinite);
+        Assert.Equal(0, chained.PricedInflowCost, Tolerance);
+        Assert.True(Assert.Single(chained.Flows, f => f.ItemId == "oxygen").AutoInfinite);
+        Assert.True(Assert.Single(chained.Flows, f => f.ItemId == "gas").AutoInfinite);
+
+        var bought = Solve(graph, Produce([("gas", 1)]), seeds: seeds);
+        Assert.Equal(FactoryPlanStatus.Solved, bought.Status);
+        var oxygen = Assert.Single(bought.Inflows, i => i.ItemId == "oxygen");
+        Assert.Equal(1, oxygen.Weight);
+        Assert.False(oxygen.AutoInfinite);
+        Assert.False(Assert.Single(bought.Flows, f => f.ItemId == "gas").AutoInfinite);
+    }
+
+    [Fact]
+    public void MobFarmToggleAddsTheMobSeeds()
+    {
+        var graph = SolverGraph.Build(
+            [Leaf("bone", weight: 3)],
+            [Recipe("grind", inputs: [("bone", 1)], outputs: ("meal", 3, 1.0))]);
+        var seeds = new FactorySeedData(new Dictionary<string, string> { ["bone"] = "MOB" });
+
+        var farmless = Solve(graph, Produce([("meal", 3)]), seeds: seeds);
+        var farmed = Solve(graph, Produce([("meal", 3)], mobFarms: true), seeds: seeds);
+
+        var priced = Assert.Single(farmless.Inflows);
+        Assert.Equal(3, priced.Weight);
+        Assert.False(priced.AutoInfinite);
+        Assert.Equal(3, farmless.PricedInflowCost, Tolerance);
+        var free = Assert.Single(farmed.Inflows);
+        Assert.Equal(0, free.Weight);
+        Assert.True(free.AutoInfinite);
+        Assert.Equal(0, farmed.PricedInflowCost, Tolerance);
+        Assert.True(Assert.Single(farmed.Flows, f => f.ItemId == "meal").AutoInfinite);
+    }
+
+    [Fact]
+    public void CatalystOnlyRecipesQualifyAsAutoInfinite()
+    {
+        // The index carries neither catalysts nor EU as slots, so a recipe needing only
+        // those has zero slots and seeds the fixpoint by itself.
+        var graph = SolverGraph.Build(
+            [],
+            [
+                Recipe("sprout", outputs: ("seedling", 1, 1.0)),
+                Recipe("grow", inputs: [("seedling", 1)], outputs: ("wood", 1, 1.0)),
+            ]);
+
+        var plan = Solve(graph, Produce([("wood", 1)]));
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        Assert.Empty(plan.Inflows);
+        Assert.True(Assert.Single(plan.Flows, f => f.ItemId == "seedling").AutoInfinite);
+        Assert.True(Assert.Single(plan.Flows, f => f.ItemId == "wood").AutoInfinite);
+    }
+
+    [Fact]
+    public void ElasticDiagnosisNamesTheMissingItem()
+    {
+        // The pinned route needs an unmakeable input; the elastic re-solve keeps the cheaper
+        // slack — the missing input, not the target — and names it.
+        var graph = SolverGraph.Build(
+            [],
+            [Recipe("make", inputs: [("x", 1)], outputs: ("t", 2, 1.0))]);
+
+        var plan = Solve(
+            graph,
+            Produce([("t", 4)], pins: new Dictionary<string, string> { ["t"] = "make" }));
+
+        Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
+        Assert.Contains(new FactoryWarning("infeasible_item", "x"), plan.Warnings);
+        Assert.DoesNotContain(plan.Warnings, w => w.Kind == "infeasible");
+        Assert.DoesNotContain(new FactoryWarning("infeasible_item", "t"), plan.Warnings);
+    }
+
+    [Fact]
+    public void PinConflictIsDiagnosed()
+    {
+        // The pinned recipe is garage-illegal and the pin removes the only legal route:
+        // lifting the pins restores feasibility, so the pin is named instead of the item.
+        var graph = SolverGraph.Build(
+            [Leaf("l", weight: 1), Leaf("m", weight: 1)],
+            [
+                Recipe("alpha", inputs: [("l", 1)], tier: 1, outputs: ("t", 1, 1.0)),
+                Recipe("beta", inputs: [("m", 1)], outputs: ("t", 1, 1.0)),
+            ]);
+
+        var plan = Solve(
+            graph,
+            Produce([("t", 1)], pins: new Dictionary<string, string> { ["t"] = "alpha" }));
+
+        Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
+        Assert.Contains(new FactoryWarning("pin_illegal", "t"), plan.Warnings);
+        Assert.Contains(new FactoryWarning("pin_conflict", "t"), plan.Warnings);
+        Assert.DoesNotContain(plan.Warnings, w => w.Kind.StartsWith("infeasible"));
+    }
 }

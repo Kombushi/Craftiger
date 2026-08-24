@@ -17,6 +17,9 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
 {
     private const int EquilibrationPasses = 3;
 
+    /// <summary>A lock row's position, coefficients and bounds, kept to re-bound it later.</summary>
+    private readonly record struct LockRow(int Row, int[] Indices, double[] Values, double Lower, double Upper);
+
     /// <summary>Streams HiGHS's own log to stdout — a diagnostics aid, never set in production.</summary>
     public bool Verbose { get; init; }
 
@@ -42,9 +45,11 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
         var costs = new double[columnCount];
         var allColumns = new bool[columnCount];
         Array.Fill(allColumns, true);
+        var locks = new List<LockRow>();
         double[]? standing = null;
-        foreach (var objective in program.Objectives)
+        for (var layer = 0; layer < program.Objectives.Count; layer++)
         {
+            var objective = program.Objectives[layer];
             // Costs live in the scaled column space and are normalized to unit geometric
             // mean: raw leaf weights span nine orders and trip the solver's cost tolerances.
             var costScale = CostScale(objective.Coefficients, columnScales);
@@ -59,6 +64,7 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
             if (objective.SupportRestricted && standing is not null)
             {
                 CapToStanding(solver, program.Columns, standing);
+                RelaxLocksToStanding(solver, program.Rows.Count, locks, standing);
             }
 
             if (deadline is not null)
@@ -82,7 +88,12 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
             standing = solver.getSolution().colvalue;
 
             // The optimum becomes a constraint for the layers below, slack by the tolerance.
-            AddLockRow(solver, objective, costs, solver.getObjectiveValue(), infinity);
+            if (layer < program.Objectives.Count - 1)
+            {
+                locks.Add(AddLockRow(
+                    solver, objective, costs, solver.getObjectiveValue(), infinity,
+                    program.Rows.Count + locks.Count));
+            }
         }
 
         var solution = new double[columnCount];
@@ -160,8 +171,8 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
 
     /// <summary>Bounds a layer's expression at the given value plus its tolerance slack —
     /// the constraint every later layer honors.</summary>
-    private static void AddLockRow(
-        HighsLpSolver solver, LpObjective objective, double[] costs, double optimum, double infinity)
+    private static LockRow AddLockRow(
+        HighsLpSolver solver, LpObjective objective, double[] costs, double optimum, double infinity, int row)
     {
         var slack = Math.Max(objective.AbsTolerance, objective.RelTolerance * Math.Abs(optimum));
         var indices = new int[objective.Coefficients.Count];
@@ -171,23 +182,54 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
             indices[i] = objective.Coefficients[i].Index;
             values[i] = costs[objective.Coefficients[i].Index];
         }
-        if (objective.Maximize)
-        {
-            solver.addRow(optimum - slack, infinity, indices, values);
-        }
-        else
-        {
-            solver.addRow(-infinity, optimum + slack, indices, values);
-        }
+        var lower = objective.Maximize ? optimum - slack : -infinity;
+        var upper = objective.Maximize ? infinity : optimum + slack;
+        solver.addRow(lower, upper, indices, values);
+        return new LockRow(row, indices, values, lower, upper);
     }
 
-    /// <summary>Caps every column at its standing value, so a support-restricted layer can
-    /// only shrink the flow the earlier layers chose — churn cannot grow, unused columns stay
-    /// unused, and the standing point remains feasible exactly. Fixing zeros outright was
-    /// tried and fails: solver-space dust on wide-coefficient lock rows is macroscopic, and
-    /// discarding it makes presolve prove the restricted model infeasible.</summary>
+    /// <summary>Re-bounds every lock row to contain the standing point: a postsolved solution
+    /// honors its lock only to solver tolerance, and the restricted layer's shrunken box
+    /// cannot retreat from that dust — an all-seed resource lock at zero otherwise makes the
+    /// restricted layer provably infeasible while every open layer still solves.</summary>
+    private static void RelaxLocksToStanding(
+        HighsLpSolver solver, int rowCount, List<LockRow> locks, double[] standing)
+    {
+        if (locks.Count == 0)
+        {
+            return;
+        }
+
+        var total = rowCount + locks.Count;
+        var mask = new bool[total];
+        var lower = new double[total];
+        var upper = new double[total];
+        foreach (var lockRow in locks)
+        {
+            var activity = 0.0;
+            for (var i = 0; i < lockRow.Indices.Length; i++)
+            {
+                activity += lockRow.Values[i] * standing[lockRow.Indices[i]];
+            }
+            var pad = 1e-9 * Math.Max(1, Math.Abs(activity));
+            mask[lockRow.Row] = true;
+            lower[lockRow.Row] = Math.Min(lockRow.Lower, activity - pad);
+            upper[lockRow.Row] = Math.Max(lockRow.Upper, activity + pad);
+        }
+        solver.changeRowsBoundsByMask(mask, lower, upper);
+    }
+
+    /// <summary>Boxes every column between zero and its standing value, so a
+    /// support-restricted layer can only shrink the flow the earlier layers chose — churn
+    /// cannot grow, unused columns stay unused, and the standing point remains feasible.
+    /// The box must contain the standing point as-is, solver-dust negatives included, and no
+    /// nonzero side may sit below the dust floor: presolve treats excessively small bounds
+    /// as zero, which re-fixes the dust columns and moves the point by dust times the
+    /// matrix's large coefficients — measured enough for a tolerance-feasible model to be
+    /// proven infeasible. Exact zeros stay fixed; that is where presolve earns its keep.</summary>
     private static void CapToStanding(HighsLpSolver solver, IReadOnlyList<LpColumn> columns, double[] standing)
     {
+        const double dustFloor = 1e-6;
         var mask = new bool[standing.Length];
         var lower = new double[standing.Length];
         var upper = new double[standing.Length];
@@ -197,7 +239,10 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
             if (columns[i].Lower <= 0)
             {
                 mask[i] = true;
-                upper[i] = Math.Max(0, standing[i]);
+                var top = Math.Max(0, standing[i]);
+                var bottom = Math.Min(0, standing[i]);
+                upper[i] = top > 0 ? Math.Max(top, dustFloor) : 0;
+                lower[i] = bottom < 0 ? Math.Min(bottom, -dustFloor) : 0;
             }
         }
 

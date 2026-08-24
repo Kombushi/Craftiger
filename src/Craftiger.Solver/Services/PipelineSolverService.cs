@@ -77,6 +77,7 @@ public sealed class PipelineSolverService(
         SolverGraph graph,
         FactoryRecipeData recipes,
         FactoryMachineData machines,
+        FactorySeedData seeds,
         CostTable costs,
         Garage garage,
         WeightSettings weights,
@@ -104,9 +105,9 @@ public sealed class PipelineSolverService(
             return Empty(FactoryPlanStatus.Infeasible, warnings);
         }
 
-        var seeds = targets.Produce.Keys.Concat(generators.Select(g => g.FuelItem)).Distinct();
+        var walkTargets = targets.Produce.Keys.Concat(generators.Select(g => g.FuelItem)).Distinct();
         var (candidates, cone) = CandidateRecipes(
-            index, costs, garage, seeds, targets.Consume.Keys, request.Pins, warnings);
+            index, costs, garage, walkTargets, targets.Consume.Keys, request.Pins, warnings);
         var unreachable = false;
         foreach (var target in targets.Produce.Keys.Order())
         {
@@ -121,14 +122,20 @@ public sealed class PipelineSolverService(
             return Empty(FactoryPlanStatus.Infeasible, warnings);
         }
 
+        var seedItems = SeedItems(index, seeds, request.MobFarms);
         var model = BuildModel(
-            graph, recipes, machines, garage, weights, request, targets, candidates, cone, generators, warnings);
+            graph, recipes, machines, garage, weights, request, targets, candidates, cone, generators,
+            seedItems, warnings);
         var result = solver.Solve(model.Program);
+        if (result.Status == LpSolveStatus.Infeasible)
+        {
+            Diagnose(index, model, warnings);
+            return Empty(FactoryPlanStatus.Infeasible, warnings);
+        }
         if (result.Status != LpSolveStatus.Optimal)
         {
             var (status, kind) = result.Status switch
             {
-                LpSolveStatus.Infeasible => (FactoryPlanStatus.Infeasible, "infeasible"),
                 LpSolveStatus.Unbounded => (FactoryPlanStatus.Unbounded, "free_lunch"),
                 LpSolveStatus.TimedOut => (FactoryPlanStatus.TimedOut, "timeout"),
                 _ => (FactoryPlanStatus.Failed, "solver_error"),
@@ -137,7 +144,8 @@ public sealed class PipelineSolverService(
             return Empty(status, warnings);
         }
 
-        return Interpret(index, model, targets, result.ColumnValues, warnings);
+        var infinite = AutoInfinite(index, garage, seedItems);
+        return Interpret(index, model, targets, result.ColumnValues, warnings, infinite);
     }
 
     private static FactoryPlan Empty(FactoryPlanStatus status, List<FactoryWarning> warnings)
@@ -479,7 +487,12 @@ public sealed class PipelineSolverService(
         IReadOnlyList<RunVariant> Variants,
         IReadOnlyList<GeneratorVariant> Generators,
         IReadOnlyList<int> RowItems,
-        IReadOnlyDictionary<string, double> Weights);
+        IReadOnlyDictionary<string, double> Weights,
+        HashSet<int> SeedItems,
+        int EuRow,
+        IReadOnlyList<int> BandRows,
+        IReadOnlyList<int> PinnedColumns,
+        IReadOnlyList<string> PinItems);
 
     /// <summary>Resolved machine modifiers: the factors are applied to base duration and
     /// per-tick energy, parallels divide busy machines.</summary>
@@ -693,11 +706,13 @@ public sealed class PipelineSolverService(
         List<int> candidates,
         HashSet<int> cone,
         List<GeneratorVariant> generators,
+        HashSet<int> seedItems,
         List<FactoryWarning> warnings)
     {
         var index = graph.Index;
         var resolvedWeights = leafWeights.Resolve(graph, weights);
-        var pinned = PinnedAway(index, request.Pins, candidates, warnings);
+        var (pinned, pinItems) = PinnedAway(index, request.Pins, candidates, warnings);
+        var pinnedColumns = new List<int>();
 
         var rows = new List<LpRow>();
         var rowItems = new List<int>();
@@ -790,6 +805,10 @@ public sealed class PipelineSolverService(
                     variantEntries = Sorted(net);
                     net.Remove(euRow);
                 }
+                if (upper == 0)
+                {
+                    pinnedColumns.Add(columns.Count);
+                }
                 columns.Add(new LpColumn(0, upper, variantEntries));
                 metas.Add(new ColumnMeta(ColumnKind.Run, recipe, -1, 0, variants.Count));
                 variants.Add(variant);
@@ -855,22 +874,26 @@ public sealed class PipelineSolverService(
             columns,
             rows,
             BuildObjectives(
-                index, request, metas, variants, columns, rowItems, resolvedWeights, cone,
+                index, request, metas, variants, columns, rowItems, resolvedWeights, cone, seedItems,
                 targets.Consume.Count > 0),
             request.TimeLimitSeconds);
-        return new Model(program, metas, variants, generators, rowItems, resolvedWeights);
+        return new Model(
+            program, metas, variants, generators, rowItems, resolvedWeights, seedItems,
+            euRow, [.. bandRows.Select(band => band.Row)], pinnedColumns, pinItems);
     }
 
-    /// <summary>Recipes a pin forces to zero: every other candidate producing the pinned item
-    /// deterministically. Chanced byproduct rows stay free, and a pin whose item is outside
-    /// the closure is simply inactive.</summary>
-    private static HashSet<int> PinnedAway(
+    /// <summary>Recipes a pin forces to zero — every other candidate producing the pinned
+    /// item deterministically — with the pinned item ids that removed at least one route.
+    /// Chanced byproduct rows stay free, and a pin whose item is outside the closure is
+    /// simply inactive.</summary>
+    private static (HashSet<int> Recipes, List<string> PinItems) PinnedAway(
         SolverIndex index,
         IReadOnlyDictionary<string, string> pins,
         List<int> candidates,
         List<FactoryWarning> warnings)
     {
         var pinnedAway = new HashSet<int>();
+        var pinItems = new List<string>();
         foreach (var (itemId, recipeId) in pins.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             if (!index.TryGetItem(itemId, out var item))
@@ -891,6 +914,7 @@ public sealed class PipelineSolverService(
             {
                 warnings.Add(new FactoryWarning("pin_illegal", itemId));
             }
+            var before = pinnedAway.Count;
             foreach (var producer in producers)
             {
                 if (producer != pin)
@@ -898,8 +922,12 @@ public sealed class PipelineSolverService(
                     pinnedAway.Add(producer);
                 }
             }
+            if (pinnedAway.Count > before)
+            {
+                pinItems.Add(itemId);
+            }
         }
-        return pinnedAway;
+        return (pinnedAway, pinItems);
     }
 
     private static bool ProducesDeterministically(SolverIndex index, int recipe, int item)
@@ -915,11 +943,9 @@ public sealed class PipelineSolverService(
     }
 
     /// <summary>The layer sequence: maximize supply first when consume targets exist, then
-    /// the user's layers in priority order — with maximize-recovered-value right after the
-    /// resource layer, whose lock is what keeps weight arbitrage from making it unbounded —
-    /// then the hidden canonicalization layer minimizing total runs and purchases, which pins
-    /// every variable the earlier layers left free so degenerate optima come back
-    /// model-determined.</summary>
+    /// the user's layers in priority order, then the hidden canonicalization layer minimizing
+    /// total runs and purchases, which pins every variable the earlier layers left free so
+    /// degenerate optima come back model-determined.</summary>
     private static List<LpObjective> BuildObjectives(
         SolverIndex index,
         FactoryRequest request,
@@ -929,6 +955,7 @@ public sealed class PipelineSolverService(
         List<int> rowItems,
         IReadOnlyDictionary<string, double> weights,
         HashSet<int> cone,
+        HashSet<int> seedItems,
         bool hasConsume)
     {
         var priority = request.Priority.Count > 0
@@ -959,7 +986,9 @@ public sealed class PipelineSolverService(
                 var meta = metas[c];
                 var coefficient = objective switch
                 {
-                    FactoryObjective.Resource when meta.Kind == ColumnKind.Buy =>
+                    // Auto-infinite seeds buy at weight zero: the world refills them.
+                    FactoryObjective.Resource when meta.Kind == ColumnKind.Buy
+                        && !seedItems.Contains(meta.Item) =>
                         weights.GetValueOrDefault(index.ItemIds[meta.Item], 1),
                     FactoryObjective.Energy when meta.Kind == ColumnKind.Run =>
                         // Generators are excluded: their cost is fuel, priced by the resource
@@ -999,6 +1028,207 @@ public sealed class PipelineSolverService(
         return objectives;
     }
 
+    /// <summary>Seed ids resolved to positions; MOB seeds only when the toggle admits them.</summary>
+    private static HashSet<int> SeedItems(SolverIndex index, FactorySeedData seeds, bool mobFarms)
+    {
+        var items = new HashSet<int>();
+        foreach (var (itemId, kind) in seeds.Kinds)
+        {
+            if ((mobFarms || kind != FactorySeedData.MobKind) && index.TryGetItem(itemId, out var item))
+            {
+                items.Add(item);
+            }
+        }
+        return items;
+    }
+
+    /// <summary>The monotone fixpoint over the garage-legal recipes: an item is auto-infinite
+    /// when it is a seed or some legal recipe covers every slot with an auto-infinite
+    /// alternative. Catalysts and EU count as free — the index carries neither as a slot, so
+    /// a zero-slot recipe qualifies outright.</summary>
+    private bool[] AutoInfinite(SolverIndex index, Garage garage, HashSet<int> seedItems)
+    {
+        var infinite = new bool[index.ItemCount];
+        var remaining = new int[index.RecipeCount];
+        var satisfied = new bool[index.SlotStart[index.RecipeCount]];
+        var queue = new Queue<int>();
+
+        void Reach(int item)
+        {
+            if (!infinite[item])
+            {
+                infinite[item] = true;
+                queue.Enqueue(item);
+            }
+        }
+
+        void Qualify(int recipe)
+        {
+            for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
+            {
+                Reach(index.OutputItem[o]);
+            }
+        }
+
+        for (var recipe = 0; recipe < index.RecipeCount; recipe++)
+        {
+            if (!legality.IsLegal(index, recipe, garage))
+            {
+                remaining[recipe] = -1;
+                continue;
+            }
+            remaining[recipe] = index.SlotCount(recipe);
+            if (remaining[recipe] == 0)
+            {
+                Qualify(recipe);
+            }
+        }
+        foreach (var seed in seedItems)
+        {
+            Reach(seed);
+        }
+
+        while (queue.TryDequeue(out var item))
+        {
+            for (var c = index.ConsumerStart[item]; c < index.ConsumerStart[item + 1]; c++)
+            {
+                var recipe = index.ConsumerRecipe[c];
+                if (remaining[recipe] <= 0)
+                {
+                    continue;
+                }
+                for (var slot = 0; slot < index.SlotCount(recipe) && remaining[recipe] > 0; slot++)
+                {
+                    var position = index.SlotStart[recipe] + slot;
+                    if (satisfied[position] || !SlotHolds(index, recipe, slot, item))
+                    {
+                        continue;
+                    }
+                    satisfied[position] = true;
+                    if (--remaining[recipe] == 0)
+                    {
+                        Qualify(recipe);
+                    }
+                }
+            }
+        }
+        return infinite;
+    }
+
+    private static bool SlotHolds(SolverIndex index, int recipe, int slot, int item)
+    {
+        for (var alt = 0; alt < index.AlternativeCount(recipe, slot); alt++)
+        {
+            if (index.AlternativeItem[index.AlternativeAt(recipe, slot, alt)] == item)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>The weight the resource layer actually charged the purchase — zero for
+    /// auto-infinite seeds.</summary>
+    private static double ChargedWeight(SolverIndex index, Model model, int item)
+    {
+        return model.SeedItems.Contains(item)
+            ? 0
+            : model.Weights.GetValueOrDefault(index.ItemIds[item], 1);
+    }
+
+    /// <summary>Never a bare infeasibility: first asks whether lifting the pins alone makes
+    /// the model feasible, then re-solves with slack on every demand row — the rows whose
+    /// slack the minimum keeps are what the garage cannot deliver.</summary>
+    private void Diagnose(SolverIndex index, Model model, List<FactoryWarning> warnings)
+    {
+        if (model.PinnedColumns.Count > 0 && SolvesWithoutPins(model))
+        {
+            foreach (var itemId in model.PinItems)
+            {
+                warnings.Add(new FactoryWarning("pin_conflict", itemId));
+            }
+            return;
+        }
+        Elastic(index, model, warnings);
+    }
+
+    /// <summary>Whether the model turns feasible once every pinned-away column is freed.</summary>
+    private bool SolvesWithoutPins(Model model)
+    {
+        var columns = new List<LpColumn>(model.Program.Columns);
+        foreach (var column in model.PinnedColumns)
+        {
+            columns[column] = columns[column] with { Upper = double.PositiveInfinity };
+        }
+        var probe = new LinearProgram(
+            columns, model.Program.Rows, [new LpObjective(Maximize: false, [])],
+            model.Program.TimeLimitSeconds);
+        return solver.Solve(probe).Status == LpSolveStatus.Optimal;
+    }
+
+    /// <summary>The elastic re-solve: every demand row gets a shortfall slack — and an excess
+    /// slack where the row is bounded above — and minimizing total slack keeps nonzero only
+    /// the rows the model cannot satisfy, each named in a warning.</summary>
+    private void Elastic(SolverIndex index, Model model, List<FactoryWarning> warnings)
+    {
+        var program = model.Program;
+        var columns = new List<LpColumn>(program.Columns);
+        var slackRows = new List<int>();
+        var coefficients = new List<LpEntry>();
+
+        void AddSlack(int row, double sign)
+        {
+            coefficients.Add(new LpEntry(columns.Count, 1));
+            slackRows.Add(row);
+            columns.Add(new LpColumn(0, double.PositiveInfinity, [new LpEntry(row, sign)]));
+        }
+
+        var bandRows = model.BandRows.ToHashSet();
+        for (var row = 0; row < program.Rows.Count; row++)
+        {
+            if (model.RowItems[row] < 0 && row != model.EuRow && !bandRows.Contains(row))
+            {
+                continue;
+            }
+            AddSlack(row, 1);
+            if (!double.IsPositiveInfinity(program.Rows[row].Upper))
+            {
+                AddSlack(row, -1);
+            }
+        }
+
+        var elastic = new LinearProgram(
+            columns, program.Rows, [new LpObjective(Maximize: false, coefficients)],
+            program.TimeLimitSeconds);
+        var result = solver.Solve(elastic);
+        if (result.Status != LpSolveStatus.Optimal)
+        {
+            warnings.Add(new FactoryWarning("infeasible", ""));
+            return;
+        }
+
+        var named = new HashSet<string>();
+        for (var s = 0; s < slackRows.Count; s++)
+        {
+            if (result.ColumnValues[program.Columns.Count + s] <= RateEpsilon)
+            {
+                continue;
+            }
+            var item = model.RowItems[slackRows[s]];
+            var warning = item >= 0
+                ? new FactoryWarning("infeasible_item", index.ItemIds[item])
+                : new FactoryWarning("infeasible_energy", "");
+            if (named.Add(warning.Kind + " " + warning.ItemId))
+            {
+                warnings.Add(warning);
+            }
+        }
+        if (named.Count == 0)
+        {
+            warnings.Add(new FactoryWarning("infeasible", ""));
+        }
+    }
+
     private static List<LpEntry> Sorted(Dictionary<int, double> entries)
     {
         return [.. entries.OrderBy(entry => entry.Key).Select(entry => new LpEntry(entry.Key, entry.Value))];
@@ -1009,7 +1239,8 @@ public sealed class PipelineSolverService(
         Model model,
         Targets targets,
         IReadOnlyList<double> values,
-        List<FactoryWarning> warnings)
+        List<FactoryWarning> warnings,
+        bool[] infinite)
     {
         var produced = new Dictionary<int, double>();
         var consumed = new Dictionary<int, double>();
@@ -1088,7 +1319,7 @@ public sealed class PipelineSolverService(
                     break;
                 case ColumnKind.Buy:
                     bought[meta.Item] = bought.GetValueOrDefault(meta.Item) + value;
-                    cost += value * model.Weights.GetValueOrDefault(index.ItemIds[meta.Item], 1);
+                    cost += value * ChargedWeight(index, model, meta.Item);
                     break;
             }
         }
@@ -1113,12 +1344,13 @@ public sealed class PipelineSolverService(
             var supply = supplied.GetValueOrDefault(item);
             if (made > RateEpsilon || used > RateEpsilon || supply > RateEpsilon)
             {
-                flows.Add(new FactoryItemFlow(index.ItemIds[item], made, used, surplus, supply));
+                flows.Add(new FactoryItemFlow(
+                    index.ItemIds[item], made, used, surplus, supply, infinite[item]));
             }
             if (buy > RateEpsilon)
             {
                 inflows.Add(new FactoryInflow(
-                    index.ItemIds[item], buy, model.Weights.GetValueOrDefault(index.ItemIds[item], 1)));
+                    index.ItemIds[item], buy, ChargedWeight(index, model, item), infinite[item]));
             }
         }
 

@@ -219,7 +219,22 @@ becomes its current value, so churn can only shrink and unused columns stay
 unused): its full-space form is a maximally-degenerate all-ones objective
 that measured minutes, and fixing zero columns outright fails — solver-space
 dust on the wide-coefficient lock rows is macroscopic, and discarding it
-makes presolve prove the restricted model infeasible. Layer-tolerance slivers below 10⁻⁵ runs/s are
+makes presolve prove the restricted model infeasible. The same dust bites a
+second way once seeds exist: an all-seed plan's resource optimum is exactly
+zero, its lock corridor collapses to `ε_abs = 10⁻⁶`, and the restricted
+layer's box bounds inherit standing dust down to `10⁻⁹` — bounds presolve
+treats as zero, re-fixing the dust columns and proving a tolerance-feasible
+model infeasible (measured on the 8A-HV solve: the standing point satisfied
+every row to `5×10⁻⁸`, well inside solver tolerance, while presolve still
+returned Infeasible). Cured in the adapter two ways: the box **contains the
+standing point as-is** (negative dust included) **with every nonzero side
+floored at `10⁻⁶`** so dust columns stay real variables — exact zeros stay
+fixed, which is where presolve earns its keep — and each lock row is
+**re-bounded to contain the standing point** before the restricted solve, a
+guard against tolerance-level lock violations (measured `10⁻¹⁷` here). A
+flat `ε_abs = 10⁻³` corridor floor was tried first and rejected: the
+machines layer spent the corridor buying phantom priced inflows on
+otherwise-free plans. Layer-tolerance slivers below 10⁻⁵ runs/s are
 reporting noise, not lines. Pin solver settings for determinism
 (single-threaded simplex, fixed seed); the whole-solve time budget flows
 down the layers as each one's remaining time.
@@ -354,6 +369,21 @@ mob-drop seeds from the auto-infinite set. The single scalar "renewable
 share" is dropped as undefined (weighted share is 0-by-construction; raw
 amounts mix mB and items) — the UI reports auto-infinite and priced inflows
 as separate lists.
+
+Shipped mechanics: the artifact's `renewable_seeds` (1,167 rows — 926 FARM,
+223 MOB, 18 WORLD) enter the solver as a `FactorySeedData` input; the
+mob-farm toggle rides the request. The fixpoint is a worklist over the
+garage-legal recipes — a slot is covered when any alternative is
+auto-infinite, and catalyst-only recipes qualify structurally because
+catalyst rows and EU never enter the index as slots. Flows and inflows carry
+the per-solve `∞` badge, seed purchases charge weight zero in both the
+resource layer and the reported inflow cost. Measured effect on example 1:
+the PE plan now routes entirely from Apple Wood, Sugar Beet and water at
+priced cost ≈ 0, as designed. One deliberate gap: the cost-banded candidate
+walk still prices seeds at their leaf weights when pruning routes, so a
+chain attractive *only* because its seed is free can be pruned before the LP
+sees it — acceptable while seed leaves price near zero; revisit if a
+free-seed route visibly goes missing.
 
 The **Tree Growth Simulator** is modeled from its real mechanics
 (user-specified): a sapling sits in the controller as a non-consumed
@@ -542,7 +572,14 @@ guard.
   ("the pin on X removes the only route"); (3) residual LP infeasibility
   diagnosed by an **elastic re-solve** (slack per balance row, minimize
   total slack — cheap with HiGHS) whose nonzero-slack items become per-item
-  warning rows.
+  warning rows. Shipped mechanics: tier (2) is one feasibility probe with
+  every pinned-away column freed — turning feasible means the pins are the
+  cause, and each pin that removed a route warns `pin_conflict`; tier (3)
+  puts shortfall slack on item and energy rows only (choice-slot link rows
+  stay hard — they cannot conflict on their own), plus an excess slack on
+  consume equalities, and the minimum-slack optimum names `infeasible_item`
+  / `infeasible_energy` warnings. The bare `infeasible` warning survives
+  only as the fallback when the elastic solve itself fails.
 
 ### 6.2 API
 
