@@ -58,7 +58,7 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
 
             if (objective.SupportRestricted && standing is not null)
             {
-                FixZeroColumns(solver, program.Columns, standing);
+                CapToStanding(solver, program.Columns, standing);
             }
 
             if (deadline is not null)
@@ -174,23 +174,27 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
         return (rowScales, columnScales);
     }
 
-    /// <summary>Fixes every column of the standing solution that sits at zero to zero, so a
-    /// support-restricted layer only rearranges flow the earlier layers actually chose.</summary>
-    private static void FixZeroColumns(HighsLpSolver solver, IReadOnlyList<LpColumn> columns, double[] standing)
+    /// <summary>Caps every column at its standing value, so a support-restricted layer can
+    /// only shrink the flow the earlier layers chose — churn cannot grow, unused columns stay
+    /// unused, and the standing point remains feasible exactly. Fixing zeros outright was
+    /// tried and fails: solver-space dust on wide-coefficient lock rows is macroscopic, and
+    /// discarding it makes presolve prove the restricted model infeasible.</summary>
+    private static void CapToStanding(HighsLpSolver solver, IReadOnlyList<LpColumn> columns, double[] standing)
     {
-        var zero = new bool[standing.Length];
+        var mask = new bool[standing.Length];
         var lower = new double[standing.Length];
         var upper = new double[standing.Length];
 
         for (var i = 0; i < standing.Length; i++)
         {
-            if (Math.Abs(standing[i]) <= 1e-9 && columns[i].Lower <= 0)
+            if (columns[i].Lower <= 0)
             {
-                zero[i] = true;
+                mask[i] = true;
+                upper[i] = Math.Max(0, standing[i]);
             }
         }
 
-        solver.changeColsBoundsByMask(zero, lower, upper);
+        solver.changeColsBoundsByMask(mask, lower, upper);
     }
 
     private static LpSolveStatus RunToStatus(HighsLpSolver solver)

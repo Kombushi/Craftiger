@@ -9,4 +9,8 @@ public interface IGarageLegalityService
     int? EffectiveTier(string machine, Garage garage);
 
     bool IsLegal(SolverIndex index, int recipe, Garage garage);
+
+    /// <summary>The heat the garage's coils and hatch bonus reach on a map — what excess-heat
+    /// overclocks measure against.</summary>
+    int HeatCapacity(string machine, Garage garage);
 }

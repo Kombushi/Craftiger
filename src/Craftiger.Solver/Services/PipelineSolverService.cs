@@ -43,13 +43,25 @@ public sealed class PipelineSolverService(
         Buy,
     }
 
-    /// <summary>What a column means when reading the solution back: the recipe for runs, the
-    /// consumed item and per-run amount for splits, the item for purchases.</summary>
-    private readonly record struct ColumnMeta(ColumnKind Kind, int Recipe, int Item, long Amount);
+    /// <summary>What a column means when reading the solution back: the recipe and variant
+    /// for runs, the consumed item and per-run amount for splits, the item for purchases.</summary>
+    private readonly record struct ColumnMeta(ColumnKind Kind, int Recipe, int Item, long Amount, int Variant = -1);
+
+    /// <summary>One way to run a recipe: a machine block at an overclock step, with its
+    /// effective duration, energy per run, and parallels resolved against garage state.</summary>
+    private sealed record RunVariant(
+        int Recipe,
+        string? MachineItemId,
+        int OcSteps,
+        double Parallels,
+        double DurationSeconds,
+        double EuPerRun,
+        bool Estimated);
 
     public FactoryPlan Solve(
         SolverGraph graph,
         FactoryRecipeData recipes,
+        FactoryMachineData machines,
         CostTable costs,
         Garage garage,
         WeightSettings weights,
@@ -78,7 +90,7 @@ public sealed class PipelineSolverService(
             return Empty(FactoryPlanStatus.Infeasible, warnings);
         }
 
-        var model = BuildModel(graph, recipes, weights, request, targets, candidates, warnings);
+        var model = BuildModel(graph, recipes, machines, garage, weights, request, targets, candidates, warnings);
         var result = solver.Solve(model.Program);
         if (result.Status != LpSolveStatus.Optimal)
         {
@@ -93,7 +105,7 @@ public sealed class PipelineSolverService(
             return Empty(status, warnings);
         }
 
-        return Interpret(index, recipes, model, targets, result.ColumnValues, warnings);
+        return Interpret(index, model, targets, result.ColumnValues, warnings);
     }
 
     private static FactoryPlan Empty(FactoryPlanStatus status, List<FactoryWarning> warnings)
@@ -221,12 +233,216 @@ public sealed class PipelineSolverService(
     private sealed record Model(
         LinearProgram Program,
         IReadOnlyList<ColumnMeta> Columns,
+        IReadOnlyList<RunVariant> Variants,
         IReadOnlyList<int> RowItems,
         IReadOnlyDictionary<string, double> Weights);
+
+    /// <summary>Resolved machine modifiers: the factors are applied to base duration and
+    /// per-tick energy, parallels divide busy machines.</summary>
+    private readonly record struct BlockEffects(double DurationFactor, double EuFactor, double Parallels, bool Estimated);
+
+    /// <summary>Every way the garage can run a recipe, in block id then overclock order:
+    /// eligible blocks of the map at each voltage step up to their tier, or an anonymous
+    /// flagged block at the map tier when the map ships no usable block data. Heat overclocks
+    /// turn perfect and discount energy per the coil excess; durationless recipes get one
+    /// free anonymous variant.</summary>
+    private List<RunVariant> Variants(
+        SolverIndex index,
+        FactoryRecipeData data,
+        FactoryMachineData machines,
+        Garage garage,
+        int recipe)
+    {
+        var map = index.Machine[recipe];
+        var mapTier = legality.EffectiveTier(map, garage) ?? 0;
+        var durationTicks = data.DurationTicks[recipe];
+        if (durationTicks == 0)
+        {
+            return [new RunVariant(recipe, null, 0, 1, 0, 0, Estimated: false)];
+        }
+
+        var multiBuilt = index.MultiTier[recipe] >= 0 && garage.BuiltMultiblocks.Contains(map);
+        var singleRequired = index.Tier[recipe];
+        var multiRequired = index.MultiTier[recipe] >= 0 ? index.MultiTier[recipe] : index.Tier[recipe];
+
+        var perfectSteps = 0;
+        var heatEuFactor = 1.0;
+        if (index.Heat[recipe] >= 0)
+        {
+            var excess = legality.HeatCapacity(map, garage) - index.Heat[recipe];
+            if (excess > 0)
+            {
+                perfectSteps = excess / 1800;
+                heatEuFactor = Math.Pow(0.95, excess / 900);
+            }
+        }
+
+        var variants = new List<RunVariant>();
+        var coilTier = machines.CoilTier(garage, map);
+        var blocks = machines.BlocksByMap.GetValueOrDefault(map);
+        if (blocks is not null && blocks.Count > 0)
+        {
+            var allMulti = blocks.All(b => b.Multiblock);
+            foreach (var block in blocks.OrderBy(b => b.ItemId, StringComparer.Ordinal))
+            {
+                if (block.Steam || block.Era is not { } era || era > garage.DefaultTier)
+                {
+                    continue;
+                }
+                int voltageTier;
+                int required;
+                if (block.Multiblock)
+                {
+                    if (!allMulti && !multiBuilt)
+                    {
+                        continue;
+                    }
+                    voltageTier = mapTier;
+                    required = multiRequired;
+                }
+                else
+                {
+                    if (block.Tier is not { } tier || tier < singleRequired || tier > mapTier)
+                    {
+                        continue;
+                    }
+                    voltageTier = tier;
+                    required = singleRequired;
+                }
+
+                var effects = ResolveBonuses(block, coilTier, voltageTier);
+                AddOcVariants(
+                    variants, recipe, block.ItemId, durationTicks, data.EuT[recipe] * data.Amps[recipe],
+                    voltageTier - required, perfectSteps, heatEuFactor, effects);
+            }
+        }
+
+        if (variants.Count == 0)
+        {
+            // The map ships no usable block: an anonymous block at the map tier, flagged.
+            var required = multiBuilt ? multiRequired : singleRequired;
+            AddOcVariants(
+                variants, recipe, null, durationTicks, data.EuT[recipe] * data.Amps[recipe],
+                mapTier - required, perfectSteps, heatEuFactor,
+                new BlockEffects(1, 1, 1, Estimated: true));
+        }
+        return variants;
+    }
+
+    private static void AddOcVariants(
+        List<RunVariant> variants,
+        int recipe,
+        string? machineItemId,
+        long durationTicks,
+        long euPerTick,
+        int maxSteps,
+        int perfectSteps,
+        double heatEuFactor,
+        BlockEffects effects)
+    {
+        var baseSeconds = durationTicks / TicksPerSecond * effects.DurationFactor;
+        var baseEu = durationTicks * (double)euPerTick * heatEuFactor * effects.EuFactor * effects.DurationFactor;
+        for (var k = 0; k <= Math.Max(0, maxSteps); k++)
+        {
+            var perfect = Math.Min(k, perfectSteps);
+            var standard = k - perfect;
+            variants.Add(new RunVariant(
+                recipe,
+                machineItemId,
+                k,
+                effects.Parallels,
+                baseSeconds / (Math.Pow(2, standard) * Math.Pow(4, perfect)),
+                baseEu * Math.Pow(2, standard),
+                effects.Estimated));
+        }
+    }
+
+    /// <summary>Bonus semantics as the exporter's lang templates define them: SPEED is the
+    /// percentage the machine runs at, EU_DISCOUNT the percentage it draws, per-tier kinds add
+    /// per axis tier (negative for discounts), absolute speed multiplies by tier, and
+    /// multiplicative parallels double per tier. Axes the garage cannot resolve contribute
+    /// nothing and flag the line; a bonus-less multiblock runs flagged at one parallel.</summary>
+    private static BlockEffects ResolveBonuses(FactoryMachineBlock block, int coilTier, int voltageTier)
+    {
+        var speedPercent = 100.0;
+        double? absoluteSpeedPerTier = null;
+        var absoluteSpeedTier = 0;
+        var euPercent = 100.0;
+        var parallelBase = (double)Math.Max(1, block.MaxParallel);
+        var parallels = parallelBase;
+        var estimated = block.Multiblock && block.MaxParallel <= 1 && block.Bonuses.Count == 0;
+
+        foreach (var bonus in block.Bonuses)
+        {
+            var tier = bonus.TierAxis switch
+            {
+                null => 0,
+                "COIL" => coilTier,
+                "VOLTAGE" => voltageTier,
+                _ => -1,
+            };
+            if (tier < 0)
+            {
+                // An axis without a garage picker yet: the conservative base, flagged.
+                estimated = true;
+                continue;
+            }
+            switch (bonus.Kind)
+            {
+                case "SPEED":
+                    speedPercent = bonus.Bonus;
+                    break;
+                case "SPEED_BONUS_PER_TIER":
+                    speedPercent += bonus.Bonus * tier;
+                    break;
+                case "SPEED_PER_TIER":
+                    if (tier == 0)
+                    {
+                        // The machine needs the component to run at all; assume the first tier.
+                        tier = 1;
+                        estimated = true;
+                    }
+                    absoluteSpeedPerTier = bonus.Bonus;
+                    absoluteSpeedTier = tier;
+                    break;
+                case "EU_DISCOUNT":
+                    euPercent = bonus.Bonus;
+                    break;
+                case "EU_DISCOUNT_PER_TIER":
+                    euPercent += bonus.Bonus * tier;
+                    break;
+                case "PARALLEL":
+                    parallelBase = bonus.Bonus;
+                    parallels = parallelBase;
+                    break;
+                case "PARALLEL_PER_TIER":
+                    parallels = bonus.Multiplicative
+                        ? parallelBase * Math.Pow(bonus.Bonus, tier)
+                        : parallelBase + bonus.Bonus * tier;
+                    break;
+                default:
+                    estimated = true;
+                    break;
+            }
+        }
+
+        var durationFactor = absoluteSpeedPerTier is { } perTier
+            ? 100.0 / (perTier * absoluteSpeedTier)
+            : 100.0 / Math.Max(speedPercent, 1);
+        var euFactor = euPercent / 100.0;
+        if (euFactor < 0.05)
+        {
+            euFactor = 0.05;
+            estimated = true;
+        }
+        return new BlockEffects(durationFactor, euFactor, Math.Max(1, parallels), estimated);
+    }
 
     private Model BuildModel(
         SolverGraph graph,
         FactoryRecipeData recipes,
+        FactoryMachineData machines,
+        Garage garage,
         WeightSettings weights,
         FactoryRequest request,
         Dictionary<int, double> targets,
@@ -242,6 +458,7 @@ public sealed class PipelineSolverService(
         var rowOf = new Dictionary<int, int>();
         var columns = new List<LpColumn>();
         var metas = new List<ColumnMeta>();
+        var variants = new List<RunVariant>();
 
         int RowOf(int item)
         {
@@ -280,7 +497,8 @@ public sealed class PipelineSolverService(
                 }
                 else
                 {
-                    // One link row per choice slot: the split variables must sum to the runs.
+                    // One link row per choice slot: the splits must sum to the recipe's total
+                    // runs across every machine and overclock variant.
                     var link = rows.Count;
                     rows.Add(new LpRow(0, 0));
                     rowItems.Add(-1);
@@ -290,8 +508,13 @@ public sealed class PipelineSolverService(
             }
 
             var upper = pinned.Contains(recipe) ? 0 : double.PositiveInfinity;
-            columns.Add(new LpColumn(0, upper, Sorted(net)));
-            metas.Add(new ColumnMeta(ColumnKind.Run, recipe, -1, 0));
+            var entries = Sorted(net);
+            foreach (var variant in Variants(index, recipes, machines, garage, recipe))
+            {
+                columns.Add(new LpColumn(0, upper, entries));
+                metas.Add(new ColumnMeta(ColumnKind.Run, recipe, -1, 0, variants.Count));
+                variants.Add(variant);
+            }
 
             foreach (var (slot, link) in splits)
             {
@@ -300,12 +523,12 @@ public sealed class PipelineSolverService(
                     var a = index.AlternativeAt(recipe, slot, alt);
                     var item = index.AlternativeItem[a];
                     var amount = index.AlternativeAmount[a];
-                    var entries = new Dictionary<int, double>
+                    var splitEntries = new Dictionary<int, double>
                     {
                         [RowOf(item)] = -amount,
                         [link] = 1,
                     };
-                    columns.Add(new LpColumn(0, double.PositiveInfinity, Sorted(entries)));
+                    columns.Add(new LpColumn(0, double.PositiveInfinity, Sorted(splitEntries)));
                     metas.Add(new ColumnMeta(ColumnKind.Split, recipe, item, amount));
                 }
             }
@@ -324,9 +547,9 @@ public sealed class PipelineSolverService(
         var program = new LinearProgram(
             columns,
             rows,
-            BuildObjectives(index, recipes, request, metas, resolvedWeights),
+            BuildObjectives(index, request, metas, variants, resolvedWeights),
             request.TimeLimitSeconds);
-        return new Model(program, metas, rowItems, resolvedWeights);
+        return new Model(program, metas, variants, rowItems, resolvedWeights);
     }
 
     /// <summary>Recipes a pin forces to zero: every other candidate producing the pinned item
@@ -387,9 +610,9 @@ public sealed class PipelineSolverService(
     /// free, so degenerate optima come back model-determined.</summary>
     private static List<LpObjective> BuildObjectives(
         SolverIndex index,
-        FactoryRecipeData recipes,
         FactoryRequest request,
         List<ColumnMeta> metas,
+        List<RunVariant> variants,
         IReadOnlyDictionary<string, double> weights)
     {
         var priority = request.Priority.Count > 0
@@ -408,10 +631,9 @@ public sealed class PipelineSolverService(
                     FactoryObjective.Resource when meta.Kind == ColumnKind.Buy =>
                         weights.GetValueOrDefault(index.ItemIds[meta.Item], 1),
                     FactoryObjective.Energy when meta.Kind == ColumnKind.Run =>
-                        // kEU per run: duration ticks × EU/t × amps ÷ 1000.
-                        recipes.DurationTicks[meta.Recipe] * (double)recipes.EuT[meta.Recipe] * recipes.Amps[meta.Recipe] / 1000,
+                        variants[meta.Variant].EuPerRun / 1000,
                     FactoryObjective.Machines when meta.Kind == ColumnKind.Run =>
-                        recipes.DurationTicks[meta.Recipe] / TicksPerSecond,
+                        variants[meta.Variant].DurationSeconds / variants[meta.Variant].Parallels,
                     _ => 0.0,
                 };
                 if (coefficient != 0)
@@ -442,7 +664,6 @@ public sealed class PipelineSolverService(
 
     private static FactoryPlan Interpret(
         SolverIndex index,
-        FactoryRecipeData recipes,
         Model model,
         Dictionary<int, double> targets,
         IReadOnlyList<double> values,
@@ -468,6 +689,7 @@ public sealed class PipelineSolverService(
             {
                 case ColumnKind.Run:
                     var recipe = meta.Recipe;
+                    var variant = model.Variants[meta.Variant];
                     for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
                     {
                         var item = index.OutputItem[o];
@@ -482,15 +704,19 @@ public sealed class PipelineSolverService(
                             consumed[item] = consumed.GetValueOrDefault(item) + index.AlternativeAmount[a] * value;
                         }
                     }
-                    var durationSeconds = recipes.DurationTicks[recipe] / TicksPerSecond;
-                    drawEuT += value * recipes.DurationTicks[recipe] * (double)recipes.EuT[recipe] * recipes.Amps[recipe] / TicksPerSecond;
-                    busyMachines += value * durationSeconds;
+                    var busy = value * variant.DurationSeconds / variant.Parallels;
+                    drawEuT += value * variant.EuPerRun / TicksPerSecond;
+                    busyMachines += busy;
                     lines.Add(new FactoryLine(
                         index.RecipeIds[recipe],
                         index.Machine[recipe],
+                        variant.MachineItemId,
                         value,
-                        value * durationSeconds,
-                        recipes.DurationTicks[recipe] == 0));
+                        variant.OcSteps,
+                        variant.Parallels,
+                        busy,
+                        variant.DurationSeconds == 0,
+                        variant.Estimated));
                     break;
                 case ColumnKind.Split:
                     consumed[meta.Item] = consumed.GetValueOrDefault(meta.Item) + meta.Amount * value;

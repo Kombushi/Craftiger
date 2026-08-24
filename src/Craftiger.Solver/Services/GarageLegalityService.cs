@@ -36,17 +36,21 @@ public sealed class GarageLegalityService(GarageRules rules) : IGarageLegalitySe
         }
 
         var heat = index.Heat[recipe];
-        if (heat >= 0 && !rules.HeatExemptMachines.Contains(machine))
+        if (heat >= 0 && !rules.HeatExemptMachines.Contains(machine)
+            && heat > HeatCapacity(machine, garage))
         {
-            var capacity = garage.CoilHeat.GetValueOrDefault(machine)
-                + (rules.HeatBonusMachines.Contains(machine)
-                    ? HeatPerTierAboveMv * Math.Max(0, tier - 2)
-                    : 0);
-            if (heat > capacity)
-            {
-                return false;
-            }
+            return false;
         }
         return true;
+    }
+
+    public int HeatCapacity(string machine, Garage garage)
+    {
+        var capacity = garage.CoilHeat.GetValueOrDefault(machine);
+        if (rules.HeatBonusMachines.Contains(machine) && EffectiveTier(machine, garage) is { } tier)
+        {
+            capacity += HeatPerTierAboveMv * Math.Max(0, tier - 2);
+        }
+        return capacity;
     }
 }

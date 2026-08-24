@@ -10,6 +10,7 @@ public interface IPipelineSolverService
     FactoryPlan Solve(
         SolverGraph graph,
         FactoryRecipeData recipes,
+        FactoryMachineData machines,
         CostTable costs,
         Garage garage,
         WeightSettings weights,

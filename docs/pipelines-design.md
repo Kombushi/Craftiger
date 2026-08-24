@@ -205,10 +205,12 @@ adapter equilibrates the matrix with exact power-of-two row and column
 scales and normalizes each layer's cost vector to unit geometric mean —
 coefficient ranges legitimately span chanced yields to `2 × 10⁷` EU/t and
 unscaled models broke presolve–postsolve equivalence. The canonicalization
-layer runs **support-restricted** (columns at zero after the user's layers
-are fixed at zero): its full-space form is a maximally-degenerate all-ones
-objective that measured minutes, and cleaning churn within the chosen
-support is its whole job. Layer-tolerance slivers below 10⁻⁵ runs/s are
+layer runs **capped to the standing solution** (every column's upper bound
+becomes its current value, so churn can only shrink and unused columns stay
+unused): its full-space form is a maximally-degenerate all-ones objective
+that measured minutes, and fixing zero columns outright fails — solver-space
+dust on the wide-coefficient lock rows is macroscopic, and discarding it
+makes presolve prove the restricted model infeasible. Layer-tolerance slivers below 10⁻⁵ runs/s are
 reporting noise, not lines. Pin solver settings for determinism
 (single-threaded simplex, fixed seed); the whole-solve time budget flows
 down the layers as each one's remaining time.
@@ -557,6 +559,12 @@ guard.
 - **Rotor picker** per large-turbine family (analogous to coils), stored
   client-side, defaulting to auto-best garage-legal, plus the per-line
   tight/loose fit toggle (§4.5).
+- **Machine-block era gap** (found in phase 2): `machine_props.era` covers
+  only the 256 signal blocks, so ordinary single blocks (the LV…UV tiers of
+  every basic machine) have no craftability era. Until a schema bump ships
+  eras for every `machine_items` row, the loader derives a single block's
+  era from its own voltage tier — a close proxy — and skips multis without
+  a props row (the anonymous fallback covers their maps, flagged).
 - **Structure-part pickers** for non-coil bonus scaling axes, most-used
   families first (§4.4). Multi-controller granularity ("I own a Volcanus but not a Mega
   EBF") is era-derived in v1 — eligible blocks are those craftable at the

@@ -76,6 +76,15 @@ internal static class Fx
         SolverGraph graph, Dictionary<string, (long DurationTicks, long EuT, long Amps)>? recipes = null) =>
         FactoryRecipeData.Build(graph.Index, recipes);
 
+    public static FactoryMachineData Machines(
+        Dictionary<string, IReadOnlyList<FactoryMachineBlock>> blocks, IReadOnlyList<FactoryCoil>? coils = null) =>
+        new(blocks, coils ?? []);
+
+    public static FactoryMachineBlock Block(
+        string itemId, int? tier = null, bool multiblock = false, bool steam = false, int? era = 0,
+        long maxParallel = 1, params FactoryMachineBonus[] bonuses) =>
+        new(itemId, tier, multiblock, steam, era, maxParallel, bonuses);
+
     public static FactoryRequest Request(
         (string ItemId, double Rate)[] produce,
         FactoryObjective[]? priority = null,

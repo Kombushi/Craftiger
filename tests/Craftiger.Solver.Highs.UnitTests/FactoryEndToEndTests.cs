@@ -40,7 +40,9 @@ public class FactoryEndToEndTests
     private static FactoryPlan Solve(
         SolverGraph graph,
         FactoryRequest request,
-        Dictionary<string, (long DurationTicks, long EuT, long Amps)>? data = null)
+        Dictionary<string, (long DurationTicks, long EuT, long Amps)>? data = null,
+        FactoryMachineData? machines = null,
+        int garageTier = 0)
     {
         var costSolver = new CostSolverService(
             new LeafWeightService(),
@@ -48,11 +50,12 @@ public class FactoryEndToEndTests
             new SolverPreferences(["ingot", "gem", "dust", "nugget", "dust_small", "dust_tiny"]));
         var service = new PipelineSolverService(
             new LeafWeightService(), new GarageLegalityService(Rules), costSolver, new HighsLinearProgramSolver());
-        var garage = new Garage(0, new Dictionary<string, int?>(), new HashSet<string>(), new Dictionary<string, int>());
+        var garage = new Garage(garageTier, new Dictionary<string, int?>(), new HashSet<string>(), new Dictionary<string, int>());
         var weights = new WeightSettings(4, new Dictionary<string, double>());
         return service.Solve(
             graph,
             FactoryRecipeData.Build(graph.Index, data),
+            machines ?? FactoryMachineData.Empty,
             costSolver.Solve(graph, garage, weights),
             garage,
             weights,
@@ -264,5 +267,58 @@ public class FactoryEndToEndTests
         Assert.Equal(first.Lines, second.Lines);
         Assert.Equal(first.Inflows, second.Inflows);
         Assert.Equal(first.Flows, second.Flows);
+    }
+
+    [Fact]
+    public void PriorityPicksTheOverclockLevel()
+    {
+        // Fewer overclocks halve power per step; more halve machine time. The priority order
+        // decides, on the same block.
+        var graph = SolverGraph.Build(
+            [Leaf("ore")],
+            [Recipe("smelt", inputs: [("ore", 1)], outputs: ("ingot", 1, 1.0))]);
+        var machines = new FactoryMachineData(
+            new Dictionary<string, IReadOnlyList<FactoryMachineBlock>>
+            {
+                ["Crafting Table"] = [new FactoryMachineBlock("mac-hv", 3, false, false, 3, 1, [])],
+            },
+            []);
+        var data = new Dictionary<string, (long, long, long)> { ["smelt"] = (160, 4, 1) };
+
+        var energyFirst = Solve(
+            graph,
+            Produce([("ingot", 1)], priority: [FactoryObjective.Resource, FactoryObjective.Energy, FactoryObjective.Machines]),
+            data, machines, garageTier: 3);
+        var machinesFirst = Solve(
+            graph,
+            Produce([("ingot", 1)], priority: [FactoryObjective.Resource, FactoryObjective.Machines, FactoryObjective.Energy]),
+            data, machines, garageTier: 3);
+
+        Assert.Equal(0, energyFirst.Lines.MaxBy(l => l.RunsPerSecond)!.OcSteps);
+        Assert.Equal(3, machinesFirst.Lines.MaxBy(l => l.RunsPerSecond)!.OcSteps);
+    }
+
+    [Fact]
+    public void ParallelsDivideBusyMachines()
+    {
+        var graph = SolverGraph.Build(
+            [Leaf("ore")],
+            [Recipe("smelt", inputs: [("ore", 1)], outputs: ("ingot", 1, 1.0))]);
+        var machines = new FactoryMachineData(
+            new Dictionary<string, IReadOnlyList<FactoryMachineBlock>>
+            {
+                ["Crafting Table"] = [new FactoryMachineBlock("multi", null, true, false, 0, 4, [])],
+            },
+            []);
+
+        var plan = Solve(
+            graph, Produce([("ingot", 1)]),
+            new Dictionary<string, (long, long, long)> { ["smelt"] = (80, 4, 1) }, machines);
+
+        var line = Assert.Single(plan.Lines);
+        Assert.Equal("multi", line.MachineItemId);
+        Assert.Equal(4, line.Parallels);
+        Assert.Equal(1, line.BusyMachines, 5);
+        Assert.Equal(1, plan.BusyMachines, 5);
     }
 }
