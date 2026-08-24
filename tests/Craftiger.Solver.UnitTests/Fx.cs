@@ -1,3 +1,4 @@
+using Craftiger.Solver.Interfaces;
 using Craftiger.Solver.Models;
 using Craftiger.Solver.Services;
 
@@ -64,4 +65,20 @@ internal static class Fx
     public static CostSolverService Solver() => new(new LeafWeightService(), Legality(), Preferences);
 
     public static BomService Bom() => new(Legality());
+
+    public static PipelineSolverService Pipeline(ILinearProgramSolver lp) =>
+        new(new LeafWeightService(), Legality(), lp);
+
+    public static FactoryRecipeData Data(
+        SolverGraph graph, Dictionary<string, (long DurationTicks, long EuT, long Amps)>? recipes = null) =>
+        FactoryRecipeData.Build(graph.Index, recipes);
+
+    public static FactoryRequest Request(
+        (string ItemId, double Rate)[] produce,
+        FactoryObjective[]? priority = null,
+        Dictionary<string, string>? pins = null) =>
+        new(
+            produce.Select(p => new FactoryTarget(FactoryTargetKind.Produce, p.ItemId, p.Rate)).ToList(),
+            priority ?? [],
+            pins ?? new());
 }

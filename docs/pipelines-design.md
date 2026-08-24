@@ -133,7 +133,11 @@ Over the candidate set (§4.2) of garage-legal recipes:
 A factory is a list of targets; all constrain one network:
 
 - **Produce**: `net(item) ≥ rate`. Candidate set: garage-legal upstream
-  closure, as for cost solves.
+  closure — but unlike the cost closure, the walk continues **through
+  leaf-class items** (their producers are candidates too). A factory may
+  produce a leaf — every ingot is one, including example 1's Polyethylene
+  Bar — and buying is just the competing route the purchase variable prices;
+  a closure that stopped at leaves would degenerate example 1 to "buy PE".
 - **Consume** (example 3): supply enters as a variable `0 ≤ s ≤ rate` in the
   item's balance; a pre-layer maximizes `s`, and `s < rate` is reported as a
   shortfall naming the blocking item — never a bare infeasibility. Candidate
@@ -485,9 +489,15 @@ guard.
   error; bounded concurrency (semaphore) so N factory solves cannot starve
   the cost path; the factory cache lock never blocks unrelated requests (the
   cost path's global-lock mistake is on record — do not repeat it). The
-  "few thousand recipes" size claim is unverified: phase 2 measures the
-  closure for representative HV/IV/endgame targets and multiplies by the
-  (machine, OC-step) column factors before the design is frozen.
+  "few thousand recipes" size claim was wrong — measured on the real
+  artifact, the through-leaves closure of Polyethylene Bar is 32,118 items /
+  164,695 producing recipes unfiltered and 28,641 / 133,687 at an HV garage;
+  the tier filter barely bites because the blowup is low-tier (every
+  macerator and crafting route of every reachable material). Column counts
+  multiply further by the (machine, OC-step) factors. If measured solve
+  times exceed the budget, the fallback is cost-guided pruning — drop
+  candidate recipes far above the cost engine's solved route cost, at the
+  risk of missing byproduct synergies, flagged if ever enabled.
 - **Diagnostics** (three tiers, *never a bare "infeasible"*): (1) pre-LP
   checks reusing existing machinery — target outside the garage-legal
   closure → the existing `uncraftable`-style warning; energy target with no
