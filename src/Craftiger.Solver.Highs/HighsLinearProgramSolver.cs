@@ -81,8 +81,26 @@ public sealed class HighsLinearProgramSolver : ILinearProgramSolver
             // presolve entirely and dual simplex crawls on the full column space instead.
             solver.clearSolver();
             var status = RunToStatus(solver);
+            if (status == LpSolveStatus.Infeasible && objective.SupportRestricted)
+            {
+                // The restricted layer starts feasible by construction, but presolve treats
+                // its dust-sized bounds as zero and can prove the shrunken model infeasible
+                // when a near-zero lock corridor sits below the dust floor. Without presolve
+                // the box has already fixed nearly every column, so the rerun stays cheap.
+                solver.setStringOptionValue("presolve", "off");
+                solver.clearSolver();
+                status = RunToStatus(solver);
+                solver.setStringOptionValue("presolve", "choose");
+            }
             if (status != LpSolveStatus.Optimal)
             {
+                if (objective.SupportRestricted && standing is not null)
+                {
+                    // Canonicalization is a tie-break, not a constraint: when its numerics
+                    // fail even without presolve, the prior layer's optimum stands — a
+                    // simplex vertex already carries no free-spinning churn.
+                    break;
+                }
                 return new LinearProgramResult(status, []);
             }
             standing = solver.getSolution().colvalue;

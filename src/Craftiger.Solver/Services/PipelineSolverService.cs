@@ -41,13 +41,32 @@ public sealed class PipelineSolverService(
     private const double TicksPerSecond = 20.0;
 
     /// <summary>Fuel maps whose multiblocks are rotor-driven large turbines, and the fuel
-    /// class their rotor stat rows use. Steam turbines join with the steam carrier.</summary>
+    /// class their rotor stat rows use.</summary>
     private static readonly IReadOnlyDictionary<string, string> TurbineFuelClasses =
         new Dictionary<string, string>
         {
             ["Gas Turbine Fuel"] = "GAS",
             ["Plasma Generator Fuels"] = "PLASMA",
+            ["Large Steam Turbine"] = "STEAM",
         };
+
+    /// <summary>Steam turbines return 1 L of distilled water per 160 L of steam swallowed.</summary>
+    private const string DistilledWaterId = "f~IC2~ic2distilledwater";
+
+    private const double CondensatePerSteam = 1.0 / 160;
+
+    /// <summary>Every fluid that counts as steam; a steam machine drinks any of them.</summary>
+    private static readonly IReadOnlyList<string> SteamFluidIds =
+        ["f~IC2~ic2steam", "f~Railcraft~steam"];
+
+    /// <summary>Steam machines burn 2 L per EU at the bronze rate over a doubled duration —
+    /// four liters per EU of the electric recipe in total, fit or high pressure alike.</summary>
+    private const double SteamPerEu = 4.0;
+
+    /// <summary>Steam's energy content: the EU-efficiency layer is carrier-neutral (user
+    /// decision), so a steam machine's draw counts at this rate instead of reading as free —
+    /// free-steam seeds otherwise buy hundreds of machines to shave watts of electric draw.</summary>
+    private const double EuPerSteamLiter = 0.5;
 
     private enum ColumnKind
     {
@@ -71,7 +90,9 @@ public sealed class PipelineSolverService(
         double Parallels,
         double DurationSeconds,
         double EuPerRun,
-        bool Estimated);
+        bool Estimated,
+        int SteamItem = -1,
+        double SteamPerRun = 0);
 
     /// <summary>Normalized targets: produce rates by item position, consume rates by item
     /// position, the summed net EU/t export, and the per-tier quality bands energy targets
@@ -114,7 +135,18 @@ public sealed class PipelineSolverService(
             return Empty(FactoryPlanStatus.Infeasible, warnings);
         }
 
-        var walkTargets = targets.Produce.Keys.Concat(generators.Select(g => g.FuelItem)).Distinct();
+        // Steam is drawn by machine variants, not by recipe inputs, so the walk would never
+        // reach its producers on its own; a garage with legal steam blocks seeds it in.
+        var steamItems = machines.BlocksByMap.Values.Any(maps => maps.Any(b =>
+                b.Steam && b.Era is { } steamEra && steamEra <= garage.DefaultTier))
+            ? SteamFluidIds
+                .Select(id => index.TryGetItem(id, out var item) ? item : -1)
+                .Where(item => item >= 0)
+            : [];
+        var walkTargets = targets.Produce.Keys
+            .Concat(generators.Select(g => g.FuelItem))
+            .Concat(steamItems)
+            .Distinct();
         var (candidates, cone) = CandidateRecipes(
             index, costs, garage, walkTargets, targets.Consume.Keys, request.Pins, warnings);
         var unreachable = false;
@@ -218,7 +250,9 @@ public sealed class PipelineSolverService(
         double UnitsPerSecond,
         double NetEuT,
         string? RotorItemId = null,
-        bool Loose = false);
+        bool Loose = false,
+        int CondensateItem = -1,
+        double CondensatePerUnit = 0);
 
     /// <summary>Every (eligible generator block, fuel) pair, in map, block, fuel order.
     /// Standard fuels burn at the block's full output; timed fuels burn at their fixed EU/t
@@ -338,10 +372,13 @@ public sealed class PipelineSolverService(
                 {
                     continue;
                 }
+                var condensate = fuelClass == "STEAM" && index.TryGetItem(DistilledWaterId, out var water)
+                    ? (Item: water, PerUnit: CondensatePerSteam)
+                    : (Item: -1, PerUnit: 0.0);
                 variants.Add(new GeneratorVariant(
                     fuel.Map, block.ItemId, hatch.Tier, fuel.ItemId, fuelItem,
                     flow / perUnit * TicksPerSecond * parallels, hatch.NetEuT,
-                    stats.ItemId, loose));
+                    stats.ItemId, loose, condensate.Item, condensate.PerUnit));
             }
         }
     }
@@ -746,6 +783,37 @@ public sealed class PipelineSolverService(
                 mapTier - required, perfectSteps, heatEuFactor,
                 new BlockEffects(1, 1, 1, Estimated: true));
         }
+
+        // Steam blocks run LV-and-below recipes on steam instead of EU: two liters per EU at
+        // the bronze rate over a doubled duration, high pressure doubling rate and speed
+        // alike, so a run swallows the same four liters per recipe EU either way. Bonuses
+        // shape steam use and speed exactly as they shape EU and duration.
+        if (blocks is not null && index.Tier[recipe] <= 1 && index.Heat[recipe] < 0
+            && data.EuT[recipe] > 0)
+        {
+            foreach (var block in blocks.OrderBy(b => b.ItemId, StringComparer.Ordinal))
+            {
+                if (!block.Steam || block.Era is not { } era || era > garage.DefaultTier)
+                {
+                    continue;
+                }
+                var effects = ResolveBonuses(block, coilTier, voltageTier: 0);
+                var steamSeconds = durationTicks / TicksPerSecond
+                    * (block.Tier == 2 ? 1.0 : 2.0) * effects.DurationFactor;
+                var steamPerRun = SteamPerEu * data.EuT[recipe] * data.Amps[recipe] * durationTicks
+                    * effects.EuFactor;
+                foreach (var steamId in SteamFluidIds)
+                {
+                    if (!index.TryGetItem(steamId, out var steamItem))
+                    {
+                        continue;
+                    }
+                    variants.Add(new RunVariant(
+                        recipe, block.ItemId, 0, effects.Parallels, steamSeconds, 0,
+                        effects.Estimated, steamItem, steamPerRun));
+                }
+            }
+        }
         return variants;
     }
 
@@ -760,6 +828,12 @@ public sealed class PipelineSolverService(
         double heatEuFactor,
         BlockEffects effects)
     {
+        // Overclocking trades quadrupled power for halved time; a recipe drawing nothing
+        // has no power to trade and runs at base speed only.
+        if (euPerTick <= 0)
+        {
+            maxSteps = 0;
+        }
         var baseSeconds = durationTicks / TicksPerSecond * effects.DurationFactor;
         var baseEu = durationTicks * (double)euPerTick * heatEuFactor * effects.EuFactor * effects.DurationFactor;
         for (var k = 0; k <= Math.Max(0, maxSteps); k++)
@@ -962,11 +1036,39 @@ public sealed class PipelineSolverService(
             foreach (var variant in Variants(index, recipes, machines, garage, recipe))
             {
                 var variantEntries = entries;
-                if (euRow >= 0 && variant.EuPerRun > 0)
+                if ((euRow >= 0 && variant.EuPerRun > 0) || variant.SteamItem >= 0)
                 {
-                    net[euRow] = -variant.EuPerRun / TicksPerSecond;
+                    var setEu = euRow >= 0 && variant.EuPerRun > 0;
+                    if (setEu)
+                    {
+                        net[euRow] = -variant.EuPerRun / TicksPerSecond;
+                    }
+                    var steamRow = -1;
+                    var priorSteam = 0.0;
+                    var hadSteam = false;
+                    if (variant.SteamItem >= 0)
+                    {
+                        // The recipe may already consume the same fluid as a real input.
+                        steamRow = RowOf(variant.SteamItem);
+                        hadSteam = net.TryGetValue(steamRow, out priorSteam);
+                        net[steamRow] = (hadSteam ? priorSteam : 0) - variant.SteamPerRun;
+                    }
                     variantEntries = Sorted(net);
-                    net.Remove(euRow);
+                    if (setEu)
+                    {
+                        net.Remove(euRow);
+                    }
+                    if (steamRow >= 0)
+                    {
+                        if (hadSteam)
+                        {
+                            net[steamRow] = priorSteam;
+                        }
+                        else
+                        {
+                            net.Remove(steamRow);
+                        }
+                    }
                 }
                 if (upper == 0)
                 {
@@ -1005,6 +1107,12 @@ public sealed class PipelineSolverService(
                 [RowOf(generator.FuelItem)] = -generator.UnitsPerSecond,
                 [euRow] = generator.NetEuT,
             };
+            if (generator.CondensateItem >= 0)
+            {
+                var row = RowOf(generator.CondensateItem);
+                entries[row] = entries.GetValueOrDefault(row)
+                    + generator.UnitsPerSecond * generator.CondensatePerUnit;
+            }
             foreach (var (tier, row) in bandRows)
             {
                 if (generator.Tier >= tier)
@@ -1155,8 +1263,9 @@ public sealed class PipelineSolverService(
                         weights.GetValueOrDefault(index.ItemIds[meta.Item], 1),
                     FactoryObjective.Energy when meta.Kind == ColumnKind.Run =>
                         // Generators are excluded: their cost is fuel, priced by the resource
-                        // layer through the fuel chain.
-                        variants[meta.Variant].EuPerRun / 1000,
+                        // layer through the fuel chain. Steam draw counts at its EU content.
+                        (variants[meta.Variant].EuPerRun
+                            + variants[meta.Variant].SteamPerRun * EuPerSteamLiter) / 1000,
                     FactoryObjective.Machines when meta.Kind == ColumnKind.Run =>
                         variants[meta.Variant].DurationSeconds / variants[meta.Variant].Parallels,
                     FactoryObjective.Machines when meta.Kind == ColumnKind.Generate => 1.0,
@@ -1442,6 +1551,11 @@ public sealed class PipelineSolverService(
                             consumed[item] = consumed.GetValueOrDefault(item) + index.AlternativeAmount[a] * value;
                         }
                     }
+                    if (variant.SteamItem >= 0)
+                    {
+                        consumed[variant.SteamItem] =
+                            consumed.GetValueOrDefault(variant.SteamItem) + variant.SteamPerRun * value;
+                    }
                     var busy = value * variant.DurationSeconds / variant.Parallels;
                     drawEuT += value * variant.EuPerRun / TicksPerSecond;
                     busyMachines += busy;
@@ -1463,6 +1577,11 @@ public sealed class PipelineSolverService(
                     var generator = model.Generators[meta.Variant];
                     consumed[generator.FuelItem] =
                         consumed.GetValueOrDefault(generator.FuelItem) + generator.UnitsPerSecond * value;
+                    if (generator.CondensateItem >= 0)
+                    {
+                        produced[generator.CondensateItem] = produced.GetValueOrDefault(generator.CondensateItem)
+                            + generator.UnitsPerSecond * generator.CondensatePerUnit * value;
+                    }
                     exportEuT += generator.NetEuT * value;
                     busyMachines += value;
                     // Item ids contain '~', so the synthetic id uses '|' as its separator.

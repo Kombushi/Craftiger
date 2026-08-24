@@ -39,7 +39,10 @@ public sealed class FixtureRun : IDisposable
         using var services = new ServiceCollection()
             .AddBuilderServices(configuration)
             .BuildServiceProvider();
-        services.GetRequiredService<IBuilderPipeline>().Run();
+        if (services.GetRequiredService<IBuilderPipeline>().Run() != 0)
+        {
+            throw new InvalidOperationException("builder pipeline failed; see its log output");
+        }
 
         PlannerPath = Path.Combine(_directory, "planner.sqlite");
     }

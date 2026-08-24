@@ -58,6 +58,9 @@ public static class FixtureDump
     public const string BerryIngot = "i~gregtech~gt.metaitem.01~11044";
     public const string ChoiceBrick = "i~miscutils~choiceBrick~0";
     public const string WirelessIngot = "i~gregtech~gt.metaitem.01~11666";
+    public const string Ic2Steam = "f~IC2~ic2steam";
+    public const string BronzeBoiler = "i~gregtech~gt.blockmachines~15529";
+    public const string SteamTurbine = "i~gregtech~gt.blockmachines~1120";
     public const string DeadTurbine = "i~gregtech~gt.blockmachines~7001";
     public const string LiveTurbine = "i~gregtech~gt.blockmachines~7002";
     public const string XlTurbine = "i~gregtech~gt.blockmachines~15522";
@@ -229,6 +232,7 @@ public static class FixtureDump
         Item(db, CherryLeaves, "Cherry Leaves", "etfuturum");
         Item(db, FixturePipe, "Fixture Pipe", "IC2");
         Fluid(db, Water, "water", "Water");
+        Fluid(db, Ic2Steam, "ic2steam", "Steam");
         Fluid(db, Lava, "lava", "Lava");
         Fluid(db, Hydrogen, "hydrogen", "Hydrogen");
         Item(db, WaterCell, "Water Cell", "gregtech");
@@ -663,6 +667,10 @@ public static class FixtureDump
         db.Execute("INSERT INTO GREG_TECH_DYNAMO VALUES ('gtdyn~1', 4, 512, 8192, 'i~fixture~dynamo')");
         Item(db, "i~fixture~boiler", "Fixture Large Boiler", "fixture");
         db.Execute("INSERT INTO GREG_TECH_LARGE_BOILER VALUES ('gtlb~1', 16, 480, 'i~fixture~boiler')");
+        Item(db, BronzeBoiler, "Large Bronze Boiler", "gregtech");
+        db.Execute($"INSERT INTO GREG_TECH_LARGE_BOILER VALUES ('gtlb~2', 16, 480, '{BronzeBoiler}')");
+        Item(db, SteamTurbine, "Basic Steam Turbine", "gregtech");
+        db.Execute($"INSERT INTO GREG_TECH_GENERATOR VALUES ('gtgen~2', 1, 85.714285714285708, 32, '{SteamTurbine}')");
         db.Execute($"INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE VALUES ('gtmb~1', 8, '{EbfController}')");
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 8, 'PARALLEL', 0, '8 Parallels', NULL)");
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 2, 'PARALLEL_PER_TIER', 1, '2x Parallels per Heating Coil Tier', 'COIL')");

@@ -12,4 +12,8 @@ public sealed record MachineOverlayConfiguration
     /// <summary>Controllers whose output comes from an installed rotor's stat table. The
     /// dump cannot tell them from other fuel-map multiblocks like the chemical engine.</summary>
     public required IReadOnlyList<string> RotorTurbines { get; init; }
+
+    /// <summary>The GT++ steam multiblocks: eight parallels at 125 % speed and 62.5 % steam
+    /// use, identical across all of them per their tooltips.</summary>
+    public required IReadOnlyList<string> SteamMultiblocks { get; init; }
 }

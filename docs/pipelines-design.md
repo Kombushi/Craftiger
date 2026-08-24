@@ -234,7 +234,15 @@ fixed, which is where presolve earns its keep — and each lock row is
 guard against tolerance-level lock violations (measured `10⁻¹⁷` here). A
 flat `ε_abs = 10⁻³` corridor floor was tried first and rejected: the
 machines layer spent the corridor buying phantom priced inflows on
-otherwise-free plans. Layer-tolerance slivers below 10⁻⁵ runs/s are
+otherwise-free plans. The steam carrier stretched the matrix further
+(38,400 L recipe amounts, 144,000 L/s turbine draws) and the restricted
+layer failed again with every guard in place — the standing point measured
+feasible to `5×10⁻⁸` while even a presolve-off simplex declared
+infeasibility — so the adapter now retries a failed restricted layer
+without presolve and, when that also fails, **falls back to the prior
+layer's optimum**: canonicalization is a tie-break, not a constraint, and
+a simplex vertex already carries no free-spinning churn. Layer-tolerance
+slivers below 10⁻⁵ runs/s are
 reporting noise, not lines. Pin solver settings for determinism
 (single-threaded simplex, fixed seed); the whole-solve time budget flows
 down the layers as each one's remaining time.
@@ -349,6 +357,41 @@ builder synthesizes **generator pseudo-recipes** per (generator item, fuel):
   Exchanger is *not* a fuels-table entry: its IS_FUEL map holds real
   two-fluid-in/fluid-out recipes and is routed as an ordinary machine map
   (§5.2).
+
+  Shipped mechanics: the builder **synthesizes the carrier into the
+  artifact**, so the cost engine prices steam and the runtime stays pure.
+  One recipe per (boiler, fuel) turns the fuel plus water (1 L per 160 L,
+  plain water, user-confirmed) into IC2 steam at 2 L per EU of the boiler's
+  rate over the extracted burn seconds — which **already carry GT's
+  long-burn bonus**: `LargeBoilerFuelBackend` applies
+  `max(1, 1+ln(steelSeconds/10)·0.025)` before generating the very fake
+  recipes the exporter parsed (verified in source; coal and Block of Coal
+  both sit at ratio 1.0, which made the table look linear). Dual-fuel boost
+  and circuit throttling stay unmodeled. Machine rows and 0.5-EU/L steam
+  pseudo-fuels are synthesized for the single steam turbines (their
+  source-normalized efficiencies ride the existing generator path; the
+  tooltip's "up to 1552 L/s" differs from the code's 1,493 L/s and the code
+  wins) and for the Large/XL Steam Turbines (rotor STEAM class, 16×
+  overlay parallels, both steams accepted, 1 L distilled water returned per
+  160 L). Steam machines run LV-and-below recipes at zero EU draw: bronze
+  at twice the recipe duration and 2 L/EU of rate, high pressure doubling
+  rate and speed — the same four liters per recipe EU either way
+  (user-confirmed against the 30 EU/t → 1,200 L/s example); the GT++ steam
+  multiblocks ride overlay bonuses (8 parallels, 125 % speed, 62.5 % steam,
+  identical tooltips verified per item; HP mode unmodeled). IC2 and
+  Railcraft steam are interchangeable (user decision): drawing variants
+  exist per steam fluid, and the candidate walk seeds the steam fluids in
+  whenever legal steam blocks exist, since variant draw is invisible to a
+  recipe-input walk. **The EU-efficiency layer is carrier-neutral** (user
+  decision): steam draw counts at 0.5 EU per liter there — with steam read
+  as free, the layer bought 342 busy machines of free-steam detours on the
+  PE example to shave 5 EU/t of electric draw. Steam machines therefore
+  surface where they genuinely win — the GT++ multis' eight parallels under
+  a machines-first priority — rather than as phantom free energy. Zero-EU
+  recipes (boilers) never overclock: there is no power to quadruple. Deferred: steam machines do not yet *extend* garage
+  legality — a steam-era garage still cannot reach LV recipes through them
+  (spec §2's garage-legal definition would have to change); revisit with
+  the steam-era garage work.
 - Combustion engines' boosted modes (extra oxygen, higher output and
   efficiency) are separate, user-configurable machine variants; warm-up
   ramps are transients and ignored — steady state runs at final efficiency.

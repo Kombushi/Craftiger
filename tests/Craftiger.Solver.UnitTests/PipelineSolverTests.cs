@@ -429,4 +429,42 @@ public class PipelineSolverTests
         // axes at both fits adds no column.
         Assert.Equal(3, lp.Program!.Columns.Count);
     }
+
+    [Fact]
+    public void SteamBlocksRunOnSteamInsteadOfEu()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("ore", weight: 1), Fx.Leaf("f~IC2~ic2steam", weight: 1, leafClass: "dust")],
+            Fx.Recipe("grind", machine: "Mill", tier: 1, inputs: [("ore", 1)], outputs: ("dust", 1, 1.0)));
+        var machines = Fx.Machines(new()
+        {
+            ["Mill"] =
+            [
+                Fx.Block("bronze-mill", tier: 1, steam: true),
+                Fx.Block("steel-mill", tier: 2, steam: true),
+            ],
+        });
+        var garage = Fx.Garage(defaultTier: 1);
+        var lp = new RecordingLpSolver();
+
+        Fx.Pipeline(lp).Solve(
+            graph, Fx.Data(graph, new() { ["grind"] = (100, 30, 1) }), machines,
+            Fx.Seeds(), Fx.Costs(graph, garage), garage, Fx.Weights(), Fx.Request([("dust", 1)]));
+
+        // One anonymous electric variant, two steam variants, two purchases. Bronze runs the
+        // recipe at twice the base duration, high pressure at base speed; both swallow
+        // 4 L x 30 EU/t x 100 t = 12,000 L per run.
+        var program = lp.Program!;
+        Assert.Equal(5, program.Columns.Count);
+        var machinesLayer = program.Objectives[2].Coefficients;
+        Assert.Equal([5.0, 10.0, 5.0], machinesLayer.Select(e => e.Value));
+        var steamDraws = program.Columns
+            .SelectMany(c => c.Entries)
+            .Where(e => e.Value == -12000)
+            .Count();
+        Assert.Equal(2, steamDraws);
+        // The energy layer is carrier-neutral: the electric variant at 100 t x 30 EU/t,
+        // and each steam variant at 12,000 L x 0.5 EU, all over 1000.
+        Assert.Equal([3.0, 6.0, 6.0], program.Objectives[1].Coefficients.Select(e => e.Value));
+    }
 }

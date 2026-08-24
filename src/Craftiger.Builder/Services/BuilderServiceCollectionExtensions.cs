@@ -30,9 +30,11 @@ public static class BuilderServiceCollectionExtensions
                 configuration.GetSection(nameof(RenewableSeedsConfiguration)))
             .Configure<MachineOverlayConfiguration>(
                 configuration.GetSection(nameof(MachineOverlayConfiguration)))
+            .Configure<SteamConfiguration>(configuration.GetSection(nameof(SteamConfiguration)))
             .AddSingleton<IDumpRepository, DumpRepository>()
             .AddSingleton<IPlannerRepository, PlannerRepository>()
             .AddSingleton<IUnificationService, UnificationService>()
+            .AddSingleton<ISteamSynthesisService, SteamSynthesisService>()
             .AddSingleton<IRecipeTransformService, RecipeTransformService>()
             .AddSingleton<IConservationService, ConservationService>()
             .AddSingleton<ILeafTaggingService, LeafTaggingService>()

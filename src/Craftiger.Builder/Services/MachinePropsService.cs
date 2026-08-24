@@ -16,9 +16,16 @@ public sealed class MachinePropsService(
     private readonly MachineOverlayConfiguration _overlay = overlay.Value;
 
     public MachinePropsData Run(
-        Dump dump, UnifiedItems unified, IReadOnlyDictionary<string, int> era)
+        Dump dump, UnifiedItems unified, IReadOnlyDictionary<string, int> era,
+        IReadOnlyList<PlannerMachineItem> synthesized)
     {
         var machineItems = new Dictionary<(string, string), PlannerMachineItem>();
+        foreach (var extra in synthesized)
+        {
+            machineItems.TryAdd(
+                (extra.Map, extra.ItemId),
+                extra with { Era = era.TryGetValue(extra.ItemId, out var extraEra) ? extraEra : null });
+        }
         var deprecated = 0;
         foreach (var map in dump.RecipeMapByTypeId.Values.Distinct())
         {
@@ -124,6 +131,24 @@ public sealed class MachinePropsService(
                     $"machine overlay names {itemId}, which the dump lists as no machine block");
             }
             props[itemId] = Row(itemId) with { RotorTurbine = true };
+        }
+        foreach (var itemId in _overlay.SteamMultiblocks.Order(StringComparer.Ordinal))
+        {
+            if (!dump.Items.ContainsKey(itemId))
+            {
+                logger.LogWarning("machine overlay names {ItemId}, unknown to this dump; skipped", itemId);
+                continue;
+            }
+            if (!machineItems.Values.Any(m => m.ItemId == itemId))
+            {
+                throw new InvalidOperationException(
+                    $"machine overlay names {itemId}, which the dump lists as no machine block");
+            }
+            // Every GT++ steam multiblock shares the same tooltip triple, verified per item.
+            props[itemId] = Row(itemId) with { MaxParallel = 8 };
+            bonuses.Add(new PlannerMachineBonus(itemId, "PARALLEL", 8, false, null));
+            bonuses.Add(new PlannerMachineBonus(itemId, "SPEED", 125, false, null));
+            bonuses.Add(new PlannerMachineBonus(itemId, "EU_DISCOUNT", 62.5, false, null));
         }
 
         var rotors = new List<PlannerTurbineRotor>();

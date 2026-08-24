@@ -15,6 +15,7 @@ public sealed class BuilderPipeline(
     IConservationService conservation,
     IBlockBreakRecipeService blockBreak,
     IUndergroundFluidRecipeService undergroundFluid,
+    ISteamSynthesisService steamSynthesis,
     ICropHarvestRecipeService cropHarvest,
     ILeafTaggingService leafTagging,
     IWorldgenErasService worldgenEras,
@@ -70,12 +71,17 @@ public sealed class BuilderPipeline(
 
         var worldgen = Stage("resolve worldgen eras", () => worldgenEras.Run(dump, unified));
         recipes.AddRange(Stage("pump fluids", () => undergroundFluid.Run(dump, unified, worldgen)));
+        var steam = Stage("synthesize steam", () => steamSynthesis.Run(dump, unified, fuelData.BoilerFuels));
+        recipes.AddRange(steam.Recipes);
+        solverRecipes.AddRange(steam.Recipes);
+        itemIds.UnionWith(CollectItemIds(steam.Recipes));
+        fuelData = fuelData with { Fuels = [.. fuelData.Fuels, .. steam.Fuels] };
 
         var eraSolve = Stage("solve eras", () => eraSolveService.Run(recipes, leafClasses, unified, dump, worldgen));
         logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);
 
         var machineProps = Stage(
-            "collect machine props", () => machinePropsService.Run(dump, unified, eraSolve.Era));
+            "collect machine props", () => machinePropsService.Run(dump, unified, eraSolve.Era, steam.Machines));
         itemIds.UnionWith(machineProps.MachineItems.Select(m => m.ItemId));
         itemIds.UnionWith(machineProps.Props.Select(p => p.ItemId));
         itemIds.UnionWith(machineProps.Rotors.Select(r => r.ItemId));
