@@ -191,13 +191,14 @@ public sealed partial class RecipeTransformService(IOptions<RecipesConfiguration
 
                 result.Add(new PlannerRecipe(
                     variantId, machine, variantTier, gt?.Heat,
-                    gt?.Duration ?? 0, gt?.Voltage ?? 0,
+                    gt?.Duration ?? 0, gt?.Voltage ?? 0, gt?.Amperage ?? 1,
                     variantInputs, choices, merged,
                     ungatedTypeIds.Contains(recipe.RecipeTypeId)
                         ? []
                         : machinesByTypeId.GetValueOrDefault(recipe.RecipeTypeId) ?? [],
                     slots,
                     gt?.RequiresCleanroom ?? false,
+                    gt?.RequiresLowGravity ?? false,
                     _config.EraOnlyMachines.Contains(machine))
                 {
                     Catalysts = catalysts,

@@ -32,13 +32,14 @@ public sealed class UndergroundFluidRecipeService(
 
             // Reaching the dimension is not enough; something has to pump the fluid out.
             recipes.Add(new PlannerRecipe(
-                $"gtuf~{fluidId}", _config.PumpMachine, dimensionEra, Heat: null, DurationTicks: 0, EuT: 0,
+                $"gtuf~{fluidId}", _config.PumpMachine, dimensionEra, Heat: null, DurationTicks: 0, EuT: 0, Amps: 1,
                 Inputs: [],
                 Choices: [],
                 Outputs: [new PlannerOutput(fluidId, 1, 1.0)],
                 Machines: rigs,
                 InputSlotAlternatives: [],
                 RequiresCleanroom: false,
+                RequiresLowGravity: false,
                 EraOnly: true));
         }
 

@@ -92,6 +92,22 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
     [Fact]
     public void APhantomRegistrationNeverReachesTheArtifact() =>
         Assert.Equal(0, fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_melt'"));
+
+    [Fact]
+    public void RecipesCarryTheirAmperage()
+    {
+        Assert.Equal(2, fixture.Scalar<int>("SELECT amps FROM recipes WHERE id = 'r_macerate'"));
+        Assert.Equal(1, fixture.Scalar<int>("SELECT amps FROM recipes WHERE id = 'r_ebf'"));
+    }
+
+    [Fact]
+    public void RecipesCarryTheirRequirementFlags()
+    {
+        Assert.Equal(2, fixture.Scalar<int>(
+            "SELECT cleanroom + low_gravity FROM recipes WHERE id = 'r_flags'"));
+        Assert.Equal(0, fixture.Scalar<int>(
+            "SELECT cleanroom + low_gravity FROM recipes WHERE id = 'r_extrude'"));
+    }
 }
 
 /// <summary>Matter conservation is derived, not configured: an untagged grind whose outputs

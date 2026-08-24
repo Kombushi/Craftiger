@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.35
+# GTNH Crafting Planner — Specification v1.36
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -308,9 +308,16 @@ Builder responsibilities, in order:
   Unicode case mapping (.NET `ToLowerInvariant`) at build time; the reader
   folds its query the same way, so matching is case-insensitive on every
   script while SQLite's own ASCII-only `LIKE` folding never matters (§7)
-- `recipes(id, machine, tier, multi_tier NULL, heat NULL, duration_ticks, eu_t)`
+- `recipes(id, machine, tier, multi_tier NULL, heat NULL, duration_ticks, eu_t,
+  amps, cleanroom, low_gravity)`
   — `multi_tier` for maps whose multiblock lowers the tier, `heat` for
-  coil-gated recipes only
+  coil-gated recipes only. `eu_t` is the per-amp voltage; total power draw is
+  `eu_t × amps`, with `amps` from the recipe's own dump row (the exporter
+  already folds map amperage into it — the builder warns when a >1 A map's
+  recipes diverge from the map, the tripwire for that convention changing).
+  `cleanroom` and `low_gravity` carry the recipe's environment requirements
+  for rate planning; the cost engine keeps handling cleanroom through the
+  era solve and ignores both columns
 - `recipe_inputs(recipe_id, item_id, amount, slot, catalyst, tool)` — amount
   in units, or mB for fluids; rows sharing a `slot` are alternatives the
   recipe accepts any one of; `catalyst = 1` rows are the tool, mold, and
@@ -1072,3 +1079,7 @@ All "does not / never" rules live here; other sections only reference this one.
     item as `5×64 + 15`, exact stacks without a remainder — while a fluid,
     a catalyst slot, an unstackable item and an amount under one stack show
     no stack line.
+44. Every recipe carries its amperage and its cleanroom and low-gravity
+    flags: a thermal-centrifuge-class 2 A recipe ships `amps = 2`, a 1 A
+    recipe `amps = 1`, and a flagged recipe ships both requirement columns
+    set while an unflagged one ships neither.

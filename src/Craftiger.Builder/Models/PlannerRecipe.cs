@@ -8,12 +8,14 @@ public sealed record PlannerRecipe(
     int? Heat,
     long DurationTicks,
     long EuT,
+    long Amps,
     Dictionary<string, long> Inputs,
     IReadOnlyList<PlannerChoice> Choices,
     List<PlannerOutput> Outputs,
     IReadOnlyList<RecipeMachine> Machines,
     IReadOnlyList<IReadOnlyList<string>> InputSlotAlternatives,
     bool RequiresCleanroom,
+    bool RequiresLowGravity,
     bool EraOnly = false)
 {
     /// <summary>Tool, mold, and circuit slots the recipe needs in place but never consumes —

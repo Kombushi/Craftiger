@@ -10,7 +10,7 @@ namespace Craftiger.Api.Repositories;
 public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 8;
+    public const int SupportedSchemaVersion = 9;
 
     public PlannerArtifact Load(string artifactsDir)
     {

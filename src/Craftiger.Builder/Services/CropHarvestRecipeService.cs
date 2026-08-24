@@ -46,13 +46,14 @@ public sealed class CropHarvestRecipeService(
             }
 
             recipes.Add(new PlannerRecipe(
-                crop.Id, _config.CropHarvestMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0,
+                crop.Id, _config.CropHarvestMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0, Amps: 1,
                 Inputs: [],
                 Choices: [],
                 Outputs: drops,
                 Machines: [],
                 InputSlotAlternatives: slots,
                 RequiresCleanroom: false,
+                RequiresLowGravity: false,
                 EraOnly: true));
         }
 

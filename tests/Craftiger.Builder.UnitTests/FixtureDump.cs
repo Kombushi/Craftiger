@@ -131,7 +131,7 @@ public static class FixtureDump
             CREATE TABLE RECIPE(ID TEXT, RECIPE_TYPE_ID TEXT);
             CREATE TABLE RECIPE_TYPE(ID TEXT, CATEGORY TEXT, TYPE TEXT, SHAPELESS INTEGER);
             CREATE TABLE RECIPE_TYPE_ITEM(RECIPE_TYPE_ID TEXT, ICON_ID TEXT);
-            CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, RECIPE_CATEGORY TEXT, REQUIRES_CLEANROOM INTEGER, RECIPE_ID TEXT);
+            CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, RECIPE_CATEGORY TEXT, REQUIRES_CLEANROOM INTEGER, REQUIRES_LOW_GRAVITY INTEGER, RECIPE_SPECIAL_VALUE INTEGER, RECIPE_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE_METADATA(GREG_TECH_RECIPE_ID TEXT, METADATA_KEY TEXT, METADATA_VALUE INTEGER);
             CREATE TABLE ITEM_GROUP_ITEM_STACKS(ITEM_GROUP_ID TEXT, ITEM_STACKS_ITEM_ID TEXT, ITEM_STACKS_STACK_SIZE INTEGER);
             CREATE TABLE ORE_DICTIONARY(ID TEXT, NAME TEXT, ITEM_GROUP_ID TEXT);
@@ -582,11 +582,14 @@ public static class FixtureDump
         Recipe(db, "r_ebf", "rt~gregtech~gt.recipe.blastfurnace~MV", inputs: [("g_alu_dust", 0)], outputs: [(AluIngot, 1, 1.0)], voltage: 120, duration: 500, heat: 1700);
 
         // Chanced byproduct plus a saw catalyst on the grid.
-        Recipe(db, "r_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_bronze_ingot", 0)], outputs: [(BronzeDust, 1, 1.0), (BronzeDust, 1, 0.9)], voltage: 4, duration: 100);
+        Recipe(db, "r_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_bronze_ingot", 0)], outputs: [(BronzeDust, 1, 1.0), (BronzeDust, 1, 0.9)], voltage: 4, duration: 100, amperage: 2);
         Recipe(db, "r_planks", "t_shaped", inputs: [("g_log", 0), ("g_saw", 1)], outputs: [(Plank, 4, 1.0)]);
 
         // Extruder-only rod with a zero-size shape mold; solidifier gives a pinnable alternative.
         Recipe(db, "r_extrude", "rt~gregtech~gt.recipe.extruder~MV", inputs: [("g_alu_ingot", 0), ("g_mold", 1)], outputs: [(AluRod, 2, 1.0)], voltage: 96, duration: 200);
+        // A strictly-worse duplicate route: exercises the cleanroom/low-gravity columns without
+        // ever winning a solve.
+        Recipe(db, "r_flags", "rt~gregtech~gt.recipe.extruder~MV", inputs: [("g_alu_ingot", 0), ("g_mold", 1)], outputs: [(AluRod, 2, 1.0)], voltage: 96, duration: 400, cleanroom: true, lowGravity: true);
         Recipe(db, "r_solidify", "rt~gregtech~gt.recipe.fluidsolidifier~MV", inputs: [("g_alu_ingot", 0)], outputs: [(AluRod, 1, 1.0)], voltage: 24, duration: 100, fluidInputs: [("g_water", 0)]);
 
         // Fuel tabs are pseudo-recipes and must be dropped.
@@ -991,7 +994,9 @@ public static class FixtureDump
         long? voltage = null, long duration = 0, int? heat = null,
         (string GroupId, int Slot)[]? fluidInputs = null,
         (string ItemId, long Amount, double Chance, int Slot)[]? byproducts = null,
-        string category = "", string? label = null)
+        string category = "", string? label = null,
+        long amperage = 1, bool cleanroom = false, bool lowGravity = false,
+        long? specialValue = null)
     {
         db.Execute("INSERT INTO RECIPE VALUES (@id, @typeId)", new { id, typeId });
         foreach (var (groupId, slot) in inputs)
@@ -1018,8 +1023,13 @@ public static class FixtureDump
         {
             label ??= voltage <= 32 ? "LV" : voltage <= 128 ? "MV" : "HV";
             db.Execute(
-                "INSERT INTO GREG_TECH_RECIPE VALUES (@gtId, 1, @duration, @voltage, @label, @category, 0, @id)",
-                new { gtId = $"gtr~{id}", duration, voltage, label, category, id });
+                "INSERT INTO GREG_TECH_RECIPE VALUES (@gtId, @amperage, @duration, @voltage, @label, @category, @cleanroom, @lowGravity, @specialValue, @id)",
+                new
+                {
+                    gtId = $"gtr~{id}", amperage, duration, voltage, label, category,
+                    cleanroom = cleanroom ? 1 : 0, lowGravity = lowGravity ? 1 : 0,
+                    specialValue, id,
+                });
             if (heat is not null)
             {
                 db.Execute(

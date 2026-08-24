@@ -33,13 +33,14 @@ public sealed class BlockBreakRecipeService(
             }
 
             recipes.Add(new PlannerRecipe(
-                drop.Id, _config.BlockBreakMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0,
+                drop.Id, _config.BlockBreakMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0, Amps: 1,
                 Inputs: new Dictionary<string, long> { [blockId] = 1 },
                 Choices: [],
                 Outputs: [new PlannerOutput(dropId, drop.Quantity, 1.0)],
                 Machines: [],
                 InputSlotAlternatives: [new[] { blockId }],
-                RequiresCleanroom: false));
+                RequiresCleanroom: false,
+                RequiresLowGravity: false));
         }
 
         logger.LogInformation("  {Count:N0} block-break recipes", recipes.Count);

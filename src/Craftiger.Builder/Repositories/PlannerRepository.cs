@@ -9,7 +9,7 @@ public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader
     /// can refuse an artifact written for a contract it does not know.</summary>
-    public const int SchemaVersion = 8;
+    public const int SchemaVersion = 9;
 
     public void Write(string path, PlannerData data)
     {
@@ -49,7 +49,10 @@ public sealed class PlannerRepository : IPlannerRepository
                 multi_tier INTEGER,
                 heat INTEGER,
                 duration_ticks INTEGER NOT NULL,
-                eu_t INTEGER NOT NULL);
+                eu_t INTEGER NOT NULL,
+                amps INTEGER NOT NULL,
+                cleanroom INTEGER NOT NULL,
+                low_gravity INTEGER NOT NULL);
             CREATE TABLE recipe_inputs(
                 recipe_id TEXT NOT NULL,
                 item_id TEXT NOT NULL,
@@ -104,11 +107,13 @@ public sealed class PlannerRepository : IPlannerRepository
                 .Select(text => new { Id = id, Text = text.ToLowerInvariant() })), tx);
 
         db.Execute(
-            "INSERT INTO recipes VALUES (@Id, @Machine, @Tier, @MultiTier, @Heat, @DurationTicks, @EuT)",
+            "INSERT INTO recipes VALUES (@Id, @Machine, @Tier, @MultiTier, @Heat, @DurationTicks, @EuT, @Amps, @Cleanroom, @LowGravity)",
             data.Recipes.Select(r => new
             {
                 r.Id, r.Machine, Tier = r.SingleBlockTier, MultiTier = r.MultiblockTier,
-                r.Heat, r.DurationTicks, r.EuT
+                r.Heat, r.DurationTicks, r.EuT, r.Amps,
+                Cleanroom = r.RequiresCleanroom ? 1 : 0,
+                LowGravity = r.RequiresLowGravity ? 1 : 0,
             }), tx);
 
         // Rows sharing a slot are alternatives; the solver takes the cheapest of them.

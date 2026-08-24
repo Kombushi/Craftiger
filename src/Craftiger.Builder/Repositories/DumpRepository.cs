@@ -52,15 +52,15 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
         // coil_heat metadata is authoritative; RECIPE_SPECIAL_VALUE holds the same number for EBF maps.
         var categoryColumn = HasColumn(db, "GREG_TECH_RECIPE", "RECIPE_CATEGORY") ? "g.RECIPE_CATEGORY" : "''";
         var gt = new Dictionary<string, DumpGtData>();
-        foreach (var r in db.Query<(string Id, long? Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom, string? Category)>($"""
-            SELECT g.RECIPE_ID, g.VOLTAGE, g.AMPERAGE, g.DURATION, m.METADATA_VALUE, g.VOLTAGE_TIER, g.REQUIRES_CLEANROOM, {categoryColumn}
+        foreach (var r in db.Query<(string Id, long? Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom, long? LowGravity, string? Category)>($"""
+            SELECT g.RECIPE_ID, g.VOLTAGE, g.AMPERAGE, g.DURATION, m.METADATA_VALUE, g.VOLTAGE_TIER, g.REQUIRES_CLEANROOM, g.REQUIRES_LOW_GRAVITY, {categoryColumn}
             FROM GREG_TECH_RECIPE g
             LEFT JOIN GREG_TECH_RECIPE_METADATA m ON m.GREG_TECH_RECIPE_ID = g.ID AND m.METADATA_KEY = 'coil_heat'
             """))
         {
             gt[r.Id] = new DumpGtData(
                 r.Id, r.Voltage, r.Amperage, r.Duration, (int?)r.Heat, r.TierLabel,
-                r.Cleanroom is not (null or 0), r.Category ?? "");
+                r.Cleanroom is not (null or 0), r.LowGravity is not (null or 0), r.Category ?? "");
         }
         if (categoryColumn == "''")
         {
@@ -261,6 +261,26 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             {
                 recipeMapByTypeId[typeId] = map;
             }
+        }
+
+        // The exporter already folds map amperage into each recipe row; a divergence here means
+        // that convention changed and power math would silently break.
+        var amperageDivergences = 0;
+        foreach (var recipe in recipes)
+        {
+            if (recipeMapByTypeId.TryGetValue(recipe.RecipeTypeId, out var map)
+                && map.Amperage > 1
+                && gt.TryGetValue(recipe.Id, out var data)
+                && data.Amperage != map.Amperage)
+            {
+                amperageDivergences++;
+            }
+        }
+        if (amperageDivergences > 0)
+        {
+            logger.LogWarning(
+                "{Count} recipes diverge from their map's amperage; recipe-level amps kept",
+                amperageDivergences);
         }
 
         var blockDrops = new List<DumpBlockDrop>();

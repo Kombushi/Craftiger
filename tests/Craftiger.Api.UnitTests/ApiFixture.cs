@@ -1,4 +1,5 @@
 using Craftiger.Api.Interfaces;
+using Craftiger.Api.Repositories;
 using Dapper;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -20,7 +21,9 @@ public sealed class ApiFixture : IDisposable
     {
         Dir = Path.Combine(Path.GetTempPath(), "craftiger-api-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Dir);
-        WriteArtifact(Path.Combine(Dir, "planner.sqlite"), schemaVersion: 8);
+        WriteArtifact(
+            Path.Combine(Dir, "planner.sqlite"),
+            schemaVersion: PlannerArtifactRepository.SupportedSchemaVersion);
         File.WriteAllText(Path.Combine(Dir, "atlas-offsets.json"), "{}");
         _factory = Create(Dir);
         Client = _factory.CreateClient();
@@ -61,7 +64,10 @@ public sealed class ApiFixture : IDisposable
                 multi_tier INTEGER,
                 heat INTEGER,
                 duration_ticks INTEGER NOT NULL,
-                eu_t INTEGER NOT NULL);
+                eu_t INTEGER NOT NULL,
+                amps INTEGER NOT NULL,
+                cleanroom INTEGER NOT NULL,
+                low_gravity INTEGER NOT NULL);
             CREATE TABLE recipe_inputs(
                 recipe_id TEXT NOT NULL,
                 item_id TEXT NOT NULL,
@@ -99,12 +105,12 @@ public sealed class ApiFixture : IDisposable
                 ('sil', 'silver ingot'), ('sil', 'silberlötzinn'), ('rod', 'extruded rod'),
                 ('chip', 'late chip'), ('saw', 'test saw'), ('frame', 'frame box'), ('card', 'logic card');
             INSERT INTO recipes VALUES
-                ('r_wire', 'Wiremill', 1, NULL, NULL, 100, 32),
-                ('r_ebf', 'Electric Blast Furnace', 1, NULL, 1900, 200, 120),
-                ('r_rod', 'Extruder', 2, NULL, NULL, 100, 96),
-                ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32),
-                ('r_frame_hand', 'Crafting Table', 0, NULL, NULL, 0, 0),
-                ('r_frame_asm', 'Assembler', 1, NULL, NULL, 64, 7);
+                ('r_wire', 'Wiremill', 1, NULL, NULL, 100, 32, 1, 0, 0),
+                ('r_ebf', 'Electric Blast Furnace', 1, NULL, 1900, 200, 120, 1, 0, 0),
+                ('r_rod', 'Extruder', 2, NULL, NULL, 100, 96, 2, 0, 0),
+                ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32, 1, 1, 0),
+                ('r_frame_hand', 'Crafting Table', 0, NULL, NULL, 0, 0, 1, 0, 0),
+                ('r_frame_asm', 'Assembler', 1, NULL, NULL, 64, 7, 1, 0, 0);
             INSERT INTO recipe_inputs VALUES
                 ('r_wire', 'ing', 1, 0, 0, 0),
                 ('r_wire', 'saw', 1, 1, 1, 1),
