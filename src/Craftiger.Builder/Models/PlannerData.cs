@@ -14,4 +14,5 @@ public sealed record PlannerData(
     IReadOnlySet<string> MultiblockMachines,
     FuelData Fuels,
     MachinePropsData MachineProps,
+    IReadOnlyList<PlannerRenewableSeed> RenewableSeeds,
     IReadOnlyDictionary<string, string> Meta);

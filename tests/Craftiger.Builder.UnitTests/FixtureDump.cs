@@ -163,6 +163,11 @@ public static class FixtureDump
                 HAS_SINGLE_BLOCK INTEGER, IS_FUEL INTEGER, LOCALIZED_NAME TEXT, UNLOCALIZED_NAME TEXT);
             CREATE TABLE GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID TEXT, MACHINES_ITEM_ID TEXT,
                 MACHINES_MULTIBLOCK INTEGER, MACHINES_TIER INTEGER, MACHINES_STEAM INTEGER);
+            CREATE TABLE MOB_INFO(ID TEXT, ALLOWED_IN_PEACEFUL INTEGER, ALLOWED_INFERNAL INTEGER,
+                ALWAYS_INFERNAL INTEGER, SOUL_VIAL_USABLE INTEGER, MOB_ID TEXT);
+            CREATE TABLE MOB_INFO_DROPS(MOB_INFO_ID TEXT, DROPS_ITEM_ID TEXT, DROPS_LOOTABLE INTEGER,
+                DROPS_PLAYER_ONLY INTEGER, DROPS_PROBABILITY REAL, DROPS_STACK_SIZE INTEGER,
+                DROPS_TYPE TEXT);
             CREATE TABLE GREG_TECH_GENERATOR(ID TEXT, AMPERES_OUT INTEGER, EFFICIENCY REAL,
                 MAX_EU_OUTPUT INTEGER, ITEM_ID TEXT);
             CREATE TABLE GREG_TECH_DYNAMO(ID TEXT, AMPERES_OUT INTEGER, MAX_EU_OUTPUT INTEGER,
@@ -652,6 +657,18 @@ public static class FixtureDump
         db.Execute($"INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE VALUES ('gtmb~1', 8, '{EbfController}')");
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 8, 'PARALLEL', 0, '8 Parallels', NULL)");
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 2, 'PARALLEL_PER_TIER', 1, '2x Parallels per Heating Coil Tier', 'COIL')");
+        // A vial-capturable mob's drop and an uncapturable one's: only the first seeds. The
+        // pearl feeds a recipe so it reaches the item set the way real mob drops do.
+        Item(db, "i~fixture~mob_pearl", "Fixture Mob Pearl", "fixture");
+        Item(db, "i~fixture~boss_relic", "Fixture Boss Relic", "fixture");
+        Item(db, "i~fixture~pearl_block", "Fixture Pearl Block", "fixture");
+        Group(db, "g_mob_pearl", ("i~fixture~mob_pearl", 1));
+        Recipe(db, "r_pearl_grind", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_mob_pearl", 0)], outputs: [("i~fixture~pearl_block", 1, 1.0)], voltage: 4, duration: 100);
+        db.Execute("INSERT INTO MOB_INFO VALUES ('mi~1', 1, 0, 0, 1, 'mob~1')");
+        db.Execute("INSERT INTO MOB_INFO_DROPS VALUES ('mi~1', 'i~fixture~mob_pearl', 1, 0, 0.5, 1, 'NORMAL')");
+        db.Execute("INSERT INTO MOB_INFO VALUES ('mi~2', 0, 0, 0, 0, 'mob~2')");
+        db.Execute("INSERT INTO MOB_INFO_DROPS VALUES ('mi~2', 'i~fixture~boss_relic', 1, 0, 1.0, 1, 'NORMAL')");
+
         Item(db, "i~fixture~rotor", "Fixture Rotor", "fixture", maxDamage: 12800);
         db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR VALUES ('gtrot~170~Fixture', 0.85, 'Fixture', 12800, 2, 'SMALL', 'i~fixture~rotor')");
         db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR_FUEL_STATS VALUES ('gtrot~170~Fixture', 0.85, 'STEAM', 0.468, 386.1, 1650, 212.5, 500)");

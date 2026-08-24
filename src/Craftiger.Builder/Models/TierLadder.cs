@@ -20,6 +20,9 @@ public static class TierLadder
     public static int? LabelTier(string? label) =>
         label is not null && _labelTiers.TryGetValue(label, out var tier) ? tier : null;
 
+    /// <summary>EU/t per amp a tier's machines run at; Steam machines draw no EU.</summary>
+    public static long Voltage(int tier) => tier <= 0 ? 0 : 32L << (2 * (tier - 1));
+
     /// <summary>Fallback when the dump carries no tier label.</summary>
     public static int VoltageTier(long euT)
     {

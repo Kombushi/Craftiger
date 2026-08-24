@@ -189,6 +189,27 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
     }
 
     [Fact]
+    public void AutoInfiniteSeedsMarkWorldFarmAndMobSources()
+    {
+        Assert.Equal("WORLD", fixture.Scalar<string>(
+            "SELECT s.kind FROM renewable_seeds s JOIN items i ON i.id = s.item_id " +
+            "WHERE i.name_en = 'Water'"));
+        Assert.Equal("MOB", fixture.Scalar<string>(
+            "SELECT s.kind FROM renewable_seeds s JOIN items i ON i.id = s.item_id " +
+            "WHERE i.name_en = 'Fixture Mob Pearl'"));
+        Assert.Equal(0, fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM renewable_seeds s JOIN items i ON i.id = s.item_id " +
+            "WHERE i.name_en = 'Fixture Boss Relic'"));
+        Assert.Equal(1, fixture.Scalar<int>(
+            "SELECT EXISTS(SELECT 1 FROM renewable_seeds WHERE kind = 'FARM')"));
+    }
+
+    [Fact]
+    public void TierVoltagesMirrorTheLadder() =>
+        Assert.StartsWith("[0,32,128,512", fixture.Scalar<string>(
+            "SELECT value FROM meta WHERE key = 'tier_voltages'"));
+
+    [Fact]
     public void MachineItemsMirrorTheMapMachineLists() =>
         Assert.Equal(1, fixture.Scalar<int>(
             "SELECT COUNT(*) FROM machine_items WHERE map = 'Blast Furnace' AND multiblock = 1"));

@@ -362,6 +362,7 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             Boilers = ReadBoilers(db),
             MultiblockMachines = ReadMultiblockMachines(db),
             TurbineRotors = ReadTurbineRotors(db),
+            MobDropItemIds = ReadMobDropItemIds(db),
             ExporterVersion = metadata.Version ?? "unknown",
             ExportedAt = DateTimeOffset.FromUnixTimeMilliseconds(metadata.CreatedMillis)
         };
@@ -437,6 +438,21 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
             """).Select(r => new DumpTurbineRotor(
             r.ItemId, r.Size, r.Material, r.Durability, r.BaseEfficiency, (int)r.Overflow,
             stats.GetValueOrDefault(r.Id) ?? []))];
+    }
+
+    private HashSet<string> ReadMobDropItemIds(SqliteConnection db)
+    {
+        if (!HasTable(db, "MOB_INFO_DROPS"))
+        {
+            logger.LogWarning("dump has no mob drops; no mob-farm seeds will ship");
+            return [];
+        }
+        return [.. db.Query<string>("""
+            SELECT DISTINCT d.DROPS_ITEM_ID
+            FROM MOB_INFO_DROPS d
+            JOIN MOB_INFO m ON m.ID = d.MOB_INFO_ID
+            WHERE m.SOUL_VIAL_USABLE = 1 AND d.DROPS_ITEM_ID IS NOT NULL
+            """)];
     }
 
     private static void RequireMachineProps(SqliteConnection db, string table)

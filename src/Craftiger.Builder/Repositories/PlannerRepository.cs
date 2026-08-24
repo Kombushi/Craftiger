@@ -117,6 +117,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 durability INTEGER NOT NULL,
                 base_efficiency REAL NOT NULL,
                 overflow_tier INTEGER NOT NULL);
+            CREATE TABLE renewable_seeds(item_id TEXT PRIMARY KEY, kind TEXT NOT NULL);
             CREATE TABLE rotor_fuel_stats(
                 item_id TEXT NOT NULL,
                 fuel TEXT NOT NULL,
@@ -254,6 +255,9 @@ public sealed class PlannerRepository : IPlannerRepository
             "INSERT INTO rotor_fuel_stats VALUES (@ItemId, @Fuel, @Efficiency, " +
             "@LooseEfficiency, @OptimalFlow, @LooseOptimalFlow, @OptimalEut, @LooseOptimalEut)",
             data.MachineProps.RotorStats, tx);
+
+        db.Execute("INSERT INTO renewable_seeds VALUES (@ItemId, @Kind)",
+            data.RenewableSeeds, tx);
 
         db.Execute("INSERT INTO meta VALUES (@Key, @Value)",
             data.Meta.Select(m => new { m.Key, m.Value }), tx);

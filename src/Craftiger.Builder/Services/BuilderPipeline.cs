@@ -20,6 +20,7 @@ public sealed class BuilderPipeline(
     IWorldgenErasService worldgenEras,
     IFuelExtractionService fuelExtraction,
     IMachinePropsService machinePropsService,
+    IRenewableSeedsService renewableSeeds,
     IEraSolveService eraSolveService,
     IPriceCheckService priceCheck,
     IAtlasBuilder atlasBuilder,
@@ -84,6 +85,10 @@ public sealed class BuilderPipeline(
         logger.LogInformation("  {Leaves:N0} leaves kept", leafClasses.Count);
         var itemParents = leafTagging.Parents(leafClasses, eraSolve.Tiers, unified, dump);
 
+        var seeds = Stage(
+            "mark auto-infinite seeds", () => renewableSeeds.Run(dump, unified, leafClasses, itemIds));
+        logger.LogInformation("  {Seeds:N0} auto-infinite seeds", seeds.Count);
+
         if (_options.ExplainItem is { } query)
         {
             Explain(dump, itemIds, eraSolve, query);
@@ -104,6 +109,9 @@ public sealed class BuilderPipeline(
             ["exporter_version"] = dump.ExporterVersion,
             ["dump_date"] = dump.ExportedAt.ToString("O"),
             ["tier_names"] = JsonSerializer.Serialize(TierLadder.Names.Take(Math.Min(maxTier + 1, TierLadder.Names.Count))),
+            ["tier_voltages"] = JsonSerializer.Serialize(
+                Enumerable.Range(0, Math.Min(maxTier + 1, TierLadder.Names.Count))
+                    .Select(TierLadder.Voltage)),
             ["coils"] = JsonSerializer.Serialize(_eras.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier })),
             ["price_leaks"] = prices.Undercut.ToString(),
             ["price_free_items"] = prices.Free.ToString(),
@@ -140,7 +148,7 @@ public sealed class BuilderPipeline(
             plannerRepository.Write(plannerPath, new PlannerData(
                 dump, unified, solverRecipes, orderedItemIds, leafClasses, eraSolve.Tiers,
                 itemParents, leafWeights, eraSolve.MachineEras, multiblockMachines, fuelData,
-                machineProps, meta));
+                machineProps, seeds, meta));
             return 0;
         });
 

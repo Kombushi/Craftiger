@@ -378,6 +378,13 @@ Builder responsibilities, in order:
   loose_optimal_eut)` — every rotor variant's computed large-turbine stats,
   tight and loose fit, per `STEAM`/`GAS`/`PLASMA`; flow is L/t for steam and
   EU/t of fuel value otherwise
+- `renewable_seeds(item_id, kind)` — the auto-infinite primitives: items
+  obtainable automatically and forever, from which run-time derivation
+  through garage-legal chains starts. `WORLD` rows come from a curated name
+  list (water, air, cobblestone — never lava), `FARM` rows are the
+  farm-product leaf classes (logs, crop drops, farmables), and `MOB` rows
+  are the distinct drops of soul-vial-capturable mobs, includable per
+  factory
 - `machine_eras(machine, era, multiblock)` — per map, the era solve's era of
   its cheapest serving machine block, floored by any configured gate; null
   where no block ever becomes craftable, 0 for maps served without machine
@@ -391,8 +398,10 @@ Builder responsibilities, in order:
   written for a contract it does not know. Beside it `build_id`, a fresh
   identifier per build — the same pack at the same schema is rebuilt, and a
   reader that keeps solved tables outside the process keys them by the exact
-  build (§8) — the pack version, dump date, atlas dimensions, coil list, and
-  the price check's verdict (§3 step 7).
+  build (§8) — the pack version, dump date, atlas dimensions, coil list,
+  `tier_voltages` (EU/t per amp per tier, indexed like `tier_names`, 0 for
+  Steam — the client never hardcodes the voltage ladder), and the price
+  check's verdict (§3 step 7).
 
 The artifact is written once and shipped read-only. Journal sidecars left by
 an interrupted run are cleared before writing, alternatives, aliases, and
@@ -1131,3 +1140,7 @@ All "does not / never" rules live here; other sections only reference this one.
     boiler its EU/t rating, a bonus-bearing multiblock its parallels and
     typed bonus rows with their scaling axes, and a rotor its per-fuel
     tight and loose stats.
+48. Auto-infinite seeds mark their source kind: water is a `WORLD` seed, a
+    farm-product leaf a `FARM` seed, a capturable mob's drop a `MOB` seed,
+    an uncapturable mob's drop no seed at all — and `tier_voltages` ships
+    beside `tier_names`.

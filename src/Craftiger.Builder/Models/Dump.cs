@@ -46,6 +46,9 @@ public sealed class Dump
     public required List<DumpBoiler> Boilers { get; init; }
     public required List<DumpMultiblockMachine> MultiblockMachines { get; init; }
     public required List<DumpTurbineRotor> TurbineRotors { get; init; }
+
+    /// <summary>Distinct drops of soul-vial-capturable mobs: what an auto mob farm yields.</summary>
+    public required HashSet<string> MobDropItemIds { get; init; }
     public required string ExporterVersion { get; init; }
     public required DateTimeOffset ExportedAt { get; init; }
 
