@@ -390,11 +390,14 @@ power-to-output multiplier formula is pinned from source at implementation.
   plasma — the special value is **EU per cell**, and a plasma cell holds
   1000 L (user-confirmed; the builder asserts each plasma cell's
   `FLUID_CONTAINER` volume, and the survey's 144 mB reading is re-checked
-  there). `semifluidboilerfuels` is empty in the dump — **not** out of
-  scope: phase 0 investigates why and fixes or extends the exporter until
-  the map exports. The Extreme Heat Exchanger routes as an ordinary recipe
-  map, not a fuel. Fuel-map recipe types are per-voltage-tier
-  (`rt~gregtech~<map>~<tier>`); extraction iterates by map prefix.
+  there). `semifluidboilerfuels` empty is **correct, not an exporter bug**
+  (phase 0 verified): no machine class serves that legacy GT5U map — GTNH's
+  semifluid fuels live on GT++'s `semifluidgeneratorfuels` map, served by
+  the five Semifluid Generators the generator table covers; the builder
+  asserts the legacy map stays empty. The Extreme Heat Exchanger routes as
+  an ordinary recipe map, not a fuel. Fuel-map recipe types are
+  per-voltage-tier (`rt~gregtech~<map>~<tier>`); extraction iterates by map
+  prefix.
 - **`machine_props`** — keyed by **machine item id**
   (`GREG_TECH_RECIPE_MAP_MACHINES.MACHINES_ITEM_ID`, deduplicated; display
   names are ambiguous — two distinct "Large Steam Turbine" items exist):
@@ -412,17 +415,21 @@ power-to-output multiplier formula is pinned from source at implementation.
 
 Three candidate sources were evaluated per datum; the decision:
 
-- **Primary: a `gregtech_machine_props` exporter plugin** in the project's
-  own NESQL-exporter fork (precedent: the worldgen plugin, ~950 lines, one
-  commit; plugin = enum value + registry line + JPA entities, tables
-  auto-generated). It reads typed getters where they exist —
-  `MTEBasicGenerator.getEfficiency()`, `MTEHatchDynamo` V/A,
-  `TurbineStatCalculator` for rotors, `getMaxParallelRecipes()` as a
-  cross-check — and extracts multiblock bonus records by matching tooltip
-  lines against the **live `GT5U.MBTT.*` lang templates in-game** (the
-  builder never regex-parses raw localized strings offline; prior art
-  documented that failure mode). Cost: one full re-export (~1 h) plus
-  `dump:convert`; plugin-only test exports keep iteration cheap.
+- **Primary: the `gregtech_machine_props` exporter plugin** in the
+  project's own NESQL-exporter fork (shipped in 0.6.5): `GREG_TECH_GENERATOR`
+  (efficiency/voltage/amps for every `MTEBasicGenerator`, single-block Steam
+  Turbines included), `GREG_TECH_DYNAMO`, `GREG_TECH_TURBINE_ROTOR`
+  (+`_FUEL_STATS`, per material × size from `TurbineStatCalculator`),
+  `GREG_TECH_MULTIBLOCK_MACHINE` (+`_BONUSES`, matched against the **live
+  `GT5U.MBTT.*` lang templates in-game** with `getMaxParallelRecipes()` as
+  a cross-check — the builder never regex-parses raw localized strings
+  offline; prior art documented that failure mode), and
+  `GREG_TECH_LARGE_BOILER` (EU/t rating, both boiler generations). One
+  verified quirk: `MTESteamTurbine` overloads `getEfficiency()` as
+  steam-per-EU (3 EU per `6+tier` mB), so the exporter normalizes it to the
+  true percentage `600 / getEfficiency()` against the 2 L/EU base rate.
+  Cost: one full re-export (~1 h) plus `dump:convert`; plugin-only test
+  exports keep iteration cheap.
 - **Curated overlay** — only for the formula/prose multis the templates
   cannot express (EOH, PCB Factory, Compact Fusion, Spinmatron, Industrial
   Sledgehammer, Dangote Distillus, Electric Implosion Compressor), a small
@@ -655,8 +662,6 @@ To pin during implementation (facts to evidence, not decisions):
   overlay multis (grown on demand).
 - The plasma-cell volume discrepancy (user: 1000 L; one dump survey read
   144 mB) — settled by the builder assert on `FLUID_CONTAINER`.
-- Why `semifluidboilerfuels` exports empty — exporter fix or new exporter
-  code.
 - `Highs.Native` bundled HiGHS ≥ 1.9 (native lexicographic objectives).
 
 ## 10. Phasing and acceptance checks
