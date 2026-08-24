@@ -163,6 +163,22 @@ public static class FixtureDump
                 HAS_SINGLE_BLOCK INTEGER, IS_FUEL INTEGER, LOCALIZED_NAME TEXT, UNLOCALIZED_NAME TEXT);
             CREATE TABLE GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID TEXT, MACHINES_ITEM_ID TEXT,
                 MACHINES_MULTIBLOCK INTEGER, MACHINES_TIER INTEGER, MACHINES_STEAM INTEGER);
+            CREATE TABLE GREG_TECH_GENERATOR(ID TEXT, AMPERES_OUT INTEGER, EFFICIENCY REAL,
+                MAX_EU_OUTPUT INTEGER, ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_DYNAMO(ID TEXT, AMPERES_OUT INTEGER, MAX_EU_OUTPUT INTEGER,
+                MAX_EU_STORE INTEGER, ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_LARGE_BOILER(ID TEXT, EFFICIENCY_INCREASE INTEGER, EUT INTEGER,
+                ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_MULTIBLOCK_MACHINE(ID TEXT, MAX_PARALLEL_RECIPES INTEGER, ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_MULTIBLOCK_MACHINE_BONUSES(GREG_TECH_MULTIBLOCK_MACHINE_ID TEXT,
+                BONUSES_BONUS_VALUE REAL, BONUSES_KIND TEXT, BONUSES_MULTIPLICATIVE INTEGER,
+                BONUSES_SOURCE_LINE TEXT, BONUSES_TIER_AXIS TEXT);
+            CREATE TABLE GREG_TECH_TURBINE_ROTOR(ID TEXT, BASE_EFFICIENCY REAL, MATERIAL_NAME TEXT,
+                MAX_DURABILITY INTEGER, OVERFLOW_EFFICIENCY INTEGER, SIZE TEXT, ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_TURBINE_ROTOR_FUEL_STATS(GREG_TECH_TURBINE_ROTOR_ID TEXT,
+                FUEL_STATS_EFFICIENCY REAL, FUEL_STATS_FUEL TEXT, FUEL_STATS_LOOSE_EFFICIENCY REAL,
+                FUEL_STATS_LOOSE_OPTIMAL_EUT REAL, FUEL_STATS_LOOSE_OPTIMAL_FLOW REAL,
+                FUEL_STATS_OPTIMAL_EUT REAL, FUEL_STATS_OPTIMAL_FLOW REAL);
             CREATE TABLE BLOCK_DROP(ID TEXT, BLOCK_META INTEGER, BLOCK_NAME TEXT, QUANTITY INTEGER,
                 BLOCK_ITEM_ID TEXT, DROP_ID TEXT);
             CREATE TABLE CROPS_NH_CROP(ID TEXT, CROP_ID TEXT, DROP_CHANCE REAL, GROWTH_DURATION INTEGER,
@@ -625,6 +641,22 @@ public static class FixtureDump
         Fluid(db, "f~fixture_naq_fuel", "fixture_naq_fuel", "Fixture Naquadah Fuel");
         db.Execute("INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_naq_fuel', 1, 'f~fixture_naq_fuel')");
         Recipe(db, "r_fuel_timed", "rt~gregtech~gg.recipe.naquadah_reactor~ULV", inputs: [], outputs: [], label: "ULV", specialValue: 1600000, duration: 160, fluidInputs: [("g_naq_fuel", 0)]);
+
+        // Machine stat tables: a generator, a dynamo, a boiler, the EBF's bonuses, one rotor.
+        Item(db, "i~fixture~gas_turbine", "Fixture Gas Turbine", "fixture");
+        db.Execute("INSERT INTO GREG_TECH_GENERATOR VALUES ('gtgen~1', 1, 95, 32, 'i~fixture~gas_turbine')");
+        Item(db, "i~fixture~dynamo", "Fixture Dynamo Hatch", "fixture");
+        db.Execute("INSERT INTO GREG_TECH_DYNAMO VALUES ('gtdyn~1', 4, 512, 8192, 'i~fixture~dynamo')");
+        Item(db, "i~fixture~boiler", "Fixture Large Boiler", "fixture");
+        db.Execute("INSERT INTO GREG_TECH_LARGE_BOILER VALUES ('gtlb~1', 16, 480, 'i~fixture~boiler')");
+        db.Execute($"INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE VALUES ('gtmb~1', 8, '{EbfController}')");
+        db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 8, 'PARALLEL', 0, '8 Parallels', NULL)");
+        db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 2, 'PARALLEL_PER_TIER', 1, '2x Parallels per Heating Coil Tier', 'COIL')");
+        Item(db, "i~fixture~rotor", "Fixture Rotor", "fixture", maxDamage: 12800);
+        db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR VALUES ('gtrot~170~Fixture', 0.85, 'Fixture', 12800, 2, 'SMALL', 'i~fixture~rotor')");
+        db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR_FUEL_STATS VALUES ('gtrot~170~Fixture', 0.85, 'STEAM', 0.468, 386.1, 1650, 212.5, 500)");
+        db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR_FUEL_STATS VALUES ('gtrot~170~Fixture', 0.85, 'GAS', 0.494, 518.7, 1050, 425, 500)");
+        db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR_FUEL_STATS VALUES ('gtrot~170~Fixture', 0.85, 'PLASMA', 0.52, 22495.2, 43260, 17850, 21000)");
 
         // Distinct materials share the wildcard ingotAnyIron group but must stay separate.
         Recipe(db, "r_iron_use", "t_shaped", inputs: [("g_iron", 0)], outputs: [(Plank, 1, 1.0)]);

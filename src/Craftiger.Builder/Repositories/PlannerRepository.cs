@@ -87,6 +87,46 @@ public sealed class PlannerRepository : IPlannerRepository
                 boiler TEXT NOT NULL,
                 burn_seconds REAL NOT NULL,
                 UNIQUE(item_id, boiler));
+            CREATE TABLE machine_items(
+                map TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                tier INTEGER,
+                multiblock INTEGER NOT NULL,
+                steam INTEGER NOT NULL,
+                UNIQUE(map, item_id));
+            CREATE TABLE machine_props(
+                item_id TEXT PRIMARY KEY,
+                era INTEGER,
+                generator_efficiency REAL,
+                generator_eu_t INTEGER,
+                generator_amps INTEGER,
+                dynamo_eu_t INTEGER,
+                dynamo_amps INTEGER,
+                max_parallel INTEGER,
+                boiler_eu_t INTEGER);
+            CREATE TABLE machine_bonuses(
+                item_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                bonus REAL NOT NULL,
+                multiplicative INTEGER NOT NULL,
+                tier_axis TEXT);
+            CREATE TABLE turbine_rotors(
+                item_id TEXT PRIMARY KEY,
+                size TEXT NOT NULL,
+                material TEXT NOT NULL,
+                durability INTEGER NOT NULL,
+                base_efficiency REAL NOT NULL,
+                overflow_tier INTEGER NOT NULL);
+            CREATE TABLE rotor_fuel_stats(
+                item_id TEXT NOT NULL,
+                fuel TEXT NOT NULL,
+                efficiency REAL NOT NULL,
+                loose_efficiency REAL NOT NULL,
+                optimal_flow REAL NOT NULL,
+                loose_optimal_flow REAL NOT NULL,
+                optimal_eut REAL NOT NULL,
+                loose_optimal_eut REAL NOT NULL,
+                UNIQUE(item_id, fuel));
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             CREATE VIRTUAL TABLE item_search USING fts5(item_id UNINDEXED, text, tokenize = 'trigram case_sensitive 1');
             """);
@@ -182,6 +222,38 @@ public sealed class PlannerRepository : IPlannerRepository
 
         db.Execute("INSERT INTO boiler_fuels VALUES (@ItemId, @Boiler, @BurnSeconds)",
             data.Fuels.BoilerFuels, tx);
+
+        db.Execute("INSERT INTO machine_items VALUES (@Map, @ItemId, @Tier, @Multiblock, @Steam)",
+            data.MachineProps.MachineItems.Select(m => new
+            {
+                m.Map, m.ItemId, m.Tier,
+                Multiblock = m.Multiblock ? 1 : 0,
+                Steam = m.Steam ? 1 : 0,
+            }), tx);
+
+        db.Execute(
+            "INSERT INTO machine_props VALUES (@ItemId, @Era, @GeneratorEfficiency, " +
+            "@GeneratorEuT, @GeneratorAmps, @DynamoEuT, @DynamoAmps, @MaxParallel, @BoilerEuT)",
+            data.MachineProps.Props, tx);
+
+        db.Execute(
+            "INSERT INTO machine_bonuses VALUES (@ItemId, @Kind, @Bonus, @Multiplicative, @TierAxis)",
+            data.MachineProps.Bonuses.Select(b => new
+            {
+                b.ItemId, b.Kind, b.Bonus,
+                Multiplicative = b.Multiplicative ? 1 : 0,
+                b.TierAxis,
+            }), tx);
+
+        db.Execute(
+            "INSERT INTO turbine_rotors VALUES (@ItemId, @Size, @Material, @Durability, " +
+            "@BaseEfficiency, @OverflowTier)",
+            data.MachineProps.Rotors, tx);
+
+        db.Execute(
+            "INSERT INTO rotor_fuel_stats VALUES (@ItemId, @Fuel, @Efficiency, " +
+            "@LooseEfficiency, @OptimalFlow, @LooseOptimalFlow, @OptimalEut, @LooseOptimalEut)",
+            data.MachineProps.RotorStats, tx);
 
         db.Execute("INSERT INTO meta VALUES (@Key, @Value)",
             data.Meta.Select(m => new { m.Key, m.Value }), tx);

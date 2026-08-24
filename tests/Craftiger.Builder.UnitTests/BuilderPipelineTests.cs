@@ -150,6 +150,50 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
     }
 
     [Fact]
+    public void MachinePropsMergePerMachineItem()
+    {
+        Assert.Equal(95.0, fixture.Scalar<double>(
+            "SELECT p.generator_efficiency FROM machine_props p JOIN items i ON i.id = p.item_id " +
+            "WHERE i.name_en = 'Fixture Gas Turbine'"));
+        Assert.Equal(4 * 512, fixture.Scalar<int>(
+            "SELECT p.dynamo_eu_t * p.dynamo_amps FROM machine_props p JOIN items i ON i.id = p.item_id " +
+            "WHERE i.name_en = 'Fixture Dynamo Hatch'"));
+        Assert.Equal(480, fixture.Scalar<int>(
+            "SELECT p.boiler_eu_t FROM machine_props p JOIN items i ON i.id = p.item_id " +
+            "WHERE i.name_en = 'Fixture Large Boiler'"));
+    }
+
+    [Fact]
+    public void MultiblockBonusesShipWithTheirScalingAxis()
+    {
+        Assert.Equal(8, fixture.Scalar<int>(
+            "SELECT max_parallel FROM machine_props WHERE item_id = " +
+            "(SELECT item_id FROM machine_bonuses WHERE kind = 'PARALLEL' LIMIT 1)"));
+        Assert.Equal("COIL", fixture.Scalar<string>(
+            "SELECT tier_axis FROM machine_bonuses WHERE kind = 'PARALLEL_PER_TIER'"));
+        Assert.Equal(1, fixture.Scalar<int>(
+            "SELECT multiplicative FROM machine_bonuses WHERE kind = 'PARALLEL_PER_TIER'"));
+    }
+
+    [Fact]
+    public void ARotorShipsItsStatsPerFuelClass()
+    {
+        Assert.Equal(0.85, fixture.Scalar<double>(
+            "SELECT base_efficiency FROM turbine_rotors WHERE material = 'Fixture'"));
+        Assert.Equal(212.5, fixture.Scalar<double>(
+            "SELECT s.optimal_eut FROM rotor_fuel_stats s JOIN turbine_rotors r " +
+            "ON r.item_id = s.item_id WHERE r.material = 'Fixture' AND s.fuel = 'STEAM'"));
+        Assert.Equal(3, fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM rotor_fuel_stats s JOIN turbine_rotors r " +
+            "ON r.item_id = s.item_id WHERE r.material = 'Fixture'"));
+    }
+
+    [Fact]
+    public void MachineItemsMirrorTheMapMachineLists() =>
+        Assert.Equal(1, fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM machine_items WHERE map = 'Blast Furnace' AND multiblock = 1"));
+
+    [Fact]
     public void BoilerBurnTimesParsePerGenerationAndSkipNotAllowed()
     {
         Assert.Equal(2.0, fixture.Scalar<double>(

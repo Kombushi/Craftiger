@@ -358,6 +358,26 @@ Builder responsibilities, in order:
 - `boiler_fuels(item_id, boiler, burn_seconds)` — how long one unit burns
   per large-boiler generation, parsed from the dump's burn-time text;
   "Not allowed" generations ship no row
+- `machine_items(map, item_id, tier NULL, multiblock, steam)` — every machine
+  block serving a recipe map, the per-block flip side of `machine_eras`; rate
+  planning picks the serving block per recipe from here
+- `machine_props(item_id, era NULL, generator_efficiency NULL, generator_eu_t
+  NULL, generator_amps NULL, dynamo_eu_t NULL, dynamo_amps NULL, max_parallel
+  NULL, boiler_eu_t NULL)` — rate-planning stats of one machine block, merged
+  from the dump's generator, dynamo hatch, large boiler, and multiblock
+  exports; `era` is the block's own craftability era where the era solve
+  reached it. Only blocks carrying signal ship a row — a bonus-less
+  multiblock at one parallel is the model's default
+- `machine_bonuses(item_id, kind, bonus, multiplicative, tier_axis NULL)` —
+  a multiblock's typed parallel/speed/EU bonus lines; `bonus` is the
+  displayed number (220 for "220 % Speed"), `tier_axis` the scaling axis
+  (`VOLTAGE`, `COIL`, …) of per-tier kinds
+- `turbine_rotors(item_id, size, material, durability, base_efficiency,
+  overflow_tier)` and `rotor_fuel_stats(item_id, fuel, efficiency,
+  loose_efficiency, optimal_flow, loose_optimal_flow, optimal_eut,
+  loose_optimal_eut)` — every rotor variant's computed large-turbine stats,
+  tight and loose fit, per `STEAM`/`GAS`/`PLASMA`; flow is L/t for steam and
+  EU/t of fuel value otherwise
 - `machine_eras(machine, era, multiblock)` — per map, the era solve's era of
   its cheapest serving machine block, floored by any configured gate; null
   where no block ever becomes craftable, 0 for maps served without machine
@@ -1106,3 +1126,8 @@ All "does not / never" rules live here; other sections only reference this one.
     naquadah fuel splits its total EU over its burn ticks.
 46. Large-boiler burn times parse per generation from the dump's burn-time
     text, and a "Not allowed" generation ships no row.
+47. Machine props merge per machine block: a generator block ships its
+    efficiency and output, a dynamo hatch its voltage × amps capacity, a
+    boiler its EU/t rating, a bonus-bearing multiblock its parallels and
+    typed bonus rows with their scaling axes, and a rotor its per-fuel
+    tight and loose stats.

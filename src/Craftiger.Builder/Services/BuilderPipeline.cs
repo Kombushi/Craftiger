@@ -19,6 +19,7 @@ public sealed class BuilderPipeline(
     ILeafTaggingService leafTagging,
     IWorldgenErasService worldgenEras,
     IFuelExtractionService fuelExtraction,
+    IMachinePropsService machinePropsService,
     IEraSolveService eraSolveService,
     IPriceCheckService priceCheck,
     IAtlasBuilder atlasBuilder,
@@ -71,6 +72,12 @@ public sealed class BuilderPipeline(
 
         var eraSolve = Stage("solve eras", () => eraSolveService.Run(recipes, leafClasses, unified, dump, worldgen));
         logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);
+
+        var machineProps = Stage(
+            "collect machine props", () => machinePropsService.Run(dump, unified, eraSolve.Era));
+        itemIds.UnionWith(machineProps.MachineItems.Select(m => m.ItemId));
+        itemIds.UnionWith(machineProps.Props.Select(p => p.ItemId));
+        itemIds.UnionWith(machineProps.Rotors.Select(r => r.ItemId));
 
         // Only now are tiers known, so only now can an unpriceable leaf be told apart.
         leafTagging.Prune(leafClasses, eraSolve.Tiers, unified, dump);
@@ -133,7 +140,7 @@ public sealed class BuilderPipeline(
             plannerRepository.Write(plannerPath, new PlannerData(
                 dump, unified, solverRecipes, orderedItemIds, leafClasses, eraSolve.Tiers,
                 itemParents, leafWeights, eraSolve.MachineEras, multiblockMachines, fuelData,
-                meta));
+                machineProps, meta));
             return 0;
         });
 

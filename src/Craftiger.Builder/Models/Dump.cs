@@ -40,6 +40,12 @@ public sealed class Dump
 
     /// <summary>Input-voltage tier per machine item, parsed from its "Voltage IN" tooltip.</summary>
     public required Dictionary<string, int> MachineVoltageTiers { get; init; }
+
+    public required List<DumpGenerator> Generators { get; init; }
+    public required List<DumpDynamo> Dynamos { get; init; }
+    public required List<DumpBoiler> Boilers { get; init; }
+    public required List<DumpMultiblockMachine> MultiblockMachines { get; init; }
+    public required List<DumpTurbineRotor> TurbineRotors { get; init; }
     public required string ExporterVersion { get; init; }
     public required DateTimeOffset ExportedAt { get; init; }
 
