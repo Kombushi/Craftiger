@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.36
+# GTNH Crafting Planner — Specification v1.37
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -763,7 +763,18 @@ Screens:
   bound through `IOptions`; the tests run against that same file.
 - `src/Craftiger.Solver/` — pure class library: the cost engine (§5) and BOM
   computation (§6). No I/O and no dump dependency; referenced by the API and
-  exercised directly by fixture tests.
+  exercised directly by fixture tests. Hosts the `ILinearProgramSolver`
+  abstraction (lexicographic LP: columns, rows, prioritized objectives) that
+  the factory solve builds against — the interface and its model types are
+  managed-only, so the library stays pure.
+- `src/Craftiger.Solver.Highs/` — the one impure solver piece: an adapter
+  class implementing `ILinearProgramSolver` over the bundled native HiGHS
+  library (`Highs.Native`, ≥ 1.9 for native lexicographic objectives; 1.15.1
+  shipped). One solver instance per solve — never shared, the native
+  library's thread safety is undocumented — pinned single-threaded with a
+  fixed seed so identical programs return identical solutions on every
+  replica. Registered in DI by the API; the Solver project never references
+  it.
 - `src/Craftiger.Api/` — .NET minimal API.
 - `tests/Craftiger.Builder.UnitTests/` — xUnit tests for the Builder;
   Solver and API tests get sibling projects under `tests/`.

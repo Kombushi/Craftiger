@@ -16,7 +16,10 @@ behavior must change, update `spec.md` in the same commit as the code.
   three artifacts are the only contract (spec §3).
 - `src/Craftiger.Solver/` — pure class library: cost engine and BOM walk. No
   I/O, no dump dependency; referenced by the API, tested against fixtures
-  (spec §8).
+  (spec §8). Also hosts the `ILinearProgramSolver` abstraction, managed-only.
+- `src/Craftiger.Solver.Highs/` — the native-HiGHS adapter implementing
+  `ILinearProgramSolver`; the only project allowed a native dependency.
+  Registered in DI by the API; never referenced by the Solver (spec §8).
 - `src/Craftiger.Api/` — .NET minimal API. Stateless; loads the artifacts
   read-only; hosts the solver and its solve cache in memory, with every
   solved entry also kept in Valkey so any replica can serve it (spec §8).

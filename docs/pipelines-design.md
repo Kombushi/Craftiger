@@ -662,7 +662,11 @@ To pin during implementation (facts to evidence, not decisions):
   overlay multis (grown on demand).
 - The plasma-cell volume discrepancy (user: 1000 L; one dump survey read
   144 mB) — settled by the builder assert on `FLUID_CONTAINER`.
-- `Highs.Native` bundled HiGHS ≥ 1.9 (native lexicographic objectives).
+- `Highs.Native` bundled HiGHS ≥ 1.9 (native lexicographic objectives) —
+  **verified**: 1.15.1 loads on linux-x64/.NET 10, `addLinearObjective` with
+  `blend_multi_objectives = false` honors priorities in both directions
+  (negative weight maximizes a layer), and single-threaded fixed-seed
+  simplex solves are deterministic across repeats.
 
 ## 10. Phasing and acceptance checks
 

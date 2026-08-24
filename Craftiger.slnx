@@ -3,10 +3,12 @@
     <Project Path="src/Craftiger.Api/Craftiger.Api.csproj" />
     <Project Path="src/Craftiger.Builder/Craftiger.Builder.csproj" />
     <Project Path="src/Craftiger.Solver/Craftiger.Solver.csproj" />
+    <Project Path="src/Craftiger.Solver.Highs/Craftiger.Solver.Highs.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Craftiger.Api.UnitTests/Craftiger.Api.UnitTests.csproj" />
     <Project Path="tests/Craftiger.Builder.UnitTests/Craftiger.Builder.UnitTests.csproj" />
     <Project Path="tests/Craftiger.Solver.UnitTests/Craftiger.Solver.UnitTests.csproj" />
+    <Project Path="tests/Craftiger.Solver.Highs.UnitTests/Craftiger.Solver.Highs.UnitTests.csproj" />
   </Folder>
 </Solution>
