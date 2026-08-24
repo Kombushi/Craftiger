@@ -25,6 +25,7 @@ public static class BuilderServiceCollectionExtensions
             .Configure<SynthesizedMachinesConfiguration>(
                 configuration.GetSection(nameof(SynthesizedMachinesConfiguration)))
             .Configure<PricingConfiguration>(configuration.GetSection(nameof(PricingConfiguration)))
+            .Configure<FuelsConfiguration>(configuration.GetSection(nameof(FuelsConfiguration)))
             .AddSingleton<IDumpRepository, DumpRepository>()
             .AddSingleton<IPlannerRepository, PlannerRepository>()
             .AddSingleton<IUnificationService, UnificationService>()
@@ -35,6 +36,7 @@ public static class BuilderServiceCollectionExtensions
             .AddSingleton<IUndergroundFluidRecipeService, UndergroundFluidRecipeService>()
             .AddSingleton<ICropHarvestRecipeService, CropHarvestRecipeService>()
             .AddSingleton<IWorldgenErasService, WorldgenErasService>()
+            .AddSingleton<IFuelExtractionService, FuelExtractionService>()
             .AddSingleton<IEraSolveService, EraSolveService>()
             .AddSingleton<IPriceCheckService, PriceCheckService>()
             .AddSingleton<IAtlasBuilder, AtlasBuilder>()

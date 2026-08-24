@@ -18,6 +18,7 @@ public sealed class BuilderPipeline(
     ICropHarvestRecipeService cropHarvest,
     ILeafTaggingService leafTagging,
     IWorldgenErasService worldgenEras,
+    IFuelExtractionService fuelExtraction,
     IEraSolveService eraSolveService,
     IPriceCheckService priceCheck,
     IAtlasBuilder atlasBuilder,
@@ -53,7 +54,14 @@ public sealed class BuilderPipeline(
         var solverRecipes = recipes.Where(r => !r.EraOnly).ToList();
         logger.LogInformation("  kept {Kept:N0} recipes ({EraOnly:N0} era-only)", solverRecipes.Count, recipes.Count - solverRecipes.Count);
 
+        var fuelData = Stage("extract fuels", () => fuelExtraction.Run(dump, unified));
+        logger.LogInformation(
+            "  {Fuels:N0} fuels, {BoilerBurns:N0} boiler burn rows",
+            fuelData.Fuels.Count, fuelData.BoilerFuels.Count);
+
         var itemIds = CollectItemIds(solverRecipes);
+        itemIds.UnionWith(fuelData.Fuels.Select(fuel => fuel.ItemId));
+        itemIds.UnionWith(fuelData.BoilerFuels.Select(fuel => fuel.ItemId));
         var produced = CollectProducedIds(solverRecipes);
         var leafClasses = Stage("tag leaves", () => leafTagging.Run(itemIds, produced, dump, unified));
         logger.LogInformation("  {Leaves:N0} leaves among {Items:N0} items", leafClasses.Count, itemIds.Count);
@@ -124,7 +132,8 @@ public sealed class BuilderPipeline(
         {
             plannerRepository.Write(plannerPath, new PlannerData(
                 dump, unified, solverRecipes, orderedItemIds, leafClasses, eraSolve.Tiers,
-                itemParents, leafWeights, eraSolve.MachineEras, multiblockMachines, meta));
+                itemParents, leafWeights, eraSolve.MachineEras, multiblockMachines, fuelData,
+                meta));
             return 0;
         });
 

@@ -342,6 +342,22 @@ Builder responsibilities, in order:
   parent and the solver never re-derives the link from oredict names
 - `item_weights(item_id, weight)` — weights overriding the item's leaf class,
   where one class covers items worth different amounts (§4)
+- `fuels(map, item_id, amount, eu_per_unit NULL, eu_t NULL, duration_ticks
+  NULL)` — what each fuel-flagged recipe map burns, normalized to 100 %
+  generator efficiency. Standard rows carry `eu_per_unit`: EU per mB for
+  fluids (a cell resolves to its contained fluid, whatever the cell's
+  volume) and EU per item for bare solids, which burn as 1000 mB worth —
+  both are GT5-Unofficial's own generator math. Lifetime rows carry `eu_t`
+  over `duration_ticks` per `amount` consumed instead: RTG pellets (the
+  dump's special value is burn years, 365 Minecraft days each) and
+  GoodGenerator naquadah fuels (total EU split over the burn). Each fuel
+  map's reading is a checked-in builder classification — Standard, Rtg,
+  Timed, Boiler, Excluded (real recipes wearing the fuel flag), or Empty
+  (must stay so) — and an unclassified map fails the build, as does a
+  benzene row that stops reading 360 EU per mB
+- `boiler_fuels(item_id, boiler, burn_seconds)` — how long one unit burns
+  per large-boiler generation, parsed from the dump's burn-time text;
+  "Not allowed" generations ship no row
 - `machine_eras(machine, era, multiblock)` — per map, the era solve's era of
   its cheapest serving machine block, floored by any configured gate; null
   where no block ever becomes craftable, 0 for maps served without machine
@@ -1083,3 +1099,10 @@ All "does not / never" rules live here; other sections only reference this one.
     flags: a thermal-centrifuge-class 2 A recipe ships `amps = 2`, a 1 A
     recipe `amps = 1`, and a flagged recipe ships both requirement columns
     set while an unflagged one ships neither.
+45. Fuels normalize per family: a benzene cell lands as the benzene fluid
+    at 360 EU/mB, a cell's special value reads per mB no matter the cell's
+    volume, a bare solid burns as 1000 mB worth, an RTG pellet carries its
+    EU/t over a year's ticks per burn-year unit, and a GoodGenerator
+    naquadah fuel splits its total EU over its burn ticks.
+46. Large-boiler burn times parse per generation from the dump's burn-time
+    text, and a "Not allowed" generation ships no row.

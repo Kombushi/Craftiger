@@ -52,15 +52,16 @@ public sealed partial class DumpRepository(ILogger<DumpRepository> logger) : IDu
         // coil_heat metadata is authoritative; RECIPE_SPECIAL_VALUE holds the same number for EBF maps.
         var categoryColumn = HasColumn(db, "GREG_TECH_RECIPE", "RECIPE_CATEGORY") ? "g.RECIPE_CATEGORY" : "''";
         var gt = new Dictionary<string, DumpGtData>();
-        foreach (var r in db.Query<(string Id, long? Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom, long? LowGravity, string? Category)>($"""
-            SELECT g.RECIPE_ID, g.VOLTAGE, g.AMPERAGE, g.DURATION, m.METADATA_VALUE, g.VOLTAGE_TIER, g.REQUIRES_CLEANROOM, g.REQUIRES_LOW_GRAVITY, {categoryColumn}
+        foreach (var r in db.Query<(string Id, long? Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom, long? LowGravity, long? SpecialValue, string? AdditionalInfo, string? Category)>($"""
+            SELECT g.RECIPE_ID, g.VOLTAGE, g.AMPERAGE, g.DURATION, m.METADATA_VALUE, g.VOLTAGE_TIER, g.REQUIRES_CLEANROOM, g.REQUIRES_LOW_GRAVITY, g.RECIPE_SPECIAL_VALUE, g.ADDITIONAL_INFO, {categoryColumn}
             FROM GREG_TECH_RECIPE g
             LEFT JOIN GREG_TECH_RECIPE_METADATA m ON m.GREG_TECH_RECIPE_ID = g.ID AND m.METADATA_KEY = 'coil_heat'
             """))
         {
             gt[r.Id] = new DumpGtData(
                 r.Id, r.Voltage, r.Amperage, r.Duration, (int?)r.Heat, r.TierLabel,
-                r.Cleanroom is not (null or 0), r.LowGravity is not (null or 0), r.Category ?? "");
+                r.Cleanroom is not (null or 0), r.LowGravity is not (null or 0),
+                r.SpecialValue, r.AdditionalInfo, r.Category ?? "");
         }
         if (categoryColumn == "''")
         {

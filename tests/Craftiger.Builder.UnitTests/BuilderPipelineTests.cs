@@ -108,6 +108,57 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
         Assert.Equal(0, fixture.Scalar<int>(
             "SELECT cleanroom + low_gravity FROM recipes WHERE id = 'r_extrude'"));
     }
+
+    [Fact]
+    public void ACellFuelResolvesToItsFluidPerMillibucket() =>
+        Assert.Equal(360.0, fixture.Scalar<double>(
+            "SELECT f.eu_per_unit FROM fuels f JOIN items i ON i.id = f.item_id " +
+            "WHERE f.map = 'Gas Turbine Fuel' AND i.name_en = 'Benzene'"));
+
+    [Fact]
+    public void ASmallCellStillReadsPerMillibucket() =>
+        Assert.Equal(999.0, fixture.Scalar<double>(
+            "SELECT f.eu_per_unit FROM fuels f JOIN items i ON i.id = f.item_id " +
+            "WHERE i.name_en = 'Fixture Plasma'"));
+
+    [Fact]
+    public void ASolidFuelBurnsAsAThousandMillibuckets() =>
+        Assert.Equal(20000.0, fixture.Scalar<double>(
+            "SELECT f.eu_per_unit FROM fuels f JOIN items i ON i.id = f.item_id " +
+            "WHERE i.name_en = 'Fixture Solid Fuel'"));
+
+    [Fact]
+    public void AnRtgPelletCarriesItsLifetime()
+    {
+        Assert.Equal(480.0, fixture.Scalar<double>(
+            "SELECT f.eu_t FROM fuels f JOIN items i ON i.id = f.item_id " +
+            "WHERE i.name_en = 'Fixture Pellet'"));
+        Assert.Equal(365L * 24000L, fixture.Scalar<long>(
+            "SELECT f.duration_ticks FROM fuels f JOIN items i ON i.id = f.item_id " +
+            "WHERE i.name_en = 'Fixture Pellet'"));
+    }
+
+    [Fact]
+    public void ATimedFuelSplitsTotalEuOverItsBurn()
+    {
+        Assert.Equal(10000.0, fixture.Scalar<double>(
+            "SELECT f.eu_t FROM fuels f JOIN items i ON i.id = f.item_id " +
+            "WHERE i.name_en = 'Fixture Naquadah Fuel'"));
+        Assert.Equal(160, fixture.Scalar<int>(
+            "SELECT f.duration_ticks FROM fuels f JOIN items i ON i.id = f.item_id " +
+            "WHERE i.name_en = 'Fixture Naquadah Fuel'"));
+    }
+
+    [Fact]
+    public void BoilerBurnTimesParsePerGenerationAndSkipNotAllowed()
+    {
+        Assert.Equal(2.0, fixture.Scalar<double>(
+            "SELECT burn_seconds FROM boiler_fuels WHERE boiler = 'Bronze'"));
+        Assert.Equal(1.0, fixture.Scalar<double>(
+            "SELECT burn_seconds FROM boiler_fuels WHERE boiler = 'Steel'"));
+        Assert.Equal(0, fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM boiler_fuels WHERE boiler LIKE 'Titanium%' OR boiler LIKE 'Tungsten%'"));
+    }
 }
 
 /// <summary>Matter conservation is derived, not configured: an untagged grind whose outputs

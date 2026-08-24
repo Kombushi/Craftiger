@@ -74,6 +74,19 @@ public sealed class PlannerRepository : IPlannerRepository
                 divisor REAL NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
             CREATE TABLE machine_eras(machine TEXT PRIMARY KEY, era INTEGER, multiblock INTEGER NOT NULL);
+            CREATE TABLE fuels(
+                map TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                eu_per_unit REAL,
+                eu_t REAL,
+                duration_ticks INTEGER,
+                UNIQUE(map, item_id));
+            CREATE TABLE boiler_fuels(
+                item_id TEXT NOT NULL,
+                boiler TEXT NOT NULL,
+                burn_seconds REAL NOT NULL,
+                UNIQUE(item_id, boiler));
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             CREATE VIRTUAL TABLE item_search USING fts5(item_id UNINDEXED, text, tokenize = 'trigram case_sensitive 1');
             """);
@@ -162,6 +175,13 @@ public sealed class PlannerRepository : IPlannerRepository
                 m.Value,
                 Multiblock = data.MultiblockMachines.Contains(m.Key) ? 1 : 0,
             }), tx);
+
+        db.Execute(
+            "INSERT INTO fuels VALUES (@Map, @ItemId, @Amount, @EuPerUnit, @EuT, @DurationTicks)",
+            data.Fuels.Fuels, tx);
+
+        db.Execute("INSERT INTO boiler_fuels VALUES (@ItemId, @Boiler, @BurnSeconds)",
+            data.Fuels.BoilerFuels, tx);
 
         db.Execute("INSERT INTO meta VALUES (@Key, @Value)",
             data.Meta.Select(m => new { m.Key, m.Value }), tx);

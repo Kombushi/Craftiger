@@ -131,7 +131,7 @@ public static class FixtureDump
             CREATE TABLE RECIPE(ID TEXT, RECIPE_TYPE_ID TEXT);
             CREATE TABLE RECIPE_TYPE(ID TEXT, CATEGORY TEXT, TYPE TEXT, SHAPELESS INTEGER);
             CREATE TABLE RECIPE_TYPE_ITEM(RECIPE_TYPE_ID TEXT, ICON_ID TEXT);
-            CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, RECIPE_CATEGORY TEXT, REQUIRES_CLEANROOM INTEGER, REQUIRES_LOW_GRAVITY INTEGER, RECIPE_SPECIAL_VALUE INTEGER, RECIPE_ID TEXT);
+            CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, RECIPE_CATEGORY TEXT, REQUIRES_CLEANROOM INTEGER, REQUIRES_LOW_GRAVITY INTEGER, RECIPE_SPECIAL_VALUE INTEGER, ADDITIONAL_INFO TEXT, RECIPE_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE_METADATA(GREG_TECH_RECIPE_ID TEXT, METADATA_KEY TEXT, METADATA_VALUE INTEGER);
             CREATE TABLE ITEM_GROUP_ITEM_STACKS(ITEM_GROUP_ID TEXT, ITEM_STACKS_ITEM_ID TEXT, ITEM_STACKS_STACK_SIZE INTEGER);
             CREATE TABLE ORE_DICTIONARY(ID TEXT, NAME TEXT, ITEM_GROUP_ID TEXT);
@@ -546,6 +546,10 @@ public static class FixtureDump
         RecipeType(db, "rt~gregtech~gt.recipe.macerator~ULV", "gregtech", "Macerator (ULV)");
         RecipeType(db, "rt~gregtech~gt.recipe.fluidsolidifier~MV", "gregtech", "Fluid Solidifier (MV)");
         RecipeType(db, "rt~gregtech~gt.recipe.largeboilerfakefuels~ULV", "gregtech", "Large Boiler Fuels (ULV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.gasturbinefuel~ULV", "gregtech", "Gas Turbine Fuel (ULV)");
+        RecipeType(db, "rt~gregtech~gtpp.recipe.RTGgenerators~ULV", "gregtech", "RTG (ULV)");
+        RecipeType(db, "rt~gregtech~gg.recipe.naquadah_reactor~ULV", "gregtech", "Large Naquadah Reactor (ULV)");
+        RecipeType(db, "rt~gregtech~gt.recipe.semifluidboilerfuels~ULV", "gregtech", "Semifluid Boiler (ULV)");
         RecipeType(db, "rt~gregtech~gt.recipe.fixturegrinder~LV", "gregtech", "Bronze Grinder (LV)");
         RecipeType(db, "rt~gregtech~gt.recipe.electrolyzer~MV", "gregtech", "Electrolyzer (MV)");
         RecipeType(db, "rt~gregtech~gt.recipe.arcfurnace~LV", "gregtech", "Arc Furnace (LV)");
@@ -568,6 +572,10 @@ public static class FixtureDump
         RecipeMap(db, "gt.recipe.dearmixer", "Dear Mixer", [(MixerLv, false, 1, false), (DearStack, true, null, false)]);
         // The fuel flag alone drops the tab; the machine name says nothing about fuels.
         RecipeMap(db, "gt.recipe.largeboilerfakefuels", "Large Boiler", [], isFuel: true);
+        RecipeMap(db, "gt.recipe.gasturbinefuel", "Gas Turbine Fuel", [], isFuel: true);
+        RecipeMap(db, "gtpp.recipe.RTGgenerators", "RTG", [], isFuel: true);
+        RecipeMap(db, "gg.recipe.naquadah_reactor", "Large Naquadah Reactor", [], isFuel: true);
+        RecipeMap(db, "gt.recipe.semifluidboilerfuels", "Semifluid Boiler", [], isFuel: true);
         // A steam machine relaxes its map's LV recipes; the flag decides, never the name.
         RecipeMap(db, "gt.recipe.fixturegrinder", "Bronze Grinder", [(SteamGrinder, false, 1, true)]);
 
@@ -593,7 +601,30 @@ public static class FixtureDump
         Recipe(db, "r_solidify", "rt~gregtech~gt.recipe.fluidsolidifier~MV", inputs: [("g_alu_ingot", 0)], outputs: [(AluRod, 1, 1.0)], voltage: 24, duration: 100, fluidInputs: [("g_water", 0)]);
 
         // Fuel tabs are pseudo-recipes and must be dropped.
-        Recipe(db, "r_fuel", "rt~gregtech~gt.recipe.largeboilerfakefuels~ULV", inputs: [("g_bronze_dust", 0)], outputs: [(BronzeDust, 1, 1.0)], voltage: 32, duration: 1);
+        Recipe(db, "r_fuel", "rt~gregtech~gt.recipe.largeboilerfakefuels~ULV", inputs: [("g_bronze_dust", 0)], outputs: [(BronzeDust, 1, 1.0)], voltage: 32, duration: 1,
+            additionalInfo: "Burn time in seconds:\nBronze Boiler: 2\nSteel Boiler: 1\nTitanium Boiler: Not allowed\nTungstenst. Boiler: Not allowed");
+
+        // One fuel per family trap: the benzene anchor, a small-volume cell whose special value
+        // still reads per mB, a bare solid worth 1000 mB, a lifetime pellet, and a timed fluid.
+        Fluid(db, "f~benzene", "benzene", "Benzene");
+        Item(db, "i~fixture~benzene_cell", "Benzene Cell", "fixture");
+        db.Execute($"INSERT INTO FLUID_CONTAINER VALUES ('fc_benzene', 1000, 'i~fixture~benzene_cell', '{EmptyCell}', 'f~benzene')");
+        Group(db, "g_benzene_cell", ("i~fixture~benzene_cell", 1));
+        Recipe(db, "r_fuel_benzene", "rt~gregtech~gt.recipe.gasturbinefuel~ULV", inputs: [("g_benzene_cell", 0)], outputs: [], label: "ULV", specialValue: 360);
+        Fluid(db, "f~fixture_plasma", "fixture_plasma", "Fixture Plasma");
+        Item(db, "i~fixture~plasma_cell", "Fixture Plasma Cell", "fixture");
+        db.Execute($"INSERT INTO FLUID_CONTAINER VALUES ('fc_fixture_plasma', 144, 'i~fixture~plasma_cell', '{EmptyCell}', 'f~fixture_plasma')");
+        Group(db, "g_fixture_plasma_cell", ("i~fixture~plasma_cell", 1));
+        Recipe(db, "r_fuel_plasma", "rt~gregtech~gt.recipe.gasturbinefuel~ULV", inputs: [("g_fixture_plasma_cell", 0)], outputs: [], label: "ULV", specialValue: 999);
+        Item(db, "i~fixture~solid_fuel", "Fixture Solid Fuel", "fixture");
+        Group(db, "g_solid_fuel", ("i~fixture~solid_fuel", 1));
+        Recipe(db, "r_fuel_solid", "rt~gregtech~gt.recipe.gasturbinefuel~ULV", inputs: [("g_solid_fuel", 0)], outputs: [], label: "ULV", specialValue: 20);
+        Item(db, "i~fixture~rtg_pellet", "Fixture Pellet", "fixture");
+        Group(db, "g_rtg_pellet", ("i~fixture~rtg_pellet", 1));
+        Recipe(db, "r_fuel_rtg", "rt~gregtech~gtpp.recipe.RTGgenerators~ULV", inputs: [("g_rtg_pellet", 0)], outputs: [], voltage: 480, specialValue: 1);
+        Fluid(db, "f~fixture_naq_fuel", "fixture_naq_fuel", "Fixture Naquadah Fuel");
+        db.Execute("INSERT INTO FLUID_GROUP_FLUID_STACKS VALUES ('g_naq_fuel', 1, 'f~fixture_naq_fuel')");
+        Recipe(db, "r_fuel_timed", "rt~gregtech~gg.recipe.naquadah_reactor~ULV", inputs: [], outputs: [], label: "ULV", specialValue: 1600000, duration: 160, fluidInputs: [("g_naq_fuel", 0)]);
 
         // Distinct materials share the wildcard ingotAnyIron group but must stay separate.
         Recipe(db, "r_iron_use", "t_shaped", inputs: [("g_iron", 0)], outputs: [(Plank, 1, 1.0)]);
@@ -996,7 +1027,7 @@ public static class FixtureDump
         (string ItemId, long Amount, double Chance, int Slot)[]? byproducts = null,
         string category = "", string? label = null,
         long amperage = 1, bool cleanroom = false, bool lowGravity = false,
-        long? specialValue = null)
+        long? specialValue = null, string? additionalInfo = null)
     {
         db.Execute("INSERT INTO RECIPE VALUES (@id, @typeId)", new { id, typeId });
         foreach (var (groupId, slot) in inputs)
@@ -1023,12 +1054,12 @@ public static class FixtureDump
         {
             label ??= voltage <= 32 ? "LV" : voltage <= 128 ? "MV" : "HV";
             db.Execute(
-                "INSERT INTO GREG_TECH_RECIPE VALUES (@gtId, @amperage, @duration, @voltage, @label, @category, @cleanroom, @lowGravity, @specialValue, @id)",
+                "INSERT INTO GREG_TECH_RECIPE VALUES (@gtId, @amperage, @duration, @voltage, @label, @category, @cleanroom, @lowGravity, @specialValue, @additionalInfo, @id)",
                 new
                 {
                     gtId = $"gtr~{id}", amperage, duration, voltage, label, category,
                     cleanroom = cleanroom ? 1 : 0, lowGravity = lowGravity ? 1 : 0,
-                    specialValue, id,
+                    specialValue, additionalInfo, id,
                 });
             if (heat is not null)
             {
