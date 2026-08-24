@@ -340,4 +340,30 @@ public class PipelineSolverTests
         Assert.Equal(2, feedsBalance);
         Assert.Equal(1, feedsBand);
     }
+
+    [Fact]
+    public void ConsumeTargetBuildsEqualityRowAndSupplyColumn()
+    {
+        var graph = Fx.Graph(
+            [Fx.Leaf("dust")],
+            Fx.Recipe("macerate", inputs: [("rawore", 1)], outputs: ("dust", 2, 1.0)));
+        var lp = new RecordingLpSolver();
+
+        Fx.Pipeline(lp).Solve(
+            graph, Fx.Data(graph), FactoryMachineData.Empty, Fx.Costs(graph), Fx.Garage(), Fx.Weights(),
+            new FactoryRequest(
+                [new FactoryTarget(FactoryTargetKind.Consume, "rawore", 2)],
+                [], new Dictionary<string, string>()));
+
+        var program = lp.Program!;
+        // The consumed item's balance is an equality; the supply column is capped at the rate.
+        var supplyColumn = program.Columns.Single(c => c.Upper == 2);
+        var supplyRow = Assert.Single(supplyColumn.Entries);
+        Assert.Equal(1, supplyRow.Value);
+        Assert.Equal(0, program.Rows[supplyRow.Index].Lower);
+        Assert.Equal(0, program.Rows[supplyRow.Index].Upper);
+        // Layers: maximize supply, resource, energy, machines, canonical.
+        Assert.Equal(5, program.Objectives.Count);
+        Assert.True(program.Objectives[0].Maximize);
+    }
 }

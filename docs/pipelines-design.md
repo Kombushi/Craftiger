@@ -172,11 +172,19 @@ over the three layers, default order as listed:
 3. **Machine efficiency**: minimize `Σ x · duration_eff / P` — busy-machine
    time, parallel-adjusted (§4.4).
 
-Consume-target factories run the maximize-`s` pre-layer first; a
-consume-heavy plan with slack additionally runs **maximize recovered value**
-(`Σ` over *leaf-class* items of `weight · surplus`, using the buy/surplus
-split — intermediates have no weights and are not "value") before the user's
-layers. After all layers, a fixed hidden **canonicalization layer** minimizes
+Consume-target factories run the maximize-`s` pre-layer first — locked
+exactly, not by tolerance: the intake is a commitment. The planned
+**maximize recovered value** layer (`Σ` over *leaf-class* items of
+`weight · surplus`) measured **unbounded on the real artifact in three
+formulations** (open maximize after the resource lock; runs-locked; cone- and
+buy-restricted with capped surroundings): the leaf weights are not
+arbitrage-free and free world-origin chains exist by design, so any open
+value-maximize finds a mint — e.g. weight-zero fluids reached by the cone
+feed converters into weighted dusts without limit. The layer is **not in
+v1**; byproducts still flow and surface as surplus, but the plan will
+happily furnace-smelt supplied ore straight to ingots. Whether to price
+weight-zero leaves at an epsilon in this layer, accept a bounded 4×-effort
+variant, or drop the idea is an open product decision. After all layers, a fixed hidden **canonicalization layer** minimizes
 `Σ x_r` (total runs): it removes zero-cost churn cycles (72,594 artifact
 recipes have `duration = eu_t = 0` and are invisible to layers 2–3), makes
 the returned vertex substantially model-determined rather than

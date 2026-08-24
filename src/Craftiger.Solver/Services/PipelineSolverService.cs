@@ -46,6 +46,7 @@ public sealed class PipelineSolverService(
         Split,
         Buy,
         Generate,
+        Supply,
     }
 
     /// <summary>What a column means when reading the solution back: the recipe and variant
@@ -63,10 +64,12 @@ public sealed class PipelineSolverService(
         double EuPerRun,
         bool Estimated);
 
-    /// <summary>Normalized targets: produce rates by item position, the summed net EU/t
-    /// export, and the per-tier quality bands energy targets demand.</summary>
+    /// <summary>Normalized targets: produce rates by item position, consume rates by item
+    /// position, the summed net EU/t export, and the per-tier quality bands energy targets
+    /// demand.</summary>
     private sealed record Targets(
         Dictionary<int, double> Produce,
+        Dictionary<int, double> Consume,
         double EnergyEuT,
         IReadOnlyList<(int Tier, double Rate)> Bands);
 
@@ -102,7 +105,8 @@ public sealed class PipelineSolverService(
         }
 
         var seeds = targets.Produce.Keys.Concat(generators.Select(g => g.FuelItem)).Distinct();
-        var candidates = CandidateRecipes(index, costs, garage, seeds, request.Pins, warnings);
+        var (candidates, cone) = CandidateRecipes(
+            index, costs, garage, seeds, targets.Consume.Keys, request.Pins, warnings);
         var unreachable = false;
         foreach (var target in targets.Produce.Keys.Order())
         {
@@ -118,7 +122,7 @@ public sealed class PipelineSolverService(
         }
 
         var model = BuildModel(
-            graph, recipes, machines, garage, weights, request, targets, candidates, generators, warnings);
+            graph, recipes, machines, garage, weights, request, targets, candidates, cone, generators, warnings);
         var result = solver.Solve(model.Program);
         if (result.Status != LpSolveStatus.Optimal)
         {
@@ -147,6 +151,7 @@ public sealed class PipelineSolverService(
         SolverIndex index, FactoryRequest request, List<FactoryWarning> warnings)
     {
         var produce = new Dictionary<int, double>();
+        var consume = new Dictionary<int, double>();
         var energy = 0.0;
         var bands = new Dictionary<int, double>();
         var failed = false;
@@ -164,26 +169,24 @@ public sealed class PipelineSolverService(
                 }
                 continue;
             }
-            if (target.Kind != FactoryTargetKind.Produce)
-            {
-                warnings.Add(new FactoryWarning("target_unsupported", target.ItemId ?? ""));
-                failed = true;
-                continue;
-            }
             if (target.ItemId is null || !index.TryGetItem(target.ItemId, out var item))
             {
                 warnings.Add(new FactoryWarning("target_unknown", target.ItemId ?? ""));
                 failed = true;
                 continue;
             }
-            if (target.Rate > 0)
+            if (target.Rate <= 0)
             {
-                produce[item] = produce.GetValueOrDefault(item) + target.Rate;
+                continue;
             }
+            var rates = target.Kind == FactoryTargetKind.Consume ? consume : produce;
+            rates[item] = rates.GetValueOrDefault(item) + target.Rate;
         }
         return failed
             ? null
-            : new Targets(produce, energy, [.. bands.OrderBy(b => b.Key).Select(b => (b.Key, b.Value))]);
+            : new Targets(
+                produce, consume, energy,
+                [.. bands.OrderBy(b => b.Key).Select(b => (b.Key, b.Value))]);
     }
 
     /// <summary>One garage-legal way to burn a fuel: a generator block and the fuel it turns
@@ -295,15 +298,18 @@ public sealed class PipelineSolverService(
         ];
     }
 
-    /// <summary>Garage-legal recipes upstream of the targets, walking producers through every
-    /// slot alternative and through leaves, in recipe position order. Recipes outside the
-    /// cost band are pruned before the walk recurses into them; pinned recipes always
+    /// <summary>The candidate set: the downstream cone of every consume target — consumers,
+    /// recursively through their outputs — then the garage-legal upstream closure of the
+    /// produce targets, the fuels, and the cone recipes' co-inputs, walking producers through
+    /// every slot alternative and through leaves, in recipe position order. Recipes outside
+    /// the cost band are pruned before the walk recurses into them; pinned recipes always
     /// survive.</summary>
-    private List<int> CandidateRecipes(
+    private (List<int> Candidates, HashSet<int> Cone) CandidateRecipes(
         SolverIndex index,
         CostTable costs,
         Garage garage,
         IEnumerable<int> targets,
+        IEnumerable<int> consumed,
         IReadOnlyDictionary<string, string> pins,
         List<FactoryWarning> warnings)
     {
@@ -318,8 +324,58 @@ public sealed class PipelineSolverService(
 
         var candidates = new HashSet<int>();
         var rejected = new HashSet<int>();
-        var seen = new HashSet<int>();
+
+        bool Admit(int recipe, HashSet<int>? free = null)
+        {
+            if (candidates.Contains(recipe) || rejected.Contains(recipe)
+                || !legality.IsLegal(index, recipe, garage))
+            {
+                return false;
+            }
+            if (!pinned.Contains(recipe) && !WithinCostBand(index, costs, recipe, free))
+            {
+                rejected.Add(recipe);
+                return false;
+            }
+            candidates.Add(recipe);
+            return true;
+        }
+
+        // The supplied items are free to their consumers — the cost engine cannot price them,
+        // but a consume target delivers them at no cost.
+        var supplied = consumed.ToHashSet();
+        var cone = new HashSet<int>();
         var pending = new Stack<int>();
+        var downSeen = new HashSet<int>();
+        var downPending = new Stack<int>(supplied);
+        while (downPending.TryPop(out var item))
+        {
+            if (!downSeen.Add(item))
+            {
+                continue;
+            }
+            for (var c = index.ConsumerStart[item]; c < index.ConsumerStart[item + 1]; c++)
+            {
+                var recipe = index.ConsumerRecipe[c];
+                if (!Admit(recipe, supplied))
+                {
+                    continue;
+                }
+                cone.Add(recipe);
+                for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
+                {
+                    downPending.Push(index.OutputItem[o]);
+                }
+                var start = index.AlternativeStart[index.SlotStart[recipe]];
+                var end = index.AlternativeStart[index.SlotStart[recipe + 1]];
+                for (var a = start; a < end; a++)
+                {
+                    pending.Push(index.AlternativeItem[a]);
+                }
+            }
+        }
+
+        var seen = new HashSet<int>();
         foreach (var target in targets)
         {
             pending.Push(target);
@@ -333,17 +389,10 @@ public sealed class PipelineSolverService(
             for (var p = index.ProducerStart[item]; p < index.ProducerStart[item + 1]; p++)
             {
                 var recipe = index.ProducerRecipe[p];
-                if (candidates.Contains(recipe) || rejected.Contains(recipe)
-                    || !legality.IsLegal(index, recipe, garage))
+                if (!Admit(recipe))
                 {
                     continue;
                 }
-                if (!pinned.Contains(recipe) && !WithinCostBand(index, costs, recipe))
-                {
-                    rejected.Add(recipe);
-                    continue;
-                }
-                candidates.Add(recipe);
                 var start = index.AlternativeStart[index.SlotStart[recipe]];
                 var end = index.AlternativeStart[index.SlotStart[recipe + 1]];
                 for (var a = start; a < end; a++)
@@ -356,22 +405,60 @@ public sealed class PipelineSolverService(
         {
             warnings.Add(new FactoryWarning("routes_pruned", ""));
         }
-        return [.. candidates.Order()];
+        return ([.. candidates.Order()], cone);
     }
 
-    /// <summary>Whether some output of the recipe prices within the band of its solved cost.</summary>
-    private bool WithinCostBand(SolverIndex index, CostTable costs, int recipe)
+    /// <summary>Whether some output of the recipe prices within the band of its solved cost.
+    /// Items in <paramref name="free"/> cost nothing here — supplied consume targets.</summary>
+    private bool WithinCostBand(SolverIndex index, CostTable costs, int recipe, HashSet<int>? free = null)
     {
         for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
         {
             var item = index.OutputItem[o];
-            if (costs.TryCost(item, out var solved)
-                && costSolver.Candidate(costs, recipe, item) <= PruneFactor * solved + PruneFloor)
+            if (!costs.TryCost(item, out var solved))
+            {
+                continue;
+            }
+            var candidate = free is null
+                ? costSolver.Candidate(costs, recipe, item)
+                : FreeAwareCandidate(index, costs, recipe, item, free);
+            if (candidate <= PruneFactor * solved + PruneFloor)
             {
                 return true;
             }
         }
         return false;
+    }
+
+    /// <summary>The cost engine's candidate arithmetic with the free set priced at zero:
+    /// every slot at its cheapest alternative over the recipe's expected yield of the item.</summary>
+    private static double FreeAwareCandidate(
+        SolverIndex index, CostTable costs, int recipe, int item, HashSet<int> free)
+    {
+        var total = 0.0;
+        for (var slot = 0; slot < index.SlotCount(recipe); slot++)
+        {
+            var cheapest = double.PositiveInfinity;
+            for (var alt = 0; alt < index.AlternativeCount(recipe, slot); alt++)
+            {
+                var a = index.AlternativeAt(recipe, slot, alt);
+                var input = index.AlternativeItem[a];
+                var stack = free.Contains(input)
+                    ? 0
+                    : costs.Cost(input) * index.AlternativeAmount[a];
+                if (stack < cheapest)
+                {
+                    cheapest = stack;
+                }
+            }
+            if (double.IsPositiveInfinity(cheapest) || double.IsNaN(cheapest))
+            {
+                return double.PositiveInfinity;
+            }
+            total += cheapest;
+        }
+        var yield = index.Yield(recipe, item);
+        return yield > 0 ? total / yield : double.PositiveInfinity;
     }
 
     private static bool Produces(SolverIndex index, int recipe, int item)
@@ -604,6 +691,7 @@ public sealed class PipelineSolverService(
         FactoryRequest request,
         Targets targets,
         List<int> candidates,
+        HashSet<int> cone,
         List<GeneratorVariant> generators,
         List<FactoryWarning> warnings)
     {
@@ -633,6 +721,14 @@ public sealed class PipelineSolverService(
         foreach (var target in targets.Produce.Keys.Order())
         {
             RowOf(target);
+        }
+
+        // A consume target's balance is an equality: what the outside supplies, the plan must
+        // actually absorb — dumped supply is not processing.
+        foreach (var item in targets.Consume.Keys.Order())
+        {
+            var row = RowOf(item);
+            rows[row] = new LpRow(0, 0);
         }
 
         // The EU balance: generators feed it, every machine's duty-cycled draw taxes it, and
@@ -738,6 +834,13 @@ public sealed class PipelineSolverService(
             metas.Add(new ColumnMeta(ColumnKind.Generate, -1, -1, 0, g));
         }
 
+        // One bounded supply variable per consume target; the pre-layer maximizes them.
+        foreach (var (item, rate) in targets.Consume.OrderBy(pair => pair.Key))
+        {
+            columns.Add(new LpColumn(0, rate, [new LpEntry(rowOf[item], 1)]));
+            metas.Add(new ColumnMeta(ColumnKind.Supply, -1, item, 0));
+        }
+
         // Purchase variables close every leaf's balance; consuming internal flow offsets them.
         foreach (var (item, row) in rowOf.OrderBy(pair => pair.Key))
         {
@@ -751,7 +854,9 @@ public sealed class PipelineSolverService(
         var program = new LinearProgram(
             columns,
             rows,
-            BuildObjectives(index, request, metas, variants, resolvedWeights),
+            BuildObjectives(
+                index, request, metas, variants, columns, rowItems, resolvedWeights, cone,
+                targets.Consume.Count > 0),
             request.TimeLimitSeconds);
         return new Model(program, metas, variants, generators, rowItems, resolvedWeights);
     }
@@ -809,21 +914,43 @@ public sealed class PipelineSolverService(
         return false;
     }
 
-    /// <summary>The user's layers in priority order, then the hidden canonicalization layer
-    /// minimizing total runs and purchases — it pins every variable the earlier layers left
-    /// free, so degenerate optima come back model-determined.</summary>
+    /// <summary>The layer sequence: maximize supply first when consume targets exist, then
+    /// the user's layers in priority order — with maximize-recovered-value right after the
+    /// resource layer, whose lock is what keeps weight arbitrage from making it unbounded —
+    /// then the hidden canonicalization layer minimizing total runs and purchases, which pins
+    /// every variable the earlier layers left free so degenerate optima come back
+    /// model-determined.</summary>
     private static List<LpObjective> BuildObjectives(
         SolverIndex index,
         FactoryRequest request,
         List<ColumnMeta> metas,
         List<RunVariant> variants,
-        IReadOnlyDictionary<string, double> weights)
+        List<LpColumn> columns,
+        List<int> rowItems,
+        IReadOnlyDictionary<string, double> weights,
+        HashSet<int> cone,
+        bool hasConsume)
     {
         var priority = request.Priority.Count > 0
             ? request.Priority.Distinct().ToList()
             : [FactoryObjective.Resource, FactoryObjective.Energy, FactoryObjective.Machines];
 
         var objectives = new List<LpObjective>();
+        if (hasConsume)
+        {
+            var supply = new List<LpEntry>();
+            for (var c = 0; c < metas.Count; c++)
+            {
+                if (metas[c].Kind == ColumnKind.Supply)
+                {
+                    supply.Add(new LpEntry(c, 1));
+                }
+            }
+            // The intake is a hard commitment, not a preference: its lock row is one unit
+            // entry per target, numerically safe to hold tight.
+            objectives.Add(new LpObjective(Maximize: true, supply, AbsTolerance: 1e-9, RelTolerance: 0));
+        }
+
         foreach (var objective in priority)
         {
             var coefficients = new List<LpEntry>();
@@ -849,12 +976,20 @@ public sealed class PipelineSolverService(
                 }
             }
             objectives.Add(new LpObjective(Maximize: false, coefficients, RelTolerance: LayerTolerance));
+
+            // A maximize-recovered-value layer was designed to follow the resource lock for
+            // consume factories, and three formulations of it measured unbounded on the real
+            // artifact: the leaf weights are not arbitrage-free and free world-origin chains
+            // exist by design, so any open value-maximize finds a mint. Byproducts still flow
+            // and surface as surplus; an actively value-seeking route choice awaits a weight
+            // model that can support it.
         }
 
         var canonical = new List<LpEntry>();
         for (var c = 0; c < metas.Count; c++)
         {
-            if (metas[c].Kind != ColumnKind.Split)
+            // Supplies stay out: canonicalization must not trade the maximized intake away.
+            if (metas[c].Kind is not ColumnKind.Split and not ColumnKind.Supply)
             {
                 canonical.Add(new LpEntry(c, 1));
             }
@@ -879,6 +1014,7 @@ public sealed class PipelineSolverService(
         var produced = new Dictionary<int, double>();
         var consumed = new Dictionary<int, double>();
         var bought = new Dictionary<int, double>();
+        var supplied = new Dictionary<int, double>();
         var lines = new List<FactoryLine>();
         var cost = 0.0;
         var drawEuT = 0.0;
@@ -947,6 +1083,9 @@ public sealed class PipelineSolverService(
                         Durationless: false,
                         Estimated: false));
                     break;
+                case ColumnKind.Supply:
+                    supplied[meta.Item] = supplied.GetValueOrDefault(meta.Item) + value;
+                    break;
                 case ColumnKind.Buy:
                     bought[meta.Item] = bought.GetValueOrDefault(meta.Item) + value;
                     cost += value * model.Weights.GetValueOrDefault(index.ItemIds[meta.Item], 1);
@@ -954,17 +1093,27 @@ public sealed class PipelineSolverService(
             }
         }
 
+        foreach (var (item, rate) in targets.Consume.OrderBy(pair => pair.Key))
+        {
+            var achieved = supplied.GetValueOrDefault(item);
+            if (achieved < rate - Math.Max(RateEpsilon, LayerTolerance * rate))
+            {
+                warnings.Add(new FactoryWarning("consume_shortfall", index.ItemIds[item]));
+            }
+        }
+
         var flows = new List<FactoryItemFlow>();
         var inflows = new List<FactoryInflow>();
-        foreach (var item in produced.Keys.Union(consumed.Keys).Union(bought.Keys).Order())
+        foreach (var item in produced.Keys.Union(consumed.Keys).Union(bought.Keys).Union(supplied.Keys).Order())
         {
             var made = produced.GetValueOrDefault(item);
             var used = consumed.GetValueOrDefault(item);
             var buy = bought.GetValueOrDefault(item);
             var surplus = Math.Max(0, made + buy - used - targets.Produce.GetValueOrDefault(item));
-            if (made > RateEpsilon || used > RateEpsilon)
+            var supply = supplied.GetValueOrDefault(item);
+            if (made > RateEpsilon || used > RateEpsilon || supply > RateEpsilon)
             {
-                flows.Add(new FactoryItemFlow(index.ItemIds[item], made, used, surplus));
+                flows.Add(new FactoryItemFlow(index.ItemIds[item], made, used, surplus, supply));
             }
             if (buy > RateEpsilon)
             {
