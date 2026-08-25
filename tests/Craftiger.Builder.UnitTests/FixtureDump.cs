@@ -127,6 +127,8 @@ public static partial class FixtureDump
     public const string BranchCutter = "i~gregtech~gt.metatool.01~30";
     public const string WireCutterLv = "i~gregtech~gt.metatool.01~196";
     public const string RelicIngot = "i~fixture~relic_ingot~0";
+    public const string BartOre = "i~fixture~bw.blockores.01~0";
+    public const string BartIngot = "i~fixture~bart_ingot~0";
 
     public static string Create(string directory)
     {

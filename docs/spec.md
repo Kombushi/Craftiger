@@ -233,7 +233,13 @@ Builder responsibilities, in order:
    dimensions made of their stone: the Pluto-stone block of a vein that also
    spawns in the Overworld dates from Pluto, not from the Overworld — else
    macerating it would hand out its planet's byproducts (Pluto Ice, and
-   through it Black Plutonium) at era 0. GT also oredicts every stone variant of an ore
+   through it Black Plutonium) at era 0. A material placed in a single stone
+   variant has no planet variant to pair, so its block goes wherever its vein
+   spawns: BartWorks ores come in one block whatever the world, and the
+   BArTiMaEuSNeK vein on Moon-stone Ross128ba would otherwise seed nothing —
+   leaving the material unreachable and its gem, dust and ingot tiered by
+   the recycling fallback at their macerator's LV instead of the planet's
+   LuV. GT also oredicts every stone variant of an ore
    (`oreSethIceCallistoIce`), including variants no vein places. The worldgen
    tables name their placed blocks by item, and the material's plain `ore*`
    oredict is credited directly beside them, so an ore oredict otherwise seeds

@@ -5,6 +5,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Craftiger.Builder.Repositories.DumpReaders;
 
+/// <summary>A placed block pairs with the dimensions made of its stone; a material placed in one stone variant only has no planet variant to pair, so its block goes wherever the vein spawns.</summary>
 public sealed class DumpWorldgenReader : IDumpWorldgenReader
 {
     public DumpWorldgenSet Read(SqliteConnection db)
@@ -16,7 +17,12 @@ public sealed class DumpWorldgenReader : IDumpWorldgenReader
             JOIN GREG_TECH_ORE_VEIN V ON V.ID = O.GREG_TECH_ORE_VEIN_ID AND V.ENABLED_BY_DEFAULT != 0
             JOIN GREG_TECH_ORE_VEIN_DIMENSIONS VD ON VD.GREG_TECH_ORE_VEIN_ID = V.ID
             JOIN GREG_TECH_DIMENSION D ON D.ABBREVIATION = VD.DIMENSIONS_DIMENSION_ABBREVIATION
-            JOIN GREG_TECH_DIMENSION_STONE_TYPES ST ON ST.GREG_TECH_DIMENSION_ID = D.ID AND ST.STONE_TYPES = O.ORES_STONE_TYPE
+            WHERE EXISTS (
+                SELECT 1 FROM GREG_TECH_DIMENSION_STONE_TYPES ST
+                WHERE ST.GREG_TECH_DIMENSION_ID = D.ID AND ST.STONE_TYPES = O.ORES_STONE_TYPE)
+            OR (
+                SELECT COUNT(DISTINCT V2.ORES_STONE_TYPE) FROM GREG_TECH_ORE_VEIN_ORES V2
+                WHERE V2.GREG_TECH_ORE_VEIN_ID = V.ID AND V2.ORES_MATERIAL_NAME IS O.ORES_MATERIAL_NAME) = 1
             """))
         {
             worldgenOres.Add(new DumpWorldgenOre(r.ItemId, r.MaterialName, r.Dimension, r.Tier, IsDrop: false));
@@ -27,7 +33,12 @@ public sealed class DumpWorldgenReader : IDumpWorldgenReader
             JOIN GREG_TECH_SMALL_ORE S ON S.ID = B.GREG_TECH_SMALL_ORE_ID AND S.ENABLED_BY_DEFAULT != 0
             JOIN GREG_TECH_SMALL_ORE_DIMENSIONS SD ON SD.GREG_TECH_SMALL_ORE_ID = S.ID
             JOIN GREG_TECH_DIMENSION D ON D.ABBREVIATION = SD.DIMENSIONS_DIMENSION_ABBREVIATION
-            JOIN GREG_TECH_DIMENSION_STONE_TYPES ST ON ST.GREG_TECH_DIMENSION_ID = D.ID AND ST.STONE_TYPES = B.BLOCKS_STONE_TYPE
+            WHERE EXISTS (
+                SELECT 1 FROM GREG_TECH_DIMENSION_STONE_TYPES ST
+                WHERE ST.GREG_TECH_DIMENSION_ID = D.ID AND ST.STONE_TYPES = B.BLOCKS_STONE_TYPE)
+            OR (
+                SELECT COUNT(DISTINCT B2.BLOCKS_STONE_TYPE) FROM GREG_TECH_SMALL_ORE_BLOCKS B2
+                WHERE B2.GREG_TECH_SMALL_ORE_ID = S.ID) = 1
             """))
         {
             worldgenOres.Add(new DumpWorldgenOre(r.ItemId, r.MaterialName, r.Dimension, r.Tier, IsDrop: false));

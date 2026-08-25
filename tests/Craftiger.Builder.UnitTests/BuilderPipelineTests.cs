@@ -409,6 +409,11 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT COUNT(*) FROM item_tiers WHERE item_id = '{FixtureDump.WirelessIngot}' AND tier = 0"));
 
     [Fact]
+    public void ASingleVariantBlockSeedsWhereverItsVeinSpawns() =>
+        Assert.Equal(4, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.BartIngot}'"));
+
+    [Fact]
     public void StoneVariantsSeedOnlyInTheirOwnDimensions() =>
         Assert.Equal(4, _fixture.Scalar<int>(
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.DualIngot}'"));

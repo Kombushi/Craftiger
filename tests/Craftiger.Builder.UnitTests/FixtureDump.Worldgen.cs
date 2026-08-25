@@ -54,6 +54,19 @@ public static partial class FixtureDump
         db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.runite', 'Ma', 50, 10, 1.0)");
         db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.runite', '{RuniteBlock}', 'Runite', 'Mars', 'PRIMARY')");
 
+        // A block placed in one stone variant only, on a planet of another stone: it pairs with the planet all the same.
+        Item(db, BartOre, "Bartium Ore", "fixture");
+        Item(db, BartIngot, "Bartium Ingot", "fixture");
+        Group(db, "g_bart_ore", (BartOre, 1));
+        Group(db, "g_bart_ingot", (BartIngot, 1));
+        Oredict(db, "oreBartium", "g_bart_ore");
+        Oredict(db, "ingotBartium", "g_bart_ingot");
+        Unify(db, "ingotBartium", BartIngot);
+        Recipe(db, "r_bart_smelt", "t_furnace", inputs: [("g_bart_ore", 0)], outputs: [(BartIngot, 1, 1.0)]);
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.bart', 5, 1, 'Bartium', 60, 10, 24, 'ore.mix.bart', 40)");
+        db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.bart', 'Ma', 60, 10, 1.0)");
+        db.Execute($"INSERT INTO GREG_TECH_ORE_VEIN_ORES VALUES ('gtov~ore.mix.bart', '{BartOre}', 'Bartium', 'Stone', 'PRIMARY')");
+
         // A vein in both worlds: the Mars-stone block must seed at Mars's era, not at the vein's cheapest world.
         db.Execute("INSERT INTO GREG_TECH_ORE_VEIN VALUES ('gtov~ore.mix.dual', 5, 1, 'Dualium', 60, 10, 24, 'ore.mix.dual', 40)");
         db.Execute("INSERT INTO GREG_TECH_ORE_VEIN_DIMENSIONS VALUES ('gtov~ore.mix.dual', 'Ow', 60, 10, 1.0)");
