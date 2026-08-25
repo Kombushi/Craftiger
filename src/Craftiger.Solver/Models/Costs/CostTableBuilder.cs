@@ -5,7 +5,6 @@ namespace Craftiger.Solver.Models.Costs;
 /// <summary>The working state of a cost solve: prices, pointers and per-item picks, mutable until frozen into a CostTable.</summary>
 public sealed class CostTableBuilder
 {
-    private readonly SolverIndex _index;
     private readonly double[] _cost;
     private readonly int[] _best;
     private readonly ushort[][] _chosen;
@@ -15,7 +14,7 @@ public sealed class CostTableBuilder
     /// <summary>Prices start at NaN — every comparison against it fails, which is exactly "absent loses to any candidate".</summary>
     public CostTableBuilder(SolverIndex index, IReadOnlyDictionary<string, double> leafWeights)
     {
-        _index = index;
+        Index = index;
         _cost = new double[index.ItemCount];
         Array.Fill(_cost, double.NaN);
         foreach (var (id, weight) in leafWeights)
@@ -28,9 +27,7 @@ public sealed class CostTableBuilder
         _scratch = new ushort[index.MaxSlotCount];
     }
 
-    public SolverIndex Index => _index;
-
-    public ReadOnlySpan<double> Costs => _cost;
+    public SolverIndex Index { get; }
 
     /// <summary>Items in the order they first won a recipe; the reroute pass visits them in that order and its outcome on ties depends on it.</summary>
     public IReadOnlyList<int> Won => _won;
@@ -41,28 +38,28 @@ public sealed class CostTableBuilder
 
     public ReadOnlySpan<ushort> Picks(int item) => _chosen[item];
 
-    public double SlotTotal(int recipe) => CostArithmetic.SlotTotal(_index, recipe, _cost);
+    public double SlotTotal(int recipe) => CostArithmetic.SlotTotal(Index, recipe, _cost);
 
-    public double Candidate(int recipe, int item) => CostArithmetic.Candidate(_index, recipe, item, _cost);
+    public double Candidate(int recipe, int item) => CostArithmetic.Candidate(Index, recipe, item, _cost);
 
     /// <summary>The alternative each slot resolves to at the current prices, in a buffer reused across calls.</summary>
     public ReadOnlySpan<ushort> ScratchPicks(int recipe)
     {
-        var picks = _scratch.AsSpan(0, _index.SlotCount(recipe));
-        CostArithmetic.Picks(_index, recipe, _cost, picks);
+        var picks = _scratch.AsSpan(0, Index.SlotCount(recipe));
+        CostArithmetic.Picks(Index, recipe, _cost, picks);
         return picks;
     }
 
     /// <summary>The alternative each slot resolves to at the current prices, in a fresh buffer.</summary>
     public ushort[] CurrentPicks(int recipe)
     {
-        var picks = new ushort[_index.SlotCount(recipe)];
-        CostArithmetic.Picks(_index, recipe, _cost, picks);
+        var picks = new ushort[Index.SlotCount(recipe)];
+        CostArithmetic.Picks(Index, recipe, _cost, picks);
         return picks;
     }
 
     public int PickedItem(int recipe, ReadOnlySpan<ushort> picks, int slot) =>
-        CostArithmetic.PickedItem(_index, recipe, picks, slot);
+        CostArithmetic.PickedItem(Index, recipe, picks, slot);
 
     /// <summary>Records a strict improvement: the price, the winning recipe and the picks it was priced with.</summary>
     public void Win(int item, int recipe, double cost, ReadOnlySpan<ushort> picks)
@@ -96,18 +93,18 @@ public sealed class CostTableBuilder
     /// <summary>Packs the per-item pick buffers into one compressed row array; cost and pointer arrays are handed over as they are.</summary>
     public CostTable Build(bool converged)
     {
-        var pickStart = new int[_index.ItemCount];
+        var pickStart = new int[Index.ItemCount];
         var total = 0;
         foreach (var item in _won)
         {
             pickStart[item] = total;
-            total += _index.SlotCount(_best[item]);
+            total += Index.SlotCount(_best[item]);
         }
         var picks = new ushort[total];
         foreach (var item in _won)
         {
-            Array.Copy(_chosen[item], 0, picks, pickStart[item], _index.SlotCount(_best[item]));
+            Array.Copy(_chosen[item], 0, picks, pickStart[item], Index.SlotCount(_best[item]));
         }
-        return new CostTable(_index, _cost, _best, pickStart, picks, converged);
+        return new CostTable(Index, _cost, _best, pickStart, picks, converged);
     }
 }

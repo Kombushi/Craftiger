@@ -8,10 +8,8 @@ public sealed record FactoryRequest(
     bool MobFarms = false,
     double TimeLimitSeconds = 0)
 {
-    private static readonly IReadOnlyList<FactoryObjective> DefaultPriority =
-        [FactoryObjective.Resource, FactoryObjective.Energy, FactoryObjective.Machines];
+    private static readonly IReadOnlyList<FactoryObjective> _defaultPriority = [FactoryObjective.Resource, FactoryObjective.Energy, FactoryObjective.Machines];
 
     /// <summary>The layers in the order they run, duplicates dropped.</summary>
-    public IReadOnlyList<FactoryObjective> Layers =>
-        Priority.Count > 0 ? Priority.Distinct().ToList() : DefaultPriority;
+    public IReadOnlyList<FactoryObjective> Layers => Priority.Count > 0 ? Priority.Distinct().ToList() : _defaultPriority;
 }

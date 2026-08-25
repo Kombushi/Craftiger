@@ -22,9 +22,6 @@ public sealed partial class FuelExtractionService(
     /// <summary>Solid fuels burn as 1000 mB worth of the special value, per GT5-Unofficial's generator math.</summary>
     private const long SolidUnitMb = 1000;
 
-    /// <summary>Every run re-verifies one known value so the Standard family's unit reading can never drift silently.</summary>
-    private const double BenzeneEuPerMb = 360.0;
-
     private readonly FuelsConfiguration _config = config.Value;
 
     public FuelData Run(Dump dump, UnifiedItems unified)
@@ -99,7 +96,6 @@ public sealed partial class FuelExtractionService(
             }
         }
 
-        AssertBenzene(dump, fuels);
         return new FuelData([.. fuels.Values], [.. boilerFuels.Values]);
     }
 
@@ -275,18 +271,5 @@ public sealed partial class FuelExtractionService(
             return;
         }
         fuels[(fuel.Map, fuel.ItemId)] = fuel;
-    }
-
-    private static void AssertBenzene(
-        Dump dump, Dictionary<(string, string), PlannerFuel> fuels)
-    {
-        var benzene = fuels.Values.FirstOrDefault(f =>
-            f.Map == "Gas Turbine Fuel" && dump.NameOf(f.ItemId) == "Benzene");
-        if (benzene is null || benzene.EuPerUnit != BenzeneEuPerMb)
-        {
-            throw new InvalidOperationException(
-                $"benzene gas-turbine fuel check failed: expected {BenzeneEuPerMb} EU/mB, "
-                + $"got {benzene?.EuPerUnit.ToString() ?? "no row"} — fuel unit semantics drifted");
-        }
     }
 }

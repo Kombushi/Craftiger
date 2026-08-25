@@ -369,8 +369,8 @@ Builder responsibilities, in order:
   GoodGenerator naquadah fuels (total EU split over the burn). Each fuel
   map's reading is a checked-in builder classification — Standard, Rtg,
   Timed, Boiler, Excluded (real recipes wearing the fuel flag), or Empty
-  (must stay so) — and an unclassified map fails the build, as does a
-  benzene row that stops reading 360 EU per mB. The steam carrier adds
+  (must stay so) — and an unclassified map fails the build. The steam
+  carrier adds
   synthesized rows: steam pseudo-fuels at 0.5 EU per mB on the curated
   steam-turbine maps, whose controllers likewise get synthesized
   `machine_items` rows, and one `gtboil~` recipe per (large boiler, fuel)

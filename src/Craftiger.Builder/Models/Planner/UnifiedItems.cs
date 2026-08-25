@@ -3,7 +3,7 @@ namespace Craftiger.Builder.Models.Planner;
 /// <summary>Result of oredict unification: raw item id to canonical id, plus the names behind each.</summary>
 public sealed record UnifiedItems
 {
-    private static readonly IReadOnlySet<string> NoNames = new HashSet<string>();
+    private static readonly IReadOnlySet<string> _noNames = new HashSet<string>();
 
     public required IReadOnlyDictionary<string, string> CanonicalByRawId { get; init; }
 
@@ -23,7 +23,7 @@ public sealed record UnifiedItems
 
     public string? PrimaryOredictOf(string canonicalId) => PrimaryOredictByCanonical.GetValueOrDefault(canonicalId);
 
-    public IReadOnlySet<string> OredictsOf(string canonicalId) => OredictsByCanonical.GetValueOrDefault(canonicalId) ?? NoNames;
+    public IReadOnlySet<string> OredictsOf(string canonicalId) => OredictsByCanonical.GetValueOrDefault(canonicalId) ?? _noNames;
 
-    public IReadOnlySet<string> AliasesOf(string canonicalId) => AliasesByCanonical.GetValueOrDefault(canonicalId) ?? NoNames;
+    public IReadOnlySet<string> AliasesOf(string canonicalId) => AliasesByCanonical.GetValueOrDefault(canonicalId) ?? _noNames;
 }

@@ -1,7 +1,7 @@
 using Craftiger.Solver.Highs.Interfaces;
 using Craftiger.Solver.Highs.Models;
 using Craftiger.Solver.Models.Lp;
-using global::Highs;
+using Highs;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Solver.Highs.Services;

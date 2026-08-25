@@ -41,8 +41,9 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
             var excess = legality.HeatCapacity(map, garage) - heat;
             if (excess > 0)
             {
-                perfectSteps = excess / HeatPerPerfectStep;
-                heatEuFactor = Math.Pow(HeatDiscount, excess / HeatPerDiscountStep);
+                perfectSteps = Math.DivRem(excess, HeatPerPerfectStep).Quotient;
+                var discountSteps = Math.DivRem(excess, HeatPerDiscountStep).Quotient;
+                heatEuFactor = Math.Pow(HeatDiscount, discountSteps);
             }
         }
 

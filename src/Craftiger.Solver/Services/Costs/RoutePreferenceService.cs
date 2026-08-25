@@ -1,6 +1,5 @@
 using Craftiger.Solver.Interfaces.Costs;
 using Craftiger.Solver.Models.Costs;
-using Craftiger.Solver.Models.Graph;
 using Craftiger.Solver.Models.Options;
 using Microsoft.Extensions.Options;
 
