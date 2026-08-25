@@ -1,6 +1,6 @@
 namespace Craftiger.Api.Models;
 
-/// <summary>A <c>recipes</c> row of planner.sqlite as read at load.</summary>
+/// <summary>A recipes row of planner.sqlite as read at load.</summary>
 internal sealed record RecipeRow(
     string Id,
     string Machine,
@@ -8,4 +8,5 @@ internal sealed record RecipeRow(
     long? MultiTier,
     long? Heat,
     long DurationTicks,
-    long EuT);
+    long EuT,
+    long Amps);

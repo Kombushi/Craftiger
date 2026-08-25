@@ -1,4 +1,6 @@
-using Craftiger.Solver.Models;
+using Craftiger.Solver.Models.Bom;
+using Craftiger.Solver.Models.Costs;
+using Craftiger.Solver.Models.Graph;
 
 namespace Craftiger.Solver.UnitTests;
 
@@ -115,7 +117,7 @@ public sealed class BomTests
             new Dictionary<string, string> { ["wire"] = "dear" }, garage);
 
         Assert.Equal(1, Leaf(result, "copper"));
-        Assert.Contains(result.Warnings, warning => warning is { Kind: "pin_illegal", ItemId: "wire" });
+        Assert.Contains(result.Warnings, warning => warning is { Kind: BomWarningKind.PinIllegal, ItemId: "wire" });
     }
 
     [Fact]
@@ -128,7 +130,7 @@ public sealed class BomTests
         var result = Compute(graph, [new BomTarget("wire", 1)],
             new Dictionary<string, string> { ["wire"] = "gone" });
 
-        Assert.Contains(result.Warnings, warning => warning is { Kind: "pin_unknown", ItemId: "wire" });
+        Assert.Contains(result.Warnings, warning => warning is { Kind: BomWarningKind.PinUnknown, ItemId: "wire" });
     }
 
     [Fact]
@@ -143,7 +145,7 @@ public sealed class BomTests
         var result = Compute(graph, [new BomTarget("rod", 1)],
             new Dictionary<string, string> { ["metal"] = "melt" });
 
-        Assert.Contains(result.Warnings, warning => warning is { Kind: "pin_cycle", ItemId: "metal" });
+        Assert.Contains(result.Warnings, warning => warning is { Kind: BomWarningKind.PinCycle, ItemId: "metal" });
         Assert.Equal(1, Leaf(result, "ore"));
     }
 
@@ -239,7 +241,7 @@ public sealed class BomTests
 
         var result = Compute(graph, [new BomTarget("chip", 8)]);
 
-        Assert.Contains(result.Warnings, warning => warning is { Kind: "loop_unseeded", ItemId: "chip" or "part" });
+        Assert.Contains(result.Warnings, warning => warning is { Kind: BomWarningKind.LoopUnseeded, ItemId: "chip" or "part" });
         Assert.Equal(144, Leaf(result, "eu"), 9);
         Assert.DoesNotContain(result.Nodes, node => node.Seed);
     }
@@ -254,7 +256,7 @@ public sealed class BomTests
 
         var result = Compute(graph, [new BomTarget("rod", 1)], garage: garage);
 
-        Assert.Contains(result.Warnings, warning => warning is { Kind: "unreachable_target", ItemId: "rod" });
+        Assert.Contains(result.Warnings, warning => warning is { Kind: BomWarningKind.UnreachableTarget, ItemId: "rod" });
         Assert.Empty(result.Leaves);
         Assert.Null(result.Targets.Single().RecipeId);
     }

@@ -1,15 +1,13 @@
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
+using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-/// <summary>Synthesizes the steam carrier: one recipe per (boiler, fuel) turning fuel and
-/// water into steam at the boiler's rate — the extracted burn seconds already carry GT's
-/// long-burn bonus, applied when the fake fuel recipes were generated — plus machine rows
-/// and steam pseudo-fuels for the turbines, which serve no recipe map in the dump.</summary>
+/// <summary>The extracted burn seconds already carry GT's long-burn bonus, applied when the fake fuel recipes were generated.</summary>
 public sealed class SteamSynthesisService(
     IOptions<SteamConfiguration> options,
     ILogger<SteamSynthesisService> logger) : ISteamSynthesisService
@@ -34,8 +32,7 @@ public sealed class SteamSynthesisService(
             return false;
         }
 
-        var fluidsKnown = dump.Fluids.ContainsKey(_config.WaterFluidId)
-            && dump.Fluids.ContainsKey(_config.SteamOutputFluidId);
+        var fluidsKnown = dump.IsFluid(_config.WaterFluidId) && dump.IsFluid(_config.SteamOutputFluidId);
         if (!fluidsKnown)
         {
             logger.LogWarning("steam config's water or steam fluid is unknown to this dump; no boiler recipes");
@@ -109,21 +106,28 @@ public sealed class SteamSynthesisService(
             larges++;
         }
 
+        var steamFluids = _config.SteamFluidIds.Where(dump.IsFluid).ToList();
         foreach (var (map, present) in new[] { (_config.TurbineMap, singles > 0), (_config.LargeTurbineMap, larges > 0) })
         {
             if (!present)
             {
                 continue;
             }
-            foreach (var steamId in _config.SteamFluidIds.Where(dump.Fluids.ContainsKey))
+            foreach (var steamId in steamFluids)
             {
                 fuels.Add(new PlannerFuel(map, steamId, 1, _config.EuPerLiter, null, null));
             }
         }
 
+        var carrier = new SteamCarrier(
+            steamFluids,
+            dump.IsFluid(_config.DistilledWaterId) ? _config.DistilledWaterId : null,
+            _config.EuPerLiter,
+            _config.WaterPerSteam);
+
         logger.LogInformation(
             "  {Recipes:N0} boiler recipes, {Machines:N0} steam machine rows, {Fuels:N0} steam fuels",
             recipes.Count, machines.Count, fuels.Count);
-        return new SteamSynthesis(recipes, machines, fuels);
+        return new SteamSynthesis(recipes, machines, fuels, carrier);
     }
 }

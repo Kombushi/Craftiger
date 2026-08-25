@@ -1,20 +1,18 @@
-using Dapper;
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Planner;
+using Dapper;
 using Microsoft.Data.Sqlite;
 
 namespace Craftiger.Builder.Repositories;
 
 public sealed class PlannerRepository : IPlannerRepository
 {
-    /// <summary>Version of the artifact contract, bumped on any schema change so a reader
-    /// can refuse an artifact written for a contract it does not know.</summary>
-    public const int SchemaVersion = 10;
+    /// <summary>Version of the artifact contract, bumped on any schema change so a reader can refuse what it does not know.</summary>
+    public const int SchemaVersion = 11;
 
     public void Write(string path, PlannerData data)
     {
-        // An interrupted earlier run can leave journal sidecars that would replay into the
-        // fresh file the moment it is opened.
+        // An interrupted earlier run can leave journal sidecars that would replay into the fresh file.
         foreach (var stale in new[] { path, path + "-journal", path + "-wal", path + "-shm" })
         {
             File.Delete(stale);
@@ -105,7 +103,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 dynamo_amps INTEGER,
                 max_parallel INTEGER,
                 boiler_eu_t INTEGER,
-                rotor_turbine INTEGER NOT NULL);
+                rotor_fuel TEXT);
             CREATE TABLE machine_bonuses(
                 item_id TEXT NOT NULL,
                 kind TEXT NOT NULL,
@@ -141,8 +139,8 @@ public sealed class PlannerRepository : IPlannerRepository
             {
                 Id = id,
                 Name = data.Dump.NameOf(id),
-                Oredict = data.Unified.PrimaryOredictByCanonical.GetValueOrDefault(id),
-                IsFluid = data.Dump.Fluids.ContainsKey(id) ? 1 : 0,
+                Oredict = data.Unified.PrimaryOredictOf(id),
+                IsFluid = data.Dump.IsFluid(id) ? 1 : 0,
                 LeafClass = data.LeafClasses.GetValueOrDefault(id),
                 AtlasIdx = index,
                 MaxStack = data.Dump.Items.TryGetValue(id, out var item) ? item.MaxStackSize : (long?)null,
@@ -150,15 +148,12 @@ public sealed class PlannerRepository : IPlannerRepository
 
         db.Execute("INSERT INTO item_aliases VALUES (@Id, @Alias)",
             data.OrderedItemIds.SelectMany(id =>
-                (data.Unified.AliasesByCanonical.GetValueOrDefault(id) ?? [])
-                .Select(alias => new { Id = id, Alias = alias })), tx);
+                data.Unified.AliasesOf(id).Select(alias => new { Id = id, Alias = alias })), tx);
 
-        // Search text is folded here with .NET's invariant Unicode lowercasing, and the reader
-        // folds its query the same way: SQLite's own LIKE only folds ASCII, the trigram index
-        // is told the text is already case-folded, and both paths then agree on every script.
+        // Search text is case-folded with invariant Unicode lowercasing here and in the reader, so every script agrees.
         db.Execute("INSERT INTO item_search (item_id, text) VALUES (@Id, @Text)",
             data.OrderedItemIds.SelectMany(id =>
-                (data.Unified.AliasesByCanonical.GetValueOrDefault(id) ?? [])
+                data.Unified.AliasesOf(id)
                 .Prepend(data.Dump.NameOf(id))
                 .Select(text => new { Id = id, Text = text.ToLowerInvariant() })), tx);
 
@@ -172,8 +167,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 LowGravity = r.RequiresLowGravity ? 1 : 0,
             }), tx);
 
-        // Rows sharing a slot are alternatives; the solver takes the cheapest of them.
-        // Catalyst rows never price: the solver reads only whether a slot holds a wearing tool.
+        // Rows sharing a slot are alternatives; catalyst rows never price, only their tool flag reaches the solver.
         db.Execute("INSERT INTO recipe_inputs VALUES (@RecipeId, @ItemId, @Amount, @Slot, @Catalyst, @Tool)",
             data.Recipes.SelectMany(r =>
                 r.Inputs
@@ -238,13 +232,8 @@ public sealed class PlannerRepository : IPlannerRepository
         db.Execute(
             "INSERT INTO machine_props VALUES (@ItemId, @Era, @GeneratorEfficiency, " +
             "@GeneratorEuT, @GeneratorAmps, @DynamoEuT, @DynamoAmps, @MaxParallel, @BoilerEuT, " +
-            "@RotorTurbine)",
-            data.MachineProps.Props.Select(p => new
-            {
-                p.ItemId, p.Era, p.GeneratorEfficiency, p.GeneratorEuT, p.GeneratorAmps,
-                p.DynamoEuT, p.DynamoAmps, p.MaxParallel, p.BoilerEuT,
-                RotorTurbine = p.RotorTurbine ? 1 : 0,
-            }), tx);
+            "@RotorFuel)",
+            data.MachineProps.Props, tx);
 
         db.Execute(
             "INSERT INTO machine_bonuses VALUES (@ItemId, @Kind, @Bonus, @Multiplicative, @TierAxis)",
@@ -272,8 +261,7 @@ public sealed class PlannerRepository : IPlannerRepository
             data.Meta.Select(m => new { m.Key, m.Value }), tx);
         db.Execute("INSERT INTO meta VALUES ('schema_version', @Version)",
             new { Version = SchemaVersion.ToString() }, tx);
-        // Every build is its own artifact even at the same pack and schema: a reader that keeps
-        // solved tables outside the process keys them by this, never by the pack alone.
+        // Every build is its own artifact even at the same pack and schema; solved tables are keyed by this.
         db.Execute("INSERT INTO meta VALUES ('build_id', @BuildId)",
             new { BuildId = Guid.NewGuid().ToString("N") }, tx);
 

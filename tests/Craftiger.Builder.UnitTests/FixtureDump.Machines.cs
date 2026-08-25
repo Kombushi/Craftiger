@@ -1,0 +1,62 @@
+using Dapper;
+using Microsoft.Data.Sqlite;
+
+namespace Craftiger.Builder.UnitTests;
+
+/// <summary>Fuels of every family and the machine stat tables: generators, dynamos, boilers, multiblocks, rotors.</summary>
+public static partial class FixtureDump
+{
+    private static void AddMachines(SqliteConnection db)
+    {
+        // Fuel tabs are pseudo-recipes and must be dropped.
+        Recipe(db, "r_fuel", "rt~gregtech~gt.recipe.largeboilerfakefuels~ULV", inputs: [("g_bronze_dust", 0)], outputs: [(BronzeDust, 1, 1.0)], voltage: 32, duration: 1,
+            additionalInfo: "Burn time in seconds:\nBronze Boiler: 2\nSteel Boiler: 1\nTitanium Boiler: Not allowed\nTungstenst. Boiler: Not allowed");
+
+        // One fuel per family trap: the benzene anchor, a small-volume cell whose special value
+        // still reads per mB, a bare solid worth 1000 mB, a lifetime pellet, and a timed fluid.
+        Fluid(db, "f~benzene", "benzene", "Benzene");
+        Item(db, "i~fixture~benzene_cell", "Benzene Cell", "fixture");
+        FluidContainer(db, "fc_benzene", 1000, "i~fixture~benzene_cell", EmptyCell, "f~benzene");
+        Group(db, "g_benzene_cell", ("i~fixture~benzene_cell", 1));
+        Recipe(db, "r_fuel_benzene", "rt~gregtech~gt.recipe.gasturbinefuel~ULV", inputs: [("g_benzene_cell", 0)], outputs: [], label: "ULV", specialValue: 360);
+        Fluid(db, "f~fixture_plasma", "fixture_plasma", "Fixture Plasma");
+        Item(db, "i~fixture~plasma_cell", "Fixture Plasma Cell", "fixture");
+        FluidContainer(db, "fc_fixture_plasma", 144, "i~fixture~plasma_cell", EmptyCell, "f~fixture_plasma");
+        Group(db, "g_fixture_plasma_cell", ("i~fixture~plasma_cell", 1));
+        Recipe(db, "r_fuel_plasma", "rt~gregtech~gt.recipe.gasturbinefuel~ULV", inputs: [("g_fixture_plasma_cell", 0)], outputs: [], label: "ULV", specialValue: 999);
+        Item(db, "i~fixture~solid_fuel", "Fixture Solid Fuel", "fixture");
+        Group(db, "g_solid_fuel", ("i~fixture~solid_fuel", 1));
+        Recipe(db, "r_fuel_solid", "rt~gregtech~gt.recipe.gasturbinefuel~ULV", inputs: [("g_solid_fuel", 0)], outputs: [], label: "ULV", specialValue: 20);
+        Item(db, "i~fixture~rtg_pellet", "Fixture Pellet", "fixture");
+        Group(db, "g_rtg_pellet", ("i~fixture~rtg_pellet", 1));
+        Recipe(db, "r_fuel_rtg", "rt~gregtech~gtpp.recipe.RTGgenerators~ULV", inputs: [("g_rtg_pellet", 0)], outputs: [], voltage: 480, specialValue: 1);
+        Fluid(db, "f~fixture_naq_fuel", "fixture_naq_fuel", "Fixture Naquadah Fuel");
+        FluidStack(db, "g_naq_fuel", 1, "f~fixture_naq_fuel");
+        Recipe(db, "r_fuel_timed", "rt~gregtech~gg.recipe.naquadah_reactor~ULV", inputs: [], outputs: [], label: "ULV", specialValue: 1600000, duration: 160, fluidInputs: [("g_naq_fuel", 0)]);
+
+        // Machine stat tables: a generator, a dynamo, a boiler, the EBF's bonuses, one rotor.
+        Item(db, "i~fixture~gas_turbine", "Fixture Gas Turbine", "fixture");
+        db.Execute("INSERT INTO GREG_TECH_GENERATOR VALUES ('gtgen~1', 1, 95, 32, 'i~fixture~gas_turbine')");
+        Item(db, DeadTurbine, "Large Gas Turbine", "gregtech");
+        Tooltip(db, DeadTurbine, "§4DEPRECATED - Controller will be removed in next major update!", 1);
+        Item(db, LiveTurbine, "Large Gas Turbine", "gregtech");
+        Item(db, XlTurbine, "XL Turbo Gas Turbine", "gregtech");
+        Item(db, "i~fixture~dynamo", "Fixture Dynamo Hatch", "fixture");
+        db.Execute("INSERT INTO GREG_TECH_DYNAMO VALUES ('gtdyn~1', 4, 512, 8192, 'i~fixture~dynamo')");
+        Item(db, "i~fixture~boiler", "Fixture Large Boiler", "fixture");
+        db.Execute("INSERT INTO GREG_TECH_LARGE_BOILER VALUES ('gtlb~1', 16, 480, 'i~fixture~boiler')");
+        Item(db, BronzeBoiler, "Large Bronze Boiler", "gregtech");
+        db.Execute($"INSERT INTO GREG_TECH_LARGE_BOILER VALUES ('gtlb~2', 16, 480, '{BronzeBoiler}')");
+        Item(db, SteamTurbine, "Basic Steam Turbine", "gregtech");
+        db.Execute($"INSERT INTO GREG_TECH_GENERATOR VALUES ('gtgen~2', 1, 85.714285714285708, 32, '{SteamTurbine}')");
+        db.Execute($"INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE VALUES ('gtmb~1', 8, '{EbfController}')");
+        db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 8, 'PARALLEL', 0, '8 Parallels', NULL)");
+        db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 2, 'PARALLEL_PER_TIER', 1, '2x Parallels per Heating Coil Tier', 'COIL')");
+
+        Item(db, "i~fixture~rotor", "Fixture Rotor", "fixture", maxDamage: 12800);
+        db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR VALUES ('gtrot~170~Fixture', 0.85, 'Fixture', 12800, 2, 'SMALL', 'i~fixture~rotor')");
+        db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR_FUEL_STATS VALUES ('gtrot~170~Fixture', 0.85, 'STEAM', 0.468, 386.1, 1650, 212.5, 500)");
+        db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR_FUEL_STATS VALUES ('gtrot~170~Fixture', 0.85, 'GAS', 0.494, 518.7, 1050, 425, 500)");
+        db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR_FUEL_STATS VALUES ('gtrot~170~Fixture', 0.85, 'PLASMA', 0.52, 22495.2, 43260, 17850, 21000)");
+    }
+}

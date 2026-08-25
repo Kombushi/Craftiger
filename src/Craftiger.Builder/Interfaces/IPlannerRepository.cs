@@ -1,4 +1,4 @@
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Planner;
 
 namespace Craftiger.Builder.Interfaces;
 

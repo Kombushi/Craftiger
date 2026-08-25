@@ -1,16 +1,24 @@
 using System.Text.Json;
 using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
-using Craftiger.Solver.Models;
+using Craftiger.Solver.Models.Factory;
+using Craftiger.Solver.Models.Graph;
+using Craftiger.Solver.Models.Options;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Api.Repositories;
 
-public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
+public sealed class PlannerArtifactRepository(
+    IFactoryArtifactReader factoryReader,
+    IOptions<GarageRules> rules,
+    ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 10;
+    public const int SupportedSchemaVersion = 11;
+
+    private readonly GarageRules _rules = rules.Value;
 
     public PlannerArtifact Load(string artifactsDir)
     {
@@ -67,7 +75,7 @@ public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<Planner
                     weights.TryGetValue(item.Id, out var weight) ? weight : null,
                     parents.GetValueOrDefault(item.Id)));
 
-        var (index, recipeData, machines) = LoadRecipes(connectionString, leaves.Values);
+        var (index, recipeData, factoryRecipes, machines) = LoadRecipes(connectionString, leaves.Values);
         var graph = new SolverGraph(leaves, index);
         items = items.ToDictionary(
             pair => pair.Key,
@@ -84,7 +92,7 @@ public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<Planner
         var machineDtos = machines
             .Select(pair => new MachineDto(
                 pair.Key, pair.Value.MultiTier, pair.Value.Heat,
-                rules.AlwaysOwnedMachines.Contains(pair.Key),
+                _rules.IsAlwaysOwned(pair.Key),
                 machineEras.GetValueOrDefault(pair.Key).Era,
                 machineEras.GetValueOrDefault(pair.Key).Multiblock))
             .OrderBy(machine => machine.Name, StringComparer.Ordinal)
@@ -102,6 +110,7 @@ public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<Planner
             items,
             craftListOrder,
             recipeData,
+            factoryReader.Read(db, meta, factoryRecipes),
             meta.GetValueOrDefault("pack_version") ?? "unknown",
             meta.GetValueOrDefault("build_id")
                 ?? throw new InvalidOperationException("planner.sqlite carries no build_id; rebuild it with the current builder"),
@@ -119,15 +128,14 @@ public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<Planner
         return artifact;
     }
 
-    /// <summary>Streams recipes, their inputs and their outputs — three cursors ordered alike,
-    /// by the recipe's row — straight into the index builder, so no recipe ever exists as an
-    /// object. The row order inside a slot fixes which alternative wins ties, so it must be
-    /// stable; catalyst rows never reach the solver, they are display-only tool slots.</summary>
-    private static (SolverIndex Index, ArtifactRecipeData Recipes, Dictionary<string, (bool MultiTier, bool Heat)> Machines) LoadRecipes(string connectionString, IEnumerable<SolverItem> leaves)
+    /// <summary>Streams recipes, inputs, outputs and grid cells — cursors ordered alike by recipe row — straight into the index builder; the row order inside a slot fixes which alternative wins ties, so it must be stable.</summary>
+    private static (SolverIndex Index, ArtifactRecipeData Recipes, FactoryRecipeData FactoryRecipes, Dictionary<string, (bool MultiTier, bool Heat)> Machines) LoadRecipes(
+        string connectionString, IEnumerable<SolverItem> leaves)
     {
         var builder = new SolverIndexBuilder(leaves);
         var durations = new List<long>();
         var euT = new List<long>();
+        var amps = new List<long>();
         var catalystSlotStart = new List<int> { 0 };
         var catalystAlternativeStart = new List<int> { 0 };
         var catalystItemId = new List<string>();
@@ -170,12 +178,13 @@ public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<Planner
         var output = outputs.MoveNext() ? outputs.Current : null;
 
         foreach (var recipe in recipesDb.Query<RecipeRow>(
-            "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT FROM recipes ORDER BY rowid",
+            "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT, amps FROM recipes ORDER BY rowid",
             buffered: false))
         {
             builder.BeginRecipe(recipe.Id, recipe.Machine, (int)recipe.Tier, (int?)recipe.MultiTier, (int?)recipe.Heat);
             durations.Add(recipe.DurationTicks);
             euT.Add(recipe.EuT);
+            amps.Add(recipe.Amps);
             var flags = machines.GetValueOrDefault(recipe.Machine);
             machines[recipe.Machine] = (flags.MultiTier || recipe.MultiTier is not null, flags.Heat || recipe.Heat is not null);
 
@@ -258,6 +267,7 @@ public sealed class PlannerArtifactRepository(GarageRules rules, ILogger<Planner
                 [.. gridStart],
                 [.. gridCell],
                 [.. gridSlot]),
+            new FactoryRecipeData([.. durations], [.. euT], [.. amps]),
             machines);
     }
 }

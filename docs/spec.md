@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.38
+# GTNH Crafting Planner — Specification v1.39
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -371,15 +371,16 @@ Builder responsibilities, in order:
   superseded controllers and never ship
 - `machine_props(item_id, era NULL, generator_efficiency NULL, generator_eu_t
   NULL, generator_amps NULL, dynamo_eu_t NULL, dynamo_amps NULL, max_parallel
-  NULL, boiler_eu_t NULL, rotor_turbine)` — rate-planning stats of one
+  NULL, boiler_eu_t NULL, rotor_fuel NULL)` — rate-planning stats of one
   machine block, merged
   from the dump's generator, dynamo hatch, large boiler, and multiblock
   exports, plus the builder's curated machine overlay (tooltip-prose
   constants audited in game: the XL turbo turbines' parallel factor, and
-  `rotor_turbine` marking rotor-driven controllers); `era` is the block's
-  own craftability era where the era solve reached it. Only blocks carrying
-  signal ship a row — a bonus-less multiblock at one parallel is the
-  model's default
+  `rotor_fuel` naming the rotor stat class — `GAS`, `PLASMA` or `STEAM` —
+  a rotor-driven controller spins, null on every other block); `era` is
+  the block's own craftability era where the era solve reached it. Only
+  blocks carrying signal ship a row — a bonus-less multiblock at one
+  parallel is the model's default
 - `machine_bonuses(item_id, kind, bonus, multiplicative, tier_axis NULL)` —
   a multiblock's typed parallel/speed/EU bonus lines; `bonus` is the
   displayed number (220 for "220 % Speed"), `tier_axis` the scaling axis
@@ -412,7 +413,12 @@ Builder responsibilities, in order:
   reader that keeps solved tables outside the process keys them by the exact
   build (§8) — the pack version, dump date, atlas dimensions, coil list,
   `tier_voltages` (EU/t per amp per tier, indexed like `tier_names`, 0 for
-  Steam — the client never hardcodes the voltage ladder), and the price
+  Steam — the client never hardcodes the voltage ladder), `steam` — the
+  carrier's pack facts as JSON: `SteamFluidIds` (every fluid that counts as
+  steam, in the builder's configured order, limited to fluids the dump
+  knows), `DistilledWaterId` (what turbines condense steam into; null when
+  the dump lacks the fluid), `EuPerLiter` (0.5) and `WaterPerSteam` (160)
+  — so the runtime carries no modpack ids of its own — and the price
   check's verdict (§3 step 7).
 
 The artifact is written once and shipped read-only. Journal sidecars left by
@@ -773,20 +779,33 @@ Screens:
   project reference to or from the API — the artifacts (§3) are the contract.
   Paths, pack version and every builder-config list live in `appsettings.json`,
   bound through `IOptions`; the tests run against that same file.
-- `src/Craftiger.Solver/` — pure class library: the cost engine (§5) and BOM
-  computation (§6). No I/O and no dump dependency; referenced by the API and
-  exercised directly by fixture tests. Hosts the `ILinearProgramSolver`
-  abstraction (lexicographic LP: columns, rows, prioritized objectives) that
-  the factory solve builds against — the interface and its model types are
-  managed-only, so the library stays pure.
-- `src/Craftiger.Solver.Highs/` — the one impure solver piece: an adapter
-  class implementing `ILinearProgramSolver` over the bundled native HiGHS
-  library (`Highs.Native`, ≥ 1.9 for native lexicographic objectives; 1.15.1
-  shipped). One solver instance per solve — never shared, the native
-  library's thread safety is undocumented — pinned single-threaded with a
-  fixed seed so identical programs return identical solutions on every
-  replica. Registered in DI by the API; the Solver project never references
-  it.
+- `src/Craftiger.Solver/` — pure class library: the cost engine (§5), BOM
+  computation (§6) and the factory solve. No I/O and no dump dependency;
+  referenced by the API and exercised directly by fixture tests. Its
+  `Models/`, `Interfaces/` and `Services/` are grouped by area — `Graph`
+  (the positional index), `Costs`, `Bom`, `Factory`, `Lp` (the
+  `ILinearProgramSolver` abstraction: columns, rows, prioritized
+  objectives) and `Options` — with namespaces following the folders.
+  Models are records that carry their own rules (a machine block knows
+  whether a garage can build it, a dynamo what it nets from a raw output,
+  a cost table how a recipe prices against it); GregTech mechanics that
+  hold for every pack — the voltage ladder, overclock steps, the Enet
+  loss, steam machine duty — live here as value objects, while every
+  modpack id and rate comes from the artifact. Recipe legality stays a
+  service because it reads the configured garage rules. Tuning constants
+  (the cost epsilon, the pruning bands, the layer corridor) are options
+  records bound through `IOptions`, the only package the library
+  references, so it stays managed-only.
+- `src/Craftiger.Solver.Highs/` — the one impure solver piece: the adapter
+  implementing `ILinearProgramSolver` over the bundled native HiGHS library
+  (`Highs.Native`, ≥ 1.9 for native lexicographic objectives; 1.15.1
+  shipped), split into a model loader, the lexicographic layer runner and
+  an equilibration value object, each behind an interface, with its
+  numerics in an options record. One solver instance per solve — never
+  shared, the native library's thread safety is undocumented — pinned
+  single-threaded with a fixed seed so identical programs return identical
+  solutions on every replica. Registered in DI by the API; the Solver
+  project never references it.
 - `src/Craftiger.Api/` — .NET minimal API.
 - `tests/Craftiger.Builder.UnitTests/` — xUnit tests for the Builder;
   Solver and API tests get sibling projects under `tests/`.

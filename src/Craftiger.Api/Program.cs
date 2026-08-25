@@ -3,20 +3,25 @@ using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
 using Craftiger.Api.Repositories;
 using Craftiger.Api.Services;
-using Craftiger.Solver.Interfaces;
-using Craftiger.Solver.Services;
+using Craftiger.Solver.Interfaces.Bom;
+using Craftiger.Solver.Interfaces.Costs;
+using Craftiger.Solver.Interfaces.Graph;
+using Craftiger.Solver.Models.Options;
+using Craftiger.Solver.Services.Bom;
+using Craftiger.Solver.Services.Costs;
+using Craftiger.Solver.Services.Graph;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<ApiOptions>(builder.Configuration.GetSection("ApiOptions"));
+builder.Services.Configure<ApiOptions>(builder.Configuration.GetSection(nameof(ApiOptions)));
+builder.Services.Configure<GarageRules>(builder.Configuration.GetSection(nameof(GarageRules)));
+builder.Services.Configure<SolverPreferences>(builder.Configuration.GetSection(nameof(SolverPreferences)));
+builder.Services.Configure<CostSolverOptions>(builder.Configuration.GetSection(nameof(CostSolverOptions)));
+builder.Services.Configure<BomOptions>(builder.Configuration.GetSection(nameof(BomOptions)));
+builder.Services.Configure<FactorySolverOptions>(builder.Configuration.GetSection(nameof(FactorySolverOptions)));
 
-builder.Services.AddSingleton(
-    builder.Configuration.GetSection("GarageRules").Get<GarageRulesOptions>()?.ToRules() ?? new GarageRulesOptions().ToRules());
-
-builder.Services.AddSingleton(
-    builder.Configuration.GetSection("SolverPreferences").Get<SolverPreferencesOptions>()?.ToPreferences() ?? new SolverPreferencesOptions().ToPreferences());
-
+builder.Services.AddSingleton<IFactoryArtifactReader, FactoryArtifactReader>();
 builder.Services.AddSingleton<IPlannerArtifactRepository, PlannerArtifactRepository>();
 builder.Services.AddSingleton(provider => provider
     .GetRequiredService<IPlannerArtifactRepository>()
@@ -24,7 +29,10 @@ builder.Services.AddSingleton(provider => provider
 
 builder.Services.AddSingleton<ILeafWeightService, LeafWeightService>();
 builder.Services.AddSingleton<IGarageLegalityService, GarageLegalityService>();
+builder.Services.AddSingleton<IRoutePreferenceService, RoutePreferenceService>();
 builder.Services.AddSingleton<ICostSolverService, CostSolverService>();
+builder.Services.AddSingleton<IChosenEdgeGraphService, ChosenEdgeGraphService>();
+builder.Services.AddSingleton<ILoopSeedService, LoopSeedService>();
 builder.Services.AddSingleton<IBomService, BomService>();
 builder.Services.AddSingleton<IClosureService, ClosureService>();
 builder.Services.AddSingleton<ISolveEntryCodec, SolveEntryCodec>();
@@ -35,8 +43,7 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Load the artifact and connect the store eagerly: a wrong schema_version, a missing
-// connection string or an unreachable Valkey refuse at startup, not on the first request.
+// Load the artifact and connect the store eagerly: a wrong schema_version, a missing connection string or an unreachable Valkey refuse at startup, not on the first request.
 app.Services.GetRequiredService<PlannerArtifact>();
 app.Services.GetRequiredService<ISolveStore>();
 

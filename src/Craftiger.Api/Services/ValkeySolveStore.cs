@@ -6,12 +6,7 @@ using StackExchange.Redis;
 
 namespace Craftiger.Api.Services;
 
-/// <summary>The solve store on Valkey through StackExchange.Redis, whose values wrap a byte
-/// array without copying it — a solved entry is a couple of megabytes and must not be
-/// re-encoded on the way in or out. Keys carry the schema, pack and build of the artifact, so
-/// a rebuilt artifact never reads another build's tables; values carry no expiry — the server
-/// evicts by LRU. Connecting happens here, at startup, so an unreachable server refuses the
-/// process rather than the first request.</summary>
+/// <summary>The solve store on Valkey: zero-copy byte values, keys carrying the artifact's schema, pack and build so a rebuild never reads another build's tables, no expiry (the server evicts by LRU), and a startup connection so an unreachable server refuses the process.</summary>
 public sealed class ValkeySolveStore : ISolveStore
 {
     private readonly IDatabase _database;

@@ -1,6 +1,7 @@
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
+using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -9,9 +10,24 @@ namespace Craftiger.Builder.Services;
 public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILogger<LeafTaggingService> logger)
     : ILeafTaggingService
 {
+    /// <summary>Material leaf classes keyed by the oredict's exact GT prefix; intermediates are distinct prefixes and never match.</summary>
+    private static readonly Dictionary<string, string> _classByPrefix = new()
+    {
+        ["dust"] = "dust",
+        ["dustSmall"] = "dust_small",
+        ["dustTiny"] = "dust_tiny",
+        ["ingot"] = "ingot",
+        ["gem"] = "gem",
+        ["gemChipped"] = "gem_chipped",
+        ["gemFlawed"] = "gem_flawed",
+        ["gemFlawless"] = "gem_flawless",
+        ["gemExquisite"] = "gem_exquisite",
+        ["nugget"] = "nugget"
+    };
+
     private readonly WorldConfiguration _config = options.Value;
 
-    public Dictionary<string, string> Run(
+    public IReadOnlyDictionary<string, string> Run(
         IEnumerable<string> canonicalIds, IReadOnlySet<string> produced, Dump dump, UnifiedItems unified)
     {
         var cropDrops = dump.Crops
@@ -38,13 +54,12 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
                 continue;
             }
 
-            var oredict = unified.PrimaryOredictByCanonical.GetValueOrDefault(id);
+            var oredict = unified.PrimaryOredictOf(id);
             var leafClass = oredict is null
                 ? null
-                : Classify(oredict, unified.OredictsByCanonical.GetValueOrDefault(id), dump);
+                : Classify(oredict, unified.OredictsOf(id), dump);
 
-            // Farming is a leaf only where it is the one way in; anything a recipe also makes
-            // is priced from that recipe. Most crop drops carry no oredict, so this comes last.
+            // Farming is a leaf only where it is the one way in; most crop drops carry no oredict, so this comes last.
             leafClass ??= cropDrops.Contains(id) && !produced.Contains(id) ? "crop_drop" : null;
             if (leafClass is not null)
             {
@@ -55,36 +70,31 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
         return classes;
     }
 
-    /// <summary>Drops leaves whose weight cannot be worked out: a tiered material the era solve
-    /// never reached, or a fraction of a parent that is not itself priced. They fall back to
-    /// their recipes, which is honest — a placeholder weight would cap everything downstream.</summary>
-    public void Prune(
-        Dictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers, UnifiedItems unified,
+    /// <summary>A placeholder weight would cap everything downstream, so an unpriceable leaf honestly falls back to its recipes.</summary>
+    public IReadOnlyDictionary<string, string> Prune(
+        IReadOnlyDictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers, UnifiedItems unified,
         Dump dump)
     {
         var untiered = classes
             .Where(c => c.Value is "ingot" or "gem" or "dust" && !tiers.ContainsKey(c.Key))
             .Select(c => c.Key)
-            .ToList();
+            .ToHashSet();
         var parentless = classes
             .Where(c => DerivedLeaf.ByClass.ContainsKey(c.Value)
                 && !HasPricedParent(c.Key, c.Value, unified, dump, tiers))
             .Select(c => c.Key)
-            .ToList();
-
-        foreach (var id in untiered.Concat(parentless))
-        {
-            classes.Remove(id);
-        }
+            .ToHashSet();
 
         logger.LogInformation(
             "  dropped {Untiered:N0} untiered and {Parentless:N0} parentless leaves",
             untiered.Count, parentless.Count);
+        return classes
+            .Where(c => !untiered.Contains(c.Key) && !parentless.Contains(c.Key))
+            .ToDictionary(c => c.Key, c => c.Value);
     }
 
-    /// <summary>The parent each surviving fraction leaf divides its weight from, resolved the
-    /// same way pruning judged it, so a shipped fraction always names a priced parent.</summary>
-    public Dictionary<string, ItemParent> Parents(
+    /// <summary>The parent each fraction leaf divides its weight from, resolved the way pruning judged it.</summary>
+    public IReadOnlyDictionary<string, ItemParent> Parents(
         IReadOnlyDictionary<string, string> classes, IReadOnlyDictionary<string, int> tiers,
         UnifiedItems unified, Dump dump)
     {
@@ -102,7 +112,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
     }
 
     /// <summary>Weights that override the item's leaf class, by item id.</summary>
-    public Dictionary<string, double> Overrides(Dump dump) =>
+    public IReadOnlyDictionary<string, double> Overrides(Dump dump) =>
         dump.Fluids.Values
             .Where(f => _config.WorldFluids.ContainsKey(f.InternalName))
             .ToDictionary(f => f.Id, f => _config.WorldFluids[f.InternalName].Weight);
@@ -113,26 +123,9 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
         DerivedLeaf.ParentsOf(id, leafClass, unified, dump.OrePrefixes)
             .Any(p => tiers.ContainsKey(p.ParentId));
 
-    /// <summary>Material leaf classes keyed by the oredict's exact GT prefix. Intermediates
-    /// (crushed, dustImpure, ingotHot) are distinct prefixes and so never match.</summary>
-    private static readonly Dictionary<string, string> _classByPrefix = new()
+    private string? Classify(string oredict, IReadOnlySet<string> allOredicts, Dump dump)
     {
-        ["dust"] = "dust",
-        ["dustSmall"] = "dust_small",
-        ["dustTiny"] = "dust_tiny",
-        ["ingot"] = "ingot",
-        ["gem"] = "gem",
-        ["gemChipped"] = "gem_chipped",
-        ["gemFlawed"] = "gem_flawed",
-        ["gemFlawless"] = "gem_flawless",
-        ["gemExquisite"] = "gem_exquisite",
-        ["nugget"] = "nugget"
-    };
-
-    private string? Classify(string oredict, HashSet<string>? allOredicts, Dump dump)
-    {
-        if (_config.MinableBlockEras.ContainsKey(oredict) ||
-            (allOredicts is not null && allOredicts.Any(_config.MinableBlockEras.ContainsKey)))
+        if (_config.MinableBlockEras.ContainsKey(oredict) || allOredicts.Any(_config.MinableBlockEras.ContainsKey))
         {
             return "minable_block";
         }
@@ -140,8 +133,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
         {
             return "farmable";
         }
-        // Material classes need a name GT itself unifies: convention names that merely start
-        // with a material prefix (dustSpace*) must not hand their members a material leaf.
+        // Material classes need a name GT itself unifies: convention names like dustSpace* must not hand out material leaves.
         if (dump.UnifiedOredictTargets.ContainsKey(oredict)
             && dump.OrePrefixes.Match(oredict) is { } match
             && _classByPrefix.TryGetValue(match.Prefix.Name, out var materialClass))

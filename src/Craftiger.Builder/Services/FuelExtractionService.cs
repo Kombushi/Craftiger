@@ -1,8 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
+using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -18,12 +19,10 @@ public sealed partial class FuelExtractionService(
     /// <summary>RTG special values are burn years; a Minecraft day is 24,000 ticks.</summary>
     private const long TicksPerYear = 365L * 24000L;
 
-    /// <summary>Solid fuels burn as 1000 mB worth of the special value (GT5-Unofficial
-    /// MTEBasicGenerator: item fuel EU = special × 10 × efficiency%).</summary>
+    /// <summary>Solid fuels burn as 1000 mB worth of the special value, per GT5-Unofficial's generator math.</summary>
     private const long SolidUnitMb = 1000;
 
-    /// <summary>Every run re-verifies one known value so the Standard family's unit reading
-    /// can never drift silently: benzene is 360 EU per mB in gas turbines.</summary>
+    /// <summary>Every run re-verifies one known value so the Standard family's unit reading can never drift silently.</summary>
     private const double BenzeneEuPerMb = 360.0;
 
     private readonly FuelsConfiguration _config = config.Value;
@@ -120,15 +119,13 @@ public sealed partial class FuelExtractionService(
         }
     }
 
-    /// <summary>Resolves a fuel recipe's inputs to burnable units: a cell burns as its
-    /// contained fluid at the special value per mB, a direct fluid likewise, and a bare item
-    /// as 1000 mB worth.</summary>
+    /// <summary>A cell burns as its contained fluid at the special value per mB, a direct fluid likewise, a bare item as 1000 mB worth.</summary>
     private static IEnumerable<(string ItemId, double EuPerUnit)> StandardUnits(
         Dump dump, UnifiedItems unified, DumpRecipe recipe, long special)
     {
-        foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
+        foreach (var (_, groupId) in dump.ItemInputsOf(recipe.Id))
         {
-            foreach (var stack in dump.GroupStacks.GetValueOrDefault(groupId) ?? [])
+            foreach (var stack in dump.StacksOf(groupId))
             {
                 if (dump.ContainersByItemId.TryGetValue(stack.ItemId, out var container))
                 {
@@ -140,7 +137,7 @@ public sealed partial class FuelExtractionService(
                 }
             }
         }
-        foreach (var input in dump.FluidInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
+        foreach (var input in dump.FluidInputsOf(recipe.Id))
         {
             foreach (var (fluidId, _) in input.Members)
             {
@@ -160,9 +157,9 @@ public sealed partial class FuelExtractionService(
             return;
         }
 
-        foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
+        foreach (var (_, groupId) in dump.ItemInputsOf(recipe.Id))
         {
-            foreach (var stack in dump.GroupStacks.GetValueOrDefault(groupId) ?? [])
+            foreach (var stack in dump.StacksOf(groupId))
             {
                 Put(fuels, new PlannerFuel(
                     map.Name, unified.Canonical(stack.ItemId), stack.Size,
@@ -181,7 +178,7 @@ public sealed partial class FuelExtractionService(
             logger.LogWarning("timed fuel {Recipe} lacks total EU or duration; skipped", recipe.Id);
             return;
         }
-        foreach (var input in dump.FluidInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
+        foreach (var input in dump.FluidInputsOf(recipe.Id))
         {
             foreach (var (fluidId, amount) in input.Members)
             {
@@ -247,16 +244,16 @@ public sealed partial class FuelExtractionService(
     private static IEnumerable<string> BoilerFuelIds(
         Dump dump, UnifiedItems unified, DumpRecipe recipe)
     {
-        foreach (var (_, groupId) in dump.ItemInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
+        foreach (var (_, groupId) in dump.ItemInputsOf(recipe.Id))
         {
-            foreach (var stack in dump.GroupStacks.GetValueOrDefault(groupId) ?? [])
+            foreach (var stack in dump.StacksOf(groupId))
             {
                 yield return dump.ContainersByItemId.TryGetValue(stack.ItemId, out var container)
                     ? container.FluidId
                     : unified.Canonical(stack.ItemId);
             }
         }
-        foreach (var input in dump.FluidInputsByRecipe.GetValueOrDefault(recipe.Id) ?? [])
+        foreach (var input in dump.FluidInputsOf(recipe.Id))
         {
             foreach (var (fluidId, _) in input.Members)
             {

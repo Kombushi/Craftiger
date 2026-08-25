@@ -1,16 +1,8 @@
-using Craftiger.Solver.Models;
+using Craftiger.Solver.Models.Bom;
 
 namespace Craftiger.Api.Models;
 
-/// <summary>A chain node: one expanded item with its chosen recipe's display data, the
-/// chosen input stacks per single run, and the recipe's full output rows. Demand and runs
-/// come in both accountings — fractional expected values and the whole-run plan. Catalysts
-/// are the recipe's tool slots: needed in place, never consumed, one stack per slot. Loop
-/// members carry their loop's number; the seed node is the outside unit that starts it.
-/// <paramref name="Grid"/> is a shaped crafting recipe's nine cells, row-major, each the
-/// slot it holds — indexing <paramref name="InputsPerRun"/> first and then
-/// <paramref name="Catalysts"/> — or null for an empty cell; null when the recipe has no
-/// shape.</summary>
+/// <summary>A chain node in both accountings with its recipe's display data, one catalyst stack per tool slot, and the shaped grid as nine cells indexing InputsPerRun then Catalysts (null without a shape).</summary>
 public sealed record BomNodeDto(
     string ItemId,
     double Amount,

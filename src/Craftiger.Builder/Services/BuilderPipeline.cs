@@ -1,8 +1,12 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Interfaces.Eras;
+using Craftiger.Builder.Interfaces.Recipes;
+using Craftiger.Builder.Models.Dump;
+using Craftiger.Builder.Models.Eras;
 using Craftiger.Builder.Models.Options;
+using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -87,7 +91,7 @@ public sealed class BuilderPipeline(
         itemIds.UnionWith(machineProps.Rotors.Select(r => r.ItemId));
 
         // Only now are tiers known, so only now can an unpriceable leaf be told apart.
-        leafTagging.Prune(leafClasses, eraSolve.Tiers, unified, dump);
+        leafClasses = leafTagging.Prune(leafClasses, eraSolve.Tiers, unified, dump);
         logger.LogInformation("  {Leaves:N0} leaves kept", leafClasses.Count);
         var itemParents = leafTagging.Parents(leafClasses, eraSolve.Tiers, unified, dump);
 
@@ -119,6 +123,7 @@ public sealed class BuilderPipeline(
                 Enumerable.Range(0, Math.Min(maxTier + 1, TierLadder.Names.Count))
                     .Select(TierLadder.Voltage)),
             ["coils"] = JsonSerializer.Serialize(_eras.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier })),
+            ["steam"] = JsonSerializer.Serialize(steam.Carrier),
             ["price_leaks"] = prices.Undercut.ToString(),
             ["price_free_items"] = prices.Free.ToString(),
             ["price_converged"] = prices.Converged ? "1" : "0"
@@ -169,14 +174,15 @@ public sealed class BuilderPipeline(
         if (target is null)
         {
             logger.LogWarning("no item named {Query}", query);
+            return;
         }
-        else
+        foreach (var line in eraSolve.Explain(target, names))
         {
-            eraSolveService.Explain(eraSolve, names, target);
+            logger.LogInformation("{Line}", line);
         }
     }
 
-    private static HashSet<string> CollectProducedIds(List<PlannerRecipe> recipes)
+    private static HashSet<string> CollectProducedIds(IReadOnlyList<PlannerRecipe> recipes)
     {
         var ids = new HashSet<string>();
         foreach (var recipe in recipes)
@@ -189,7 +195,7 @@ public sealed class BuilderPipeline(
         return ids;
     }
 
-    private static HashSet<string> CollectItemIds(List<PlannerRecipe> recipes)
+    private static HashSet<string> CollectItemIds(IReadOnlyList<PlannerRecipe> recipes)
     {
         var ids = new HashSet<string>();
         foreach (var recipe in recipes)

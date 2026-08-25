@@ -5,20 +5,13 @@ using System.Security.Cryptography;
 using System.Text;
 using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
-using Craftiger.Solver.Interfaces;
-using Craftiger.Solver.Models;
+using Craftiger.Solver.Interfaces.Costs;
+using Craftiger.Solver.Models.Costs;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Api.Services;
 
-/// <summary>The solve cache in two tiers. In this process, entries live in a concurrent map
-/// whose values are lazily started tasks, so a solve runs exactly once per id while every
-/// concurrent request for that id awaits the same work and nothing else waits at all;
-/// recency is a tick per entry and eviction drops the stalest settled one, so no lock is held
-/// anywhere. Behind it, the store keeps every solved entry for any replica and across
-/// restarts: an id this process does not hold is fetched before it is computed, and a fresh
-/// solve is written to the store before the response leaves, so the request that follows
-/// may land on any replica.</summary>
+/// <summary>The solve cache in two tiers: lazily started tasks in a lock-free concurrent map here, so a solve runs once per id and nothing else waits, and the store behind it, fetched before computing and written before answering so the next request may land on any replica.</summary>
 public sealed class SolveCacheService(
     PlannerArtifact artifact,
     ICostSolverService solver,
@@ -31,8 +24,7 @@ public sealed class SolveCacheService(
     private readonly int _capacity = Math.Max(1, options.Value.SolveCacheSize);
     private long _clock;
 
-    /// <summary>Per craft-list rank, the item's position in the solver index, or -1 for an item
-    /// no recipe and no leaf class ever mention — it can only ever be unpriced.</summary>
+    /// <summary>Per craft-list rank, the item's index position, or -1 for an item no recipe and no leaf class mention — it can only ever be unpriced.</summary>
     private readonly int[] _positionOfRank = artifact.CraftListOrder
         .Select(id => artifact.Graph.Index.TryGetItem(id, out var item) ? item : -1)
         .ToArray();
@@ -66,8 +58,7 @@ public sealed class SolveCacheService(
         return entry;
     }
 
-    /// <summary>The slot's entry, awaiting work in flight; a slot whose work threw is dropped so
-    /// the next request starts over instead of replaying the failure, and the error surfaces.</summary>
+    /// <summary>The slot's entry, awaiting work in flight; a slot whose work threw is dropped so the next request starts over, and the error surfaces.</summary>
     private async Task<SolveEntry> SettleAsync(string solveId, SolveCacheSlot slot)
     {
         slot.LastUsed = Interlocked.Increment(ref _clock);
@@ -109,9 +100,7 @@ public sealed class SolveCacheService(
         return entry;
     }
 
-    /// <summary>The response waits for the write — a few milliseconds on a solve of a second —
-    /// so a follow-up request on another replica finds the entry; a failed write is logged and
-    /// only costs a later process a recompute, the solve itself still stands.</summary>
+    /// <summary>The response waits for the write so a follow-up on another replica finds the entry; a failed write is logged and only costs a later recompute.</summary>
     private async Task StoreAsync(string solveId, SolveEntry entry)
     {
         try
@@ -134,9 +123,7 @@ public sealed class SolveCacheService(
         return new SolveEntry(table, garage, weights, sorted, reachable);
     }
 
-    /// <summary>Drops the least recently used settled entries until the cache fits; work still
-    /// in flight is never evicted. Two requests evicting at once may drop one entry more than
-    /// needed, which costs a fetch and nothing else.</summary>
+    /// <summary>Drops the least recently used settled entries until the cache fits; in-flight work is never evicted, and a race may drop one entry too many, costing a fetch.</summary>
     private void Evict()
     {
         while (_entries.Count > _capacity)
@@ -157,9 +144,7 @@ public sealed class SolveCacheService(
         }
     }
 
-    /// <summary>The craft list: priced items cheapest first, unreachable items after them, ties
-    /// in the artifact's fixed name order. Only the priced ranks are sorted, by cost and then
-    /// by rank, so no comparison touches a string.</summary>
+    /// <summary>The craft list: priced items cheapest first then by rank, unreachable items after, so no comparison touches a string.</summary>
     private (IReadOnlyList<int> Sorted, int ReachableCount) Sort(CostTable table)
     {
         var ranks = _positionOfRank.Length;
@@ -232,10 +217,7 @@ public sealed class SolveCacheService(
             }
         }
 
-        // The default only covers machines whose block is craftable by then (§2): a recipe
-        // being LV says nothing about when its machine can be built. Explicit entries win,
-        // and a machine whose era the model never resolved stays lenient rather than
-        // turning a reachability gap into a pricing hole.
+        // The default tier only owns machines craftable by then; explicit entries win, and an unresolved era stays lenient rather than turning a reachability gap into a pricing hole.
         var machines = new Dictionary<string, int?>(request.Garage.Machines ?? []);
         foreach (var machine in artifact.Machines)
         {

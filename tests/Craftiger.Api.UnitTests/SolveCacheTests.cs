@@ -1,9 +1,11 @@
 using Craftiger.Api.Models;
 using Craftiger.Api.Repositories;
 using Craftiger.Api.Services;
-using Craftiger.Solver.Interfaces;
-using Craftiger.Solver.Models;
-using Craftiger.Solver.Services;
+using Craftiger.Solver.Interfaces.Costs;
+using Craftiger.Solver.Models.Costs;
+using Craftiger.Solver.Models.Graph;
+using Craftiger.Solver.Models.Options;
+using Craftiger.Solver.Services.Costs;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -21,10 +23,9 @@ public sealed class SolveCacheTests : IDisposable
         _dir = Path.Combine(Path.GetTempPath(), "craftiger-cache-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
         ApiFixture.WriteArtifact(Path.Combine(_dir, "planner.sqlite"), schemaVersion: PlannerArtifactRepository.SupportedSchemaVersion);
-        var rules = new GarageRulesOptions().ToRules();
-        _artifact = new PlannerArtifactRepository(rules, NullLogger<PlannerArtifactRepository>.Instance).Load(_dir);
-        _solver = new CountingSolver(new CostSolverService(
-            new LeafWeightService(), new GarageLegalityService(rules), new SolverPreferencesOptions().ToPreferences()));
+        var rules = Options.Create(new GarageRules());
+        _artifact = new PlannerArtifactRepository(new FactoryArtifactReader(), rules, NullLogger<PlannerArtifactRepository>.Instance).Load(_dir);
+        _solver = new CountingSolver(ApiFixture.CostSolver(rules));
     }
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);
@@ -155,11 +156,5 @@ public sealed class SolveCacheTests : IDisposable
             }
             return inner.Solve(graph, garage, weights);
         }
-
-        public double Candidate(CostTable table, int recipe, string itemId) =>
-            inner.Candidate(table, recipe, itemId);
-
-        public double Candidate(CostTable table, int recipe, int item) =>
-            inner.Candidate(table, recipe, item);
     }
 }

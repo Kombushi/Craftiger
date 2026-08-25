@@ -1,4 +1,4 @@
-using Craftiger.Solver.Services;
+using Craftiger.Solver.Services.Graph;
 
 namespace Craftiger.Solver.UnitTests;
 

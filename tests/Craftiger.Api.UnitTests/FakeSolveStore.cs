@@ -3,8 +3,7 @@ using Craftiger.Api.Interfaces;
 
 namespace Craftiger.Api.UnitTests;
 
-/// <summary>An in-memory stand-in for the Valkey store, shared between cache instances in a
-/// test the way a server is shared between replicas.</summary>
+/// <summary>An in-memory stand-in for the Valkey store, shared between cache instances the way a server is shared between replicas.</summary>
 public sealed class FakeSolveStore : ISolveStore
 {
     public ConcurrentDictionary<string, byte[]> Entries { get; } = new();

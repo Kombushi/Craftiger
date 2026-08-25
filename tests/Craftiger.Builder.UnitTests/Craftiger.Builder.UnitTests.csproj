@@ -26,8 +26,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Craftiger.Builder\Craftiger.Builder.csproj" />
-    <ProjectReference Include="..\..\src\Craftiger.Solver\Craftiger.Solver.csproj" />
-    <ProjectReference Include="..\..\src\Craftiger.Api\Craftiger.Api.csproj" />
   </ItemGroup>
 
 </Project>

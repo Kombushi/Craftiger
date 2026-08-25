@@ -1,11 +1,9 @@
 namespace Craftiger.Builder.Models.Options;
 
-/// <summary>Progression knowledge the dump does not carry: machine gates, the cleanroom
-/// wall, dimension eras, and the coil ladder.</summary>
+/// <summary>Progression knowledge the dump does not carry: machine gates, the cleanroom wall, dimension eras, and the coil ladder.</summary>
 public sealed record ErasConfiguration
 {
-    /// <summary>Era floors for machines whose real gate lives outside the recipe graph,
-    /// like the Godforge upgrade tree; anchored to the quest book.</summary>
+    /// <summary>Era floors for machines whose real gate lives outside the recipe graph, like the Godforge upgrade tree; anchored to the quest book.</summary>
     public required IReadOnlyDictionary<string, int> MachineEraFloors { get; init; }
 
     /// <summary>Cleanroom-flagged recipes inherit this machine item's era.</summary>

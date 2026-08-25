@@ -1,6 +1,6 @@
 namespace Craftiger.Api.Models;
 
-public sealed class ApiOptions
+public sealed record ApiOptions
 {
     /// <summary>Directory holding planner.sqlite, atlas.webp and atlas-offsets.json.</summary>
     public string ArtifactsDir { get; init; } = "artifacts";

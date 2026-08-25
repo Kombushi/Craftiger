@@ -1,10 +1,13 @@
 using Craftiger.Api.Interfaces;
 using Craftiger.Api.Repositories;
+using Craftiger.Solver.Models.Options;
+using Craftiger.Solver.Services.Costs;
 using Dapper;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Api.UnitTests;
 
@@ -29,8 +32,18 @@ public sealed class ApiFixture : IDisposable
         Client = _factory.CreateClient();
     }
 
-    /// <summary>Boots the API over the given artifacts with an in-memory solve store in place
-    /// of Valkey; the connection string only has to be present for startup validation.</summary>
+    /// <summary>A cost solver at the API's default options over the given garage rules.</summary>
+    public static CostSolverService CostSolver(IOptions<GarageRules> rules)
+    {
+        var options = Options.Create(new CostSolverOptions());
+        return new(
+            new LeafWeightService(),
+            new GarageLegalityService(rules),
+            new RoutePreferenceService(Options.Create(new SolverPreferences()), options),
+            options);
+    }
+
+    /// <summary>Boots the API over the given artifacts with an in-memory solve store in place of Valkey; the connection string only has to be present for startup validation.</summary>
     public static WebApplicationFactory<Program> Create(string artifactsDir, FakeSolveStore? store = null) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -82,6 +95,12 @@ public sealed class ApiFixture : IDisposable
             CREATE TABLE item_parents(item_id TEXT PRIMARY KEY, parent_item_id TEXT NOT NULL, divisor REAL NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
             CREATE TABLE machine_eras(machine TEXT PRIMARY KEY, era INTEGER, multiblock INTEGER NOT NULL);
+            CREATE TABLE fuels(map TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, eu_per_unit REAL, eu_t REAL, duration_ticks INTEGER);
+            CREATE TABLE machine_items(map TEXT NOT NULL, item_id TEXT NOT NULL, tier INTEGER, multiblock INTEGER NOT NULL, steam INTEGER NOT NULL, era INTEGER);
+            CREATE TABLE machine_props(item_id TEXT PRIMARY KEY, era INTEGER, generator_efficiency REAL, generator_eu_t INTEGER, generator_amps INTEGER, dynamo_eu_t INTEGER, dynamo_amps INTEGER, max_parallel INTEGER, boiler_eu_t INTEGER, rotor_fuel TEXT);
+            CREATE TABLE machine_bonuses(item_id TEXT NOT NULL, kind TEXT NOT NULL, bonus REAL NOT NULL, multiplicative INTEGER NOT NULL, tier_axis TEXT);
+            CREATE TABLE rotor_fuel_stats(item_id TEXT NOT NULL, fuel TEXT NOT NULL, efficiency REAL NOT NULL, loose_efficiency REAL NOT NULL, optimal_flow REAL NOT NULL, loose_optimal_flow REAL NOT NULL, optimal_eut REAL NOT NULL, loose_optimal_eut REAL NOT NULL);
+            CREATE TABLE renewable_seeds(item_id TEXT PRIMARY KEY, kind TEXT NOT NULL);
             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             CREATE VIRTUAL TABLE item_search USING fts5(item_id UNINDEXED, text, tokenize = 'trigram case_sensitive 1');
             """);
@@ -140,13 +159,17 @@ public sealed class ApiFixture : IDisposable
                 ('Extruder', NULL, 0),
                 ('Circuit Assembly Line', 3, 0),
                 ('Assembler', 1, 0);
+            INSERT INTO machine_items VALUES ('Wiremill', 'wiremill-lv', 1, 0, 0, 0);
+            INSERT INTO machine_props VALUES ('wiremill-lv', 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+            INSERT INTO renewable_seeds VALUES ('ing', 'WORLD');
             """);
         db.Execute(
             "INSERT INTO meta VALUES ('schema_version', @Version), " +
             "('pack_version', 'test-pack'), ('build_id', 'test-build'), " +
             "('tier_names', '[\"Steam\",\"LV\",\"MV\",\"HV\"]'), " +
             "('coils', '[{\"Name\":\"Cupronickel\",\"MaxHeat\":1800,\"Tier\":1},{\"Name\":\"Kanthal\",\"MaxHeat\":2700,\"Tier\":2}]'), " +
-            "('atlas_width', '192'), ('atlas_height', '32'), ('atlas_cell', '32')",
+            "('atlas_width', '192'), ('atlas_height', '32'), ('atlas_cell', '32'), " +
+            "('steam', '{\"SteamFluidIds\":[\"f~IC2~ic2steam\"],\"DistilledWaterId\":null,\"EuPerLiter\":0.5,\"WaterPerSteam\":160}')",
             new { Version = schemaVersion.ToString() });
     }
 

@@ -1,5 +1,4 @@
-using Craftiger.Solver.Highs;
-using Craftiger.Solver.Models;
+using Craftiger.Solver.Models.Lp;
 
 namespace Craftiger.Solver.Highs.UnitTests;
 
@@ -30,7 +29,7 @@ public class HighsLinearProgramSolverTests
             Rows: [new LpRow(10, Inf)],
             Objectives: [Minimize(new LpEntry(0, 1), new LpEntry(1, 2))]);
 
-        var result = new HighsLinearProgramSolver().Solve(program);
+        var result = FactoryHarness.Highs().Solve(program);
 
         Assert.Equal(LpSolveStatus.Optimal, result.Status);
         Assert.Equal(6, result.ColumnValues[0], 6);
@@ -56,7 +55,7 @@ public class HighsLinearProgramSolverTests
                 Objectives: xFirst ? [minX, minY] : [minY, minX]);
         }
 
-        var solver = new HighsLinearProgramSolver();
+        var solver = FactoryHarness.Highs();
         var xFirst = solver.Solve(Build(xFirst: true));
         var yFirst = solver.Solve(Build(xFirst: false));
 
@@ -86,7 +85,7 @@ public class HighsLinearProgramSolverTests
                 Minimize(new LpEntry(1, 1)),
             ]);
 
-        var result = new HighsLinearProgramSolver().Solve(program);
+        var result = FactoryHarness.Highs().Solve(program);
 
         Assert.Equal(LpSolveStatus.Optimal, result.Status);
         Assert.Equal(8, result.ColumnValues[0], 4);
@@ -101,7 +100,7 @@ public class HighsLinearProgramSolverTests
             Rows: [new LpRow(5, Inf)],
             Objectives: [Minimize(new LpEntry(0, 1))]);
 
-        var result = new HighsLinearProgramSolver().Solve(program);
+        var result = FactoryHarness.Highs().Solve(program);
 
         Assert.Equal(LpSolveStatus.Infeasible, result.Status);
         Assert.Empty(result.ColumnValues);
@@ -115,7 +114,7 @@ public class HighsLinearProgramSolverTests
             Rows: [new LpRow(0, Inf)],
             Objectives: [Maximize(new LpEntry(0, 1))]);
 
-        var result = new HighsLinearProgramSolver().Solve(program);
+        var result = FactoryHarness.Highs().Solve(program);
 
         Assert.Equal(LpSolveStatus.Unbounded, result.Status);
         Assert.Empty(result.ColumnValues);
@@ -141,7 +140,7 @@ public class HighsLinearProgramSolverTests
                 Minimize([.. Enumerable.Range(0, 20).Select(i => new LpEntry(i, i % 2 == 0 ? 1.0 : 0.5))]),
             ]);
 
-        var solver = new HighsLinearProgramSolver();
+        var solver = FactoryHarness.Highs();
         var first = solver.Solve(program);
         var second = solver.Solve(program);
 
@@ -157,6 +156,6 @@ public class HighsLinearProgramSolverTests
             Rows: [],
             Objectives: []);
 
-        Assert.Throws<ArgumentException>(() => new HighsLinearProgramSolver().Solve(program));
+        Assert.Throws<ArgumentException>(() => FactoryHarness.Highs().Solve(program));
     }
 }

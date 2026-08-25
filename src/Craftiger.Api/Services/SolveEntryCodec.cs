@@ -4,13 +4,11 @@ using System.Text;
 using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
 using Craftiger.Api.Repositories;
-using Craftiger.Solver.Models;
+using Craftiger.Solver.Models.Costs;
 
 namespace Craftiger.Api.Services;
 
-/// <summary>A compact little-endian layout: the magic and format version in the clear, then —
-/// Brotli-compressed — the artifact identity (schema, pack, build), the garage and weights, the
-/// table's arrays as raw bytes and the craft-list ranks.</summary>
+/// <summary>A compact little-endian layout: magic and format version in the clear, then Brotli-compressed the artifact identity, the garage and weights, the table's arrays and the craft-list ranks.</summary>
 public sealed class SolveEntryCodec(PlannerArtifact artifact) : ISolveEntryCodec
 {
     private const int Magic = 0x45534643;
@@ -28,8 +26,7 @@ public sealed class SolveEntryCodec(PlannerArtifact artifact) : ISolveEntryCodec
             header.Write(Magic);
             header.Write(FormatVersion);
         }
-        // The encoder closes a block at every write it receives, which costs a third of the
-        // ratio on split input, so the body is laid out in full first and compressed in one write.
+        // The encoder closes a block per write, costing a third of the ratio on split input, so the body is compressed in one write.
         using var body = new MemoryStream(BodyCapacity(entry));
         using (var writer = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
         {
@@ -164,8 +161,7 @@ public sealed class SolveEntryCodec(PlannerArtifact artifact) : ISolveEntryCodec
                 sorted,
                 reachable);
         }
-        // The Brotli decoder reports damaged input as InvalidOperationException; a damaged
-        // cache value is recomputed, never a failed request.
+        // The Brotli decoder reports damaged input as InvalidOperationException; a damaged value is recomputed, never a failed request.
         catch (Exception e) when (e is EndOfStreamException or IOException or FormatException or InvalidDataException or InvalidOperationException)
         {
             return null;
@@ -178,8 +174,7 @@ public sealed class SolveEntryCodec(PlannerArtifact artifact) : ISolveEntryCodec
         writer.Write(MemoryMarshal.AsBytes(values));
     }
 
-    /// <summary>A decompressing stream hands out what it has, so the read loops until the
-    /// array is full or the stream ends short.</summary>
+    /// <summary>A decompressing stream hands out what it has, so the read loops until the array is full or the stream ends short.</summary>
     private static T[] ReadArray<T>(BinaryReader reader) where T : unmanaged
     {
         var values = new T[reader.ReadInt32()];

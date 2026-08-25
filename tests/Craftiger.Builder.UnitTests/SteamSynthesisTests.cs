@@ -1,7 +1,8 @@
+using System.Text.Json;
+
 namespace Craftiger.Builder.UnitTests;
 
-/// <summary>The steam carrier's synthesized rows, run with the water id pointed at the
-/// fixture's own water fluid.</summary>
+/// <summary>The steam carrier's synthesized rows, run with the water id pointed at the fixture's own water fluid.</summary>
 public sealed class SteamSynthesisFixture : IDisposable
 {
     private readonly FixtureRun _run = new(
@@ -45,5 +46,17 @@ public class SteamSynthesisTests(SteamSynthesisFixture fixture) : IClassFixture<
         // The Railcraft steam id is not in the fixture dump and must not ship a row.
         Assert.Equal(1, fixture.Scalar<int>(
             "SELECT COUNT(*) FROM fuels WHERE map = 'Steam Turbine'"));
+    }
+
+    [Fact]
+    public void TheCarrierShipsInMeta()
+    {
+        // Only the steam the dump knows is listed, and the fixture has no distilled water.
+        var steam = JsonSerializer.Deserialize<JsonElement>(
+            fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'steam'"));
+        Assert.Equal([FixtureDump.Ic2Steam], steam.GetProperty("SteamFluidIds").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal(JsonValueKind.Null, steam.GetProperty("DistilledWaterId").ValueKind);
+        Assert.Equal(0.5, steam.GetProperty("EuPerLiter").GetDouble());
+        Assert.Equal(160, steam.GetProperty("WaterPerSteam").GetInt64());
     }
 }

@@ -1,10 +1,9 @@
-using Craftiger.Solver.Interfaces;
-using Craftiger.Solver.Models;
+using Craftiger.Solver.Interfaces.Lp;
+using Craftiger.Solver.Models.Lp;
 
 namespace Craftiger.Solver.UnitTests;
 
-/// <summary>Captures the program a solve builds; answers all-zero columns unless a canned
-/// result is set.</summary>
+/// <summary>Captures the program a solve builds; answers all-zero columns unless a canned result is set.</summary>
 internal sealed class RecordingLpSolver : ILinearProgramSolver
 {
     public LinearProgram? Program { get; private set; }

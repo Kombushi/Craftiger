@@ -1,14 +1,13 @@
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
+using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-/// <summary>Merges the dump's per-machine stat tables into planner rows keyed by the
-/// canonical machine item. Only rows that carry signal ship: a bonus-less multiblock at one
-/// parallel is the model's default and needs no row.</summary>
+/// <summary>Only rows that carry signal ship: a bonus-less multiblock at one parallel is the model's default and needs no row.</summary>
 public sealed class MachinePropsService(
     IOptions<MachineOverlayConfiguration> overlay,
     ILogger<MachinePropsService> logger) : IMachinePropsService
@@ -58,6 +57,22 @@ public sealed class MachinePropsService(
             return row;
         }
 
+        // An id absent from the dump is another pack's item; one that exists but serves no map is a config error.
+        bool Overlaid(string itemId)
+        {
+            if (!dump.Items.ContainsKey(itemId))
+            {
+                logger.LogWarning("machine overlay names {ItemId}, unknown to this dump; skipped", itemId);
+                return false;
+            }
+            if (!machineItems.Values.Any(m => m.ItemId == itemId))
+            {
+                throw new InvalidOperationException(
+                    $"machine overlay names {itemId}, which the dump lists as no machine block");
+            }
+            return true;
+        }
+
         foreach (var generator in dump.Generators)
         {
             props[unified.Canonical(generator.ItemId)] = Row(generator.ItemId) with
@@ -104,45 +119,23 @@ public sealed class MachinePropsService(
 
         foreach (var (itemId, parallels) in _overlay.Parallels.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
-            // An id absent from the dump altogether is another pack's item (fixture runs);
-            // an item that exists but serves no map is a config error worth failing on.
-            if (!dump.Items.ContainsKey(itemId))
+            if (Overlaid(itemId))
             {
-                logger.LogWarning("machine overlay names {ItemId}, unknown to this dump; skipped", itemId);
-                continue;
+                props[itemId] = Row(itemId) with { MaxParallel = parallels };
             }
-            if (!machineItems.Values.Any(m => m.ItemId == itemId))
-            {
-                throw new InvalidOperationException(
-                    $"machine overlay names {itemId}, which the dump lists as no machine block");
-            }
-            props[itemId] = Row(itemId) with { MaxParallel = parallels };
         }
-        foreach (var itemId in _overlay.RotorTurbines.Order(StringComparer.Ordinal))
+        foreach (var (itemId, fuel) in _overlay.RotorTurbines.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
-            if (!dump.Items.ContainsKey(itemId))
+            if (Overlaid(itemId))
             {
-                logger.LogWarning("machine overlay names {ItemId}, unknown to this dump; skipped", itemId);
-                continue;
+                props[itemId] = Row(itemId) with { RotorFuel = fuel };
             }
-            if (!machineItems.Values.Any(m => m.ItemId == itemId))
-            {
-                throw new InvalidOperationException(
-                    $"machine overlay names {itemId}, which the dump lists as no machine block");
-            }
-            props[itemId] = Row(itemId) with { RotorTurbine = true };
         }
         foreach (var itemId in _overlay.SteamMultiblocks.Order(StringComparer.Ordinal))
         {
-            if (!dump.Items.ContainsKey(itemId))
+            if (!Overlaid(itemId))
             {
-                logger.LogWarning("machine overlay names {ItemId}, unknown to this dump; skipped", itemId);
                 continue;
-            }
-            if (!machineItems.Values.Any(m => m.ItemId == itemId))
-            {
-                throw new InvalidOperationException(
-                    $"machine overlay names {itemId}, which the dump lists as no machine block");
             }
             // Every GT++ steam multiblock shares the same tooltip triple, verified per item.
             props[itemId] = Row(itemId) with { MaxParallel = 8 };

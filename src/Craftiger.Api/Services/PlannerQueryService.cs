@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
-using Craftiger.Solver.Interfaces;
-using Craftiger.Solver.Models;
-using Craftiger.Solver.Services;
+using Craftiger.Solver.Interfaces.Bom;
+using Craftiger.Solver.Interfaces.Costs;
+using Craftiger.Solver.Interfaces.Graph;
+using Craftiger.Solver.Models.Bom;
 using Dapper;
 using Microsoft.Data.Sqlite;
 
@@ -11,7 +12,6 @@ namespace Craftiger.Api.Services;
 
 public sealed class PlannerQueryService(
     PlannerArtifact artifact,
-    ICostSolverService solver,
     IGarageLegalityService legality,
     IBomService bom,
     IClosureService closure) : IPlannerQueryService
@@ -21,8 +21,7 @@ public sealed class PlannerQueryService(
     /// <summary>The trigram index needs three characters; shorter queries scan instead.</summary>
     private const int TrigramLength = 3;
 
-    /// <summary>A one- or two-character query matches most of the pack; the scan stops after
-    /// this many candidates, which keeps it cheap but makes the set beyond them arbitrary.</summary>
+    /// <summary>A one- or two-character query matches most of the pack; the scan stops here, which keeps it cheap but makes the set beyond arbitrary.</summary>
     private const int ShortQueryScanLimit = 500;
 
     public MetaResponse Meta() => new(
@@ -46,10 +45,7 @@ public sealed class PlannerQueryService(
         return new ListResponse(items, total, page, pageSize);
     }
 
-    /// <summary>Type-ahead over names and aliases, case-insensitively on every script: the
-    /// artifact's trigram index answers queries of three characters or more with every match,
-    /// shorter ones scan the same folded text the way the index cannot, and the results are
-    /// the cheapest matches first, then by name.</summary>
+    /// <summary>Type-ahead over names and aliases: the trigram index answers three characters or more, shorter queries scan the same folded text; cheapest matches first, then by name.</summary>
     public IReadOnlyList<ItemSummaryDto> Search(SolveEntry? entry, string query)
     {
         using var db = new SqliteConnection($"Data Source={artifact.DbPath};Mode=ReadOnly");
@@ -169,12 +165,10 @@ public sealed class PlannerQueryService(
         }
         return new BomNodeDto(
             node.ItemId, node.Amount, node.Runs, node.WholeAmount, node.WholeRuns, node.RecipeId,
-            index.Machine[recipe], index.Tier[recipe], Optional(index.MultiTier[recipe]), Optional(index.Heat[recipe]),
+            index.Machine[recipe], index.Tier[recipe], index.MultiTierOf(recipe), index.HeatOf(recipe),
             data.DurationTicks[recipe], data.EuT[recipe],
             node.InputsPerRun, catalysts, Outputs(recipe), node.Loop, node.Seed, data.Grid(recipe));
     }
-
-    private static int? Optional(int value) => value < 0 ? null : value;
 
     private List<OutputDto> Outputs(int recipe)
     {
@@ -205,7 +199,7 @@ public sealed class PlannerQueryService(
     {
         var index = artifact.Graph.Index;
         var data = artifact.Recipes;
-        var candidate = solver.Candidate(entry.Table, recipe, itemId);
+        var candidate = entry.Table.Candidate(recipe, itemId);
         var slots = new List<IReadOnlyList<SlotAlternativeDto>>(index.SlotCount(recipe));
         for (var s = 0; s < index.SlotCount(recipe); s++)
         {
@@ -233,11 +227,11 @@ public sealed class PlannerQueryService(
         }
         return new RecipeDto(
             index.RecipeIds[recipe], index.Machine[recipe], index.Tier[recipe],
-            Optional(index.MultiTier[recipe]), Optional(index.Heat[recipe]),
+            index.MultiTierOf(recipe), index.HeatOf(recipe),
             data.DurationTicks[recipe], data.EuT[recipe],
             double.IsPositiveInfinity(candidate) ? null : candidate,
             slots,
-            SlotChoice.Inputs(entry.Table, itemId, recipe).Select(input => input.ItemId).ToList(),
+            entry.Table.InputsFor(itemId, recipe).Select(input => input.ItemId).ToList(),
             catalysts,
             Outputs(recipe),
             data.Grid(recipe));

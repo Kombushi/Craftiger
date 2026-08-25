@@ -1,7 +1,6 @@
 namespace Craftiger.Builder.Models.Options;
 
-/// <summary>Names for the machines behind builder-synthesized recipes, and the rig items
-/// able to perform them.</summary>
+/// <summary>Names for the machines behind builder-synthesized recipes, and the rig items able to perform them.</summary>
 public sealed record SynthesizedMachinesConfiguration
 {
     /// <summary>Machine name for breaking a block by hand, owned from the start.</summary>

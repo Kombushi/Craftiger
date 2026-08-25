@@ -5,7 +5,6 @@ public sealed record WorldFluid
 {
     public required double Weight { get; init; }
 
-    /// <summary>The era it is free at. Left unset for a drilled fluid, whose own pump
-    /// recipe decides when it arrives.</summary>
+    /// <summary>The era it is free at; unset for a drilled fluid, whose own pump recipe decides.</summary>
     public int? Era { get; init; }
 }

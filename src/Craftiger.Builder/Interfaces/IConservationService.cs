@@ -1,10 +1,10 @@
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
+using Craftiger.Builder.Models.Planner;
 
 namespace Craftiger.Builder.Interfaces;
 
+/// <summary>Drops recipes that provably output more matter than their inputs could contain.</summary>
 public interface IConservationService
 {
-    /// <summary>Drops recipes that provably output more of a material than their inputs
-    /// could contain — untagged reverse-crafting that would amplify matter.</summary>
-    List<PlannerRecipe> Run(List<PlannerRecipe> recipes, Dump dump, UnifiedItems unified);
+    List<PlannerRecipe> Run(IReadOnlyList<PlannerRecipe> recipes, Dump dump, UnifiedItems unified);
 }

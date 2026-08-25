@@ -1,6 +1,8 @@
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
+using Craftiger.Builder.Models.Eras;
 using Craftiger.Builder.Models.Options;
+using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -25,7 +27,7 @@ public sealed class UndergroundFluidRecipeService(
         var recipes = new List<PlannerRecipe>();
         foreach (var (fluidId, dimensionEra) in worldgen.Fluids)
         {
-            if (!dump.Fluids.ContainsKey(fluidId))
+            if (!dump.IsFluid(fluidId))
             {
                 continue;
             }
@@ -33,7 +35,7 @@ public sealed class UndergroundFluidRecipeService(
             // Reaching the dimension is not enough; something has to pump the fluid out.
             recipes.Add(new PlannerRecipe(
                 $"gtuf~{fluidId}", _config.PumpMachine, dimensionEra, Heat: null, DurationTicks: 0, EuT: 0, Amps: 1,
-                Inputs: [],
+                Inputs: new Dictionary<string, long>(),
                 Choices: [],
                 Outputs: [new PlannerOutput(fluidId, 1, 1.0)],
                 Machines: rigs,

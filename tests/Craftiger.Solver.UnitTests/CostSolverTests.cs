@@ -1,4 +1,4 @@
-using Craftiger.Solver.Models;
+using Craftiger.Solver.Models.Costs;
 namespace Craftiger.Solver.UnitTests;
 
 public sealed class CostSolverTests
@@ -180,7 +180,7 @@ public sealed class CostSolverTests
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
 
-        Assert.True(double.IsPositiveInfinity(Fx.Solver().Candidate(table, graph.Index.RecipeIndex["r"], "thing")));
+        Assert.True(double.IsPositiveInfinity(table.Candidate(graph.Index.RecipeIndex["r"], "thing")));
     }
 
     [Fact]

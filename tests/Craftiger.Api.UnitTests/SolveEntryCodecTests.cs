@@ -1,8 +1,9 @@
 using Craftiger.Api.Models;
 using Craftiger.Api.Repositories;
 using Craftiger.Api.Services;
-using Craftiger.Solver.Models;
-using Craftiger.Solver.Services;
+using Craftiger.Solver.Models.Costs;
+using Craftiger.Solver.Models.Options;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Craftiger.Api.UnitTests;
@@ -18,10 +19,9 @@ public sealed class SolveEntryCodecTests : IDisposable
         _dir = Path.Combine(Path.GetTempPath(), "craftiger-codec-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
         ApiFixture.WriteArtifact(Path.Combine(_dir, "planner.sqlite"), schemaVersion: PlannerArtifactRepository.SupportedSchemaVersion);
-        var rules = new GarageRulesOptions().ToRules();
-        _artifact = new PlannerArtifactRepository(rules, NullLogger<PlannerArtifactRepository>.Instance).Load(_dir);
-        var solver = new CostSolverService(
-            new LeafWeightService(), new GarageLegalityService(rules), new SolverPreferencesOptions().ToPreferences());
+        var rules = Options.Create(new GarageRules());
+        _artifact = new PlannerArtifactRepository(new FactoryArtifactReader(), rules, NullLogger<PlannerArtifactRepository>.Instance).Load(_dir);
+        var solver = ApiFixture.CostSolver(rules);
         var garage = new Garage(
             3, new Dictionary<string, int?> { ["Extruder"] = null, ["Wiremill"] = 2 },
             new HashSet<string> { "Electric Blast Furnace" }, new Dictionary<string, int> { ["Electric Blast Furnace"] = 2700 });

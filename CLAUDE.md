@@ -14,9 +14,12 @@ behavior must change, update `spec.md` in the same commit as the code.
   `planner.sqlite` + `atlas.webp` + `atlas-offsets.json` out. Runs offline,
   is never deployed, and has no project references to or from the API. The
   three artifacts are the only contract (spec §3).
-- `src/Craftiger.Solver/` — pure class library: cost engine and BOM walk. No
-  I/O, no dump dependency; referenced by the API, tested against fixtures
-  (spec §8). Also hosts the `ILinearProgramSolver` abstraction, managed-only.
+- `src/Craftiger.Solver/` — pure class library: cost engine, BOM walk and
+  factory solve. No I/O, no dump dependency; referenced by the API, tested
+  against fixtures (spec §8). `Models/`, `Interfaces/` and `Services/` are
+  grouped by area (`Graph`, `Costs`, `Bom`, `Factory`, `Lp`, `Options`)
+  with matching namespaces. Also hosts the `ILinearProgramSolver`
+  abstraction, managed-only.
 - `src/Craftiger.Solver.Highs/` — the native-HiGHS adapter implementing
   `ILinearProgramSolver`; the only project allowed a native dependency.
   Registered in DI by the API; never referenced by the Solver (spec §8).
@@ -85,8 +88,17 @@ types and identifiers.
   `Services/`, `Repositories/` — one type per file, every service and
   repository behind an interface. Logging goes through `ILogger`, never
   `Console`.
-- Comments explain why, not what. No decorative comments, no narration of
-  changes, no session references; docs and comments are timeless.
+- Models are records (`get` with `init`), rich rather than anemic: a rule
+  about a thing lives on the thing (`FactoryMachineBlock.IsBuildable`,
+  `CostTable.Candidate`, `LoopSystem.Solve`); a check that needs
+  configuration stays in a service. Stateful builders (`SolverIndexBuilder`,
+  `CostTableBuilder`, `FactoryModelAssembly`) are the only classes under
+  `Models/`. Tuning constants are options records bound through `IOptions`.
+  Modpack ids and rates come from the artifact; only GregTech mechanics that
+  hold for every pack are coded.
+- Comments explain why, not what, in one line. No decorative comments, no
+  narration of changes, no spec or URL citations, no session references;
+  docs and comments are timeless.
 - Commit messages: header in past tense, sentence case, ≤ 50 chars after the
   prefix; prefix is a real task ID from context if one exists, otherwise a
   Conventional Commits type (`feat:`, `fix:`, …). Body only for big commits,

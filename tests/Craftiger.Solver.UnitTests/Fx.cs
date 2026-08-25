@@ -1,19 +1,29 @@
-using Craftiger.Solver.Interfaces;
-using Craftiger.Solver.Models;
-using Craftiger.Solver.Services;
+using Craftiger.Solver.Interfaces.Lp;
+using Craftiger.Solver.Models.Costs;
+using Craftiger.Solver.Models.Factory;
+using Craftiger.Solver.Models.Graph;
+using Craftiger.Solver.Models.Options;
+using Craftiger.Solver.Services.Bom;
+using Craftiger.Solver.Services.Costs;
+using Craftiger.Solver.Services.Factory;
+using Microsoft.Extensions.Options;
 
 namespace Craftiger.Solver.UnitTests;
 
-/// <summary>Terse factories for hand-built solver fixtures.</summary>
+/// <summary>Terse factories for hand-built solver fixtures and the services composed over them.</summary>
 internal static class Fx
 {
-    public static readonly GarageRules Rules = new(
-        AlwaysOwnedMachines: new HashSet<string> { "Crafting Table", "Furnace", "Mining" },
-        HeatExemptMachines: new HashSet<string> { "Helioflux Melting Core" },
-        HeatBonusMachines: new HashSet<string> { "Electric Blast Furnace" });
+    public static readonly GarageRules Rules = new()
+    {
+        AlwaysOwnedMachines = ["Crafting Table", "Furnace", "Mining"],
+        HeatExemptMachines = ["Helioflux Melting Core"],
+        HeatBonusMachines = ["Electric Blast Furnace"],
+    };
 
-    public static readonly SolverPreferences Preferences = new(
-        LeafClassPriority: ["ingot", "gem", "dust", "nugget", "dust_small", "dust_tiny"]);
+    public static readonly SolverPreferences Preferences = new()
+    {
+        LeafClassPriority = ["ingot", "gem", "dust", "nugget", "dust_small", "dust_tiny"],
+    };
 
     public static SolverItem Leaf(
         string id, int? tier = null, double? weight = null, string? parent = null,
@@ -56,21 +66,61 @@ internal static class Fx
     public static WeightSettings Weights(double b = 4, Dictionary<string, double>? items = null) =>
         new(b, items ?? new());
 
-    public static GarageLegalityService Legality() => new(Rules);
+    public static GarageLegalityService Legality() => new(Options.Create(Rules));
 
     /// <summary>Whether the garage can run a single recipe, indexed on its own.</summary>
     public static bool Legal(SolverRecipe recipe, Garage garage) =>
         Legality().IsLegal(Graph([], recipe).Index, 0, garage);
 
-    public static CostSolverService Solver() => new(new LeafWeightService(), Legality(), Preferences);
+    public static CostSolverService Solver()
+    {
+        var options = Options.Create(new CostSolverOptions());
+        return new(
+            new LeafWeightService(), Legality(),
+            new RoutePreferenceService(Options.Create(Preferences), options), options);
+    }
 
-    public static BomService Bom() => new(Legality());
+    public static BomService Bom()
+    {
+        var options = Options.Create(new BomOptions());
+        var graph = new ChosenEdgeGraphService(options);
+        return new(Legality(), graph, new LoopSeedService(Legality(), graph), options);
+    }
 
-    public static PipelineSolverService Pipeline(ILinearProgramSolver lp) =>
-        new(new LeafWeightService(), Legality(), Solver(), lp);
+    public static FactorySolverService Factory(ILinearProgramSolver lp)
+    {
+        var options = Options.Create(new FactorySolverOptions());
+        var legality = Legality();
+        return new(
+            new FactoryTargetService(),
+            new GeneratorCatalogService(options),
+            new CandidateWalkService(legality, options),
+            new FactoryModelService(new LeafWeightService(), new RunVariantService(legality), options),
+            new AutoInfiniteService(legality),
+            new FactoryDiagnosisService(lp, options),
+            new FactoryPlanInterpreter(options),
+            lp);
+    }
 
     public static CostTable Costs(SolverGraph graph, Garage? garage = null, WeightSettings? weights = null) =>
         Solver().Solve(graph, garage ?? Garage(), weights ?? Weights());
+
+    /// <summary>A factory context over the graph, its cost table solved on the way in.</summary>
+    public static FactoryContext Context(
+        SolverGraph graph,
+        Dictionary<string, (long DurationTicks, long EuT, long Amps)>? data = null,
+        FactoryMachineData? machines = null,
+        FactorySeedData? seeds = null,
+        Garage? garage = null,
+        WeightSettings? weights = null)
+    {
+        garage ??= Garage();
+        weights ??= Weights();
+        return new FactoryContext(
+            graph, Data(graph, data), machines ?? FactoryMachineData.Empty, seeds ?? FactorySeedData.Empty,
+            FactorySteamRules.Empty with { SteamFluidIds = ["f~IC2~ic2steam", "f~Railcraft~steam"] },
+            Costs(graph, garage, weights), garage, weights);
+    }
 
     public static FactoryRecipeData Data(
         SolverGraph graph, Dictionary<string, (long DurationTicks, long EuT, long Amps)>? recipes = null) =>
@@ -86,10 +136,10 @@ internal static class Fx
 
     public static FactoryMachineBlock Block(
         string itemId, int? tier = null, bool multiblock = false, bool steam = false, int? era = 0,
-        long maxParallel = 1, bool rotorTurbine = false, params FactoryMachineBonus[] bonuses) =>
-        new(itemId, tier, multiblock, steam, era, maxParallel, bonuses, RotorTurbine: rotorTurbine);
+        long maxParallel = 1, string? rotorFuel = null, params FactoryMachineBonus[] bonuses) =>
+        new(itemId, tier, multiblock, steam, era, maxParallel, bonuses, RotorFuel: rotorFuel);
 
-    public static FactorySeedData Seeds(params (string ItemId, string Kind)[] seeds) =>
+    public static FactorySeedData Seeds(params (string ItemId, SeedKind Kind)[] seeds) =>
         seeds.Length == 0
             ? FactorySeedData.Empty
             : new(seeds.ToDictionary(s => s.ItemId, s => s.Kind));
@@ -104,4 +154,7 @@ internal static class Fx
             priority ?? [],
             pins ?? new(),
             mobFarms);
+
+    public static FactoryRequest Targets(params FactoryTarget[] targets) =>
+        new(targets, [], new Dictionary<string, string>());
 }

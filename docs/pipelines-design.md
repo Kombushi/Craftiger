@@ -579,14 +579,20 @@ guard.
 
 ### 6.1 Solver
 
-- `PipelineSolverService` and `ILinearProgramSolver` live in
-  `Craftiger.Solver` — **pure, managed-only**. The HiGHS-backed
-  implementation lives in a new adapter project `src/Craftiger.Solver.Highs/`
-  (one class + the NuGet reference), registered in DI by the API; Solver
-  unit tests assert LP model construction against a recording fake, and
-  end-to-end fixture solves live in a test project referencing the adapter.
-  This keeps the CLAUDE.md "pure class library" rule true; the layout delta
-  merges into spec §8 and CLAUDE.md.
+- `FactorySolverService` and `ILinearProgramSolver` live in
+  `Craftiger.Solver` — **pure, managed-only**. The solve is an orchestrator
+  over one service per concern, each behind its interface: target
+  normalization, the generator catalogue (fuels, turbine frontiers, hatch
+  choice, band pruning), run variants (blocks, overclocks, steam), the
+  cost-banded candidate walk, LP assembly, the auto-infinite fixpoint,
+  diagnosis and plan interpretation; a `FactoryContext` bundles the
+  artifact-derived inputs (graph, rate data, machines, seeds, steam rules,
+  cost table, garage, weights). The HiGHS-backed implementation lives in
+  the adapter project `src/Craftiger.Solver.Highs/` (model loader, layer
+  runner, equilibration scaling, options), registered in DI by the API;
+  Solver unit tests assert LP model construction against a recording
+  fake, and end-to-end fixture solves live in a test project referencing
+  the adapter. This keeps the CLAUDE.md "pure class library" rule true.
 - **Backend (decided): [HiGHS](https://highs.dev) via `Highs.Native`** —
   verified: v1.15.1, first-party (published by the HiGHS team), MIT (HiGHS
   and package; one NOTICE line in the image), targets netstandard2.0
@@ -833,7 +839,7 @@ To pin during implementation (facts to evidence, not decisions):
 1. **Builder**: schema v9 (§5.2), the fixture additions (§5.4), extraction
    with per-map disposition asserts.
 2. **Solver**: HiGHS spike (load + version), `ILinearProgramSolver` +
-   adapter project, `PipelineSolverService`, closure-size measurement,
+   adapter project, `FactorySolverService`, closure-size measurement,
    fixtures: loop balance, byproduct feedback, chanced rates, consume
    shortfall, energy net, OC-choice arithmetic, parallels division,
    free-lunch guard, elastic diagnosis.

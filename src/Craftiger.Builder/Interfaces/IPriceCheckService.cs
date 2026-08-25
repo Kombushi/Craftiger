@@ -1,4 +1,5 @@
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
+using Craftiger.Builder.Models.Planner;
 
 namespace Craftiger.Builder.Interfaces;
 
@@ -6,7 +7,10 @@ namespace Craftiger.Builder.Interfaces;
 public interface IPriceCheckService
 {
     PriceCheck Run(
-        List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses,
-        IReadOnlyDictionary<string, int> tiers, IReadOnlyDictionary<string, double> weights,
-        UnifiedItems unified, Dump dump);
+        IReadOnlyList<PlannerRecipe> recipes,
+        IReadOnlyDictionary<string, string> leafClasses,
+        IReadOnlyDictionary<string, int> tiers,
+        IReadOnlyDictionary<string, double> weights,
+        UnifiedItems unified,
+        Dump dump);
 }

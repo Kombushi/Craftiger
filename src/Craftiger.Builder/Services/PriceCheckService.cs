@@ -1,24 +1,30 @@
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
+using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-/// <summary>Prices the shipped recipes once, at the default weights, purely to check the
-/// artifacts make sense. A leaf weight is a ceiling the solver may undercut, so a route that
-/// beats one is normal — a route that beats one by orders of magnitude means matter is being
-/// created somewhere, and every price downstream of it is fiction.</summary>
+/// <summary>A leaf weight is a ceiling routes may undercut; undercutting it by orders of magnitude means matter is created somewhere.</summary>
 public sealed class PriceCheckService(IOptions<PricingConfiguration> options, ILogger<PriceCheckService> logger)
     : IPriceCheckService
 {
+    private const double Epsilon = 1e-9;
+
+    /// <summary>A duplication loop never settles on its own, so the walk is bounded.</summary>
+    private const int MaxPassesPerRecipe = 200;
+
     private readonly PricingConfiguration _config = options.Value;
 
     public PriceCheck Run(
-        List<PlannerRecipe> recipes, Dictionary<string, string> leafClasses,
-        IReadOnlyDictionary<string, int> tiers, IReadOnlyDictionary<string, double> weights,
-        UnifiedItems unified, Dump dump)
+        IReadOnlyList<PlannerRecipe> recipes,
+        IReadOnlyDictionary<string, string> leafClasses,
+        IReadOnlyDictionary<string, int> tiers,
+        IReadOnlyDictionary<string, double> weights,
+        UnifiedItems unified,
+        Dump dump)
     {
         var leafWeights = LeafWeights(leafClasses, tiers, weights, unified, dump);
         var (cost, converged) = Solve(recipes, leafWeights);
@@ -66,7 +72,7 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
 
     /// <summary>Leaf prices at the defaults of the cost model; the app lets the user retune them.</summary>
     private Dictionary<string, double> LeafWeights(
-        Dictionary<string, string> leafClasses, IReadOnlyDictionary<string, int> tiers,
+        IReadOnlyDictionary<string, string> leafClasses, IReadOnlyDictionary<string, int> tiers,
         IReadOnlyDictionary<string, double> weights, UnifiedItems unified, Dump dump)
     {
         var leafWeights = new Dictionary<string, double>();
@@ -99,15 +105,14 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
 
     private double Tiered(int tier) => _config.PriceBase * Math.Pow(4, tier);
 
-    /// <summary>The cost fixpoint of the spec's engine: leaves start at their weight, and a
-    /// recipe only wins where it strictly beats what an output already costs.</summary>
-    private (Dictionary<string, double> Cost, bool Converged) Solve(
-        List<PlannerRecipe> recipes, Dictionary<string, double> leafWeights)
+    /// <summary>The cost fixpoint of the solver's engine: a recipe only wins where it strictly beats what an output already costs.</summary>
+    private static (Dictionary<string, double> Cost, bool Converged) Solve(
+        IReadOnlyList<PlannerRecipe> recipes, Dictionary<string, double> leafWeights)
     {
         var consumers = new Dictionary<string, List<PlannerRecipe>>();
         foreach (var recipe in recipes)
         {
-            foreach (var id in Ingredients(recipe).Select(part => part.ItemId).Distinct())
+            foreach (var id in recipe.Ingredients.Select(part => part.ItemId).Distinct())
             {
                 if (!consumers.TryGetValue(id, out var list))
                 {
@@ -131,7 +136,7 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
 
             var total = 0.0;
             var known = true;
-            foreach (var slot in Slots(recipe))
+            foreach (var slot in recipe.Slots)
             {
                 var cheapest = double.PositiveInfinity;
                 foreach (var (itemId, amount) in slot)
@@ -174,30 +179,14 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
     }
 
     /// <summary>Every item the shipped recipes touch, which is what the artifacts hold.</summary>
-    private static HashSet<string> Universe(List<PlannerRecipe> recipes)
+    private static HashSet<string> Universe(IReadOnlyList<PlannerRecipe> recipes)
     {
         var ids = new HashSet<string>();
         foreach (var recipe in recipes)
         {
-            ids.UnionWith(Ingredients(recipe).Select(part => part.ItemId));
+            ids.UnionWith(recipe.Ingredients.Select(part => part.ItemId));
             ids.UnionWith(recipe.Outputs.Select(output => output.ItemId));
         }
         return ids;
     }
-
-    private static IEnumerable<(string ItemId, long Amount)> Ingredients(PlannerRecipe recipe) =>
-        recipe.Inputs
-            .Select(input => (input.Key, input.Value))
-            .Concat(recipe.Choices.SelectMany(choice => choice.Alternatives));
-
-    private static IEnumerable<IEnumerable<(string ItemId, long Amount)>> Slots(PlannerRecipe recipe) =>
-        recipe.Inputs
-            .Select(input => (IEnumerable<(string, long)>)[(input.Key, input.Value)])
-            .Concat(recipe.Choices.Select(
-                choice => choice.Alternatives.Select(a => (a.ItemId, a.Amount))));
-
-    private const double Epsilon = 1e-9;
-
-    /// <summary>A duplication loop never settles on its own, so the walk is bounded.</summary>
-    private const int MaxPassesPerRecipe = 200;
 }

@@ -1,6 +1,7 @@
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
+using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -47,7 +48,7 @@ public sealed class CropHarvestRecipeService(
 
             recipes.Add(new PlannerRecipe(
                 crop.Id, _config.CropHarvestMachine, Tier: 0, Heat: null, DurationTicks: 0, EuT: 0, Amps: 1,
-                Inputs: [],
+                Inputs: new Dictionary<string, long>(),
                 Choices: [],
                 Outputs: drops,
                 Machines: [],

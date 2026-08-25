@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Craftiger.Api.Models;
+using Craftiger.Solver.Models.Bom;
 
 namespace Craftiger.Api.UnitTests;
 
@@ -271,7 +272,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Equal(1.5, Assert.Single(result!.Leaves).Amount);
         Assert.Equal("ing", result.Leaves[0].ItemId);
         Assert.Equal("r_wire", result.Targets.Single().RecipeId);
-        Assert.Contains(result.Warnings, warning => warning is { Kind: "pin_unknown", ItemId: "hot" });
+        Assert.Contains(result.Warnings, warning => warning is { Kind: BomWarningKind.PinUnknown, ItemId: "hot" });
 
         var node = Assert.Single(result.Nodes);
         Assert.Equal("wire", node.ItemId);

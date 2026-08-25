@@ -1,5 +1,6 @@
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
+using Craftiger.Builder.Models.Planner;
 
 namespace Craftiger.Builder.Services;
 
@@ -19,8 +20,7 @@ public sealed class UnificationService : IUnificationService
             {
                 continue;
             }
-            // Only names GT itself unifies merge identities; every other oredict registers
-            // for classification and search but leaves its members distinct.
+            // Only names GT itself unifies merge identities; every other oredict only classifies and searches.
             var unifies = dump.UnifiedOredictTargets.ContainsKey(name);
             string? first = null;
             foreach (var stack in stacks)
@@ -83,7 +83,7 @@ public sealed class UnificationService : IUnificationService
 
         var canonicalByRawId = new Dictionary<string, string>();
         var primaryOredict = new Dictionary<string, string>();
-        var aliases = new Dictionary<string, HashSet<string>>();
+        var aliases = new Dictionary<string, IReadOnlySet<string>>();
 
         foreach (var (root, members) in classMembers)
         {
@@ -107,7 +107,7 @@ public sealed class UnificationService : IUnificationService
         }
 
         var canonicalByOredict = new Dictionary<string, string>();
-        var oredictsByCanonical = new Dictionary<string, HashSet<string>>();
+        var oredictsByCanonical = new Dictionary<string, IReadOnlySet<string>>();
         foreach (var (name, members) in membersByOredict)
         {
             if (members.Count > 0)
@@ -120,9 +120,9 @@ public sealed class UnificationService : IUnificationService
                 var canonical = canonicalByRawId.GetValueOrDefault(member, member);
                 if (!oredictsByCanonical.TryGetValue(canonical, out var set))
                 {
-                    oredictsByCanonical[canonical] = set = [];
+                    oredictsByCanonical[canonical] = set = new HashSet<string>();
                 }
-                set.Add(name);
+                ((HashSet<string>)set).Add(name);
             }
         }
 
@@ -131,14 +131,13 @@ public sealed class UnificationService : IUnificationService
             CanonicalByRawId = canonicalByRawId,
             PrimaryOredictByCanonical = primaryOredict,
             AliasesByCanonical = aliases,
-            MembersByOredict = membersByOredict,
+            MembersByOredict = membersByOredict.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value),
             OredictsByCanonical = oredictsByCanonical,
             CanonicalByOredict = canonicalByOredict
         };
     }
 
-    /// <summary>GT-unified names outrank convention ones, so a wildcard like ingotAnyIron
-    /// can never shadow the real material name it sorts ahead of.</summary>
+    /// <summary>GT-unified names outrank convention ones, so a wildcard like ingotAnyIron never shadows the real material name.</summary>
     private static string PickPrimary(
         SortedSet<string> oredicts, IReadOnlyDictionary<string, string> unifiedNames)
     {

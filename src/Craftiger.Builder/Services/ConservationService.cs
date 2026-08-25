@@ -1,33 +1,25 @@
 using Craftiger.Builder.Interfaces;
-using Craftiger.Builder.Models;
+using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
+using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-/// <summary>Matter-conservation prune. A recipe that takes one kind of item apart into
-/// nothing but material shapes is a claim about how much matter that item holds; when
-/// every accountable route to the item carries less than the recipe hands out, the claim
-/// is false and the recipe is amplifying reverse-crafting. Conservation is of volume, not
-/// identity — GT transmutes freely (alloying, implosion residue, stone byproducts), so
-/// outputs may be materials the inputs never contained as long as the total adds up.
-/// Anything unprovable is innocent: world-obtained items, containers, farmables, fluids,
-/// and items with no accountable producer all stay.</summary>
+/// <summary>Conservation is of volume, not identity: outputs may be any material as long as the total adds up, and anything unprovable stays.</summary>
 public sealed class ConservationService(
     IOptions<WorldConfiguration> options,
     ILogger<ConservationService> logger) : IConservationService
 {
     private const double Tolerance = 1e-9;
 
-    /// <summary>Fluids count at molten density, 144 L to the ingot — the most generous
-    /// reading, so an arc's whiff of noble gas cannot launder an amplifier while a full
-    /// molten measure honestly carries its matter.</summary>
+    /// <summary>Fluids count at molten density, 144 L to the ingot: a whiff of gas cannot launder an amplifier.</summary>
     private const double MatterPerLiter = 3628800.0 / 144;
 
     private readonly WorldConfiguration _config = options.Value;
 
-    public List<PlannerRecipe> Run(List<PlannerRecipe> recipes, Dump dump, UnifiedItems unified)
+    public List<PlannerRecipe> Run(IReadOnlyList<PlannerRecipe> recipes, Dump dump, UnifiedItems unified)
     {
         var world = WorldObtainable(dump, unified);
         var producers = new Dictionary<string, List<PlannerRecipe>>();
@@ -64,6 +56,7 @@ public sealed class ConservationService(
         return kept;
     }
 
+    /// <summary>Reverse-crafting takes exactly one kind of item apart; multi-ingredient recipes are production, however lopsided.</summary>
     private bool Amplifies(
         PlannerRecipe recipe, Dump dump, UnifiedItems unified, HashSet<string> world,
         Dictionary<string, List<PlannerRecipe>> producers)
@@ -72,10 +65,7 @@ public sealed class ConservationService(
         {
             return false;
         }
-        // Reverse-crafting takes exactly one kind of item apart; recipes mixing several
-        // ingredients are production, however lopsided the matter — the primitive blast
-        // furnace really does boost two dusts and coke into three ingots.
-        var items = recipe.Inputs.Where(i => !dump.Fluids.ContainsKey(i.Key)).ToList();
+        var items = recipe.Inputs.Where(i => !dump.IsFluid(i.Key)).ToList();
         if (items.Count != 1)
         {
             return false;
@@ -85,7 +75,7 @@ public sealed class ConservationService(
         foreach (var output in recipe.Outputs)
         {
             // A fluid out only lowers the claim, so ignoring it never condemns wrongly.
-            if (dump.Fluids.ContainsKey(output.ItemId))
+            if (dump.IsFluid(output.ItemId))
             {
                 continue;
             }
@@ -97,7 +87,7 @@ public sealed class ConservationService(
         }
 
         var available = recipe.Inputs
-            .Where(i => dump.Fluids.ContainsKey(i.Key))
+            .Where(i => dump.IsFluid(i.Key))
             .Sum(i => i.Value * MatterPerLiter);
         var (itemId, count) = items[0];
         if (IsShape(itemId, dump, unified))
@@ -124,8 +114,7 @@ public sealed class ConservationService(
         return claimed > available * (1 + Tolerance) + Tolerance;
     }
 
-    /// <summary>The least total matter any fully accountable route puts into one unit of
-    /// the item, or null when no route is accountable — an unprovable content is not zero.</summary>
+    /// <summary>The least matter any fully accountable route puts into one unit of the item; null when none is accountable.</summary>
     private static double? ProducerBound(
         string itemId, PlannerRecipe candidate, Dump dump, UnifiedItems unified,
         Dictionary<string, List<PlannerRecipe>> producers)
@@ -143,7 +132,7 @@ public sealed class ConservationService(
             foreach (var (inputId, count) in producer.Inputs)
             {
                 // A fluid into a producer carries unknown matter, so the route cannot vouch.
-                if (!dump.Fluids.ContainsKey(inputId) && Matter(inputId, dump, unified) is { } matter)
+                if (!dump.IsFluid(inputId) && Matter(inputId, dump, unified) is { } matter)
                 {
                     content += matter * count;
                 }
@@ -168,18 +157,16 @@ public sealed class ConservationService(
         return bound;
     }
 
-    /// <summary>The matter in an item. GT's per-item composition record is the truth — a
-    /// quartz block holds four gems, not the block prefix's nine-ingot default — and the
-    /// shape prefix amount is the fallback for shapes GT records no data for.</summary>
+    /// <summary>GT's per-item composition record is the truth; the shape prefix amount is the fallback.</summary>
     private static double? Matter(string itemId, Dump dump, UnifiedItems unified) =>
         dump.ItemData.Content(itemId) ?? ShapePrefixAmount(itemId, dump, unified);
 
     private static long? ShapePrefixAmount(string itemId, Dump dump, UnifiedItems unified)
     {
-        foreach (var oredict in (unified.OredictsByCanonical.GetValueOrDefault(itemId) ?? []).Order(StringComparer.Ordinal))
+        foreach (var oredict in unified.OredictsOf(itemId).Order(StringComparer.Ordinal))
         {
             if (dump.OrePrefixes.Match(oredict) is { } match
-                && OrePrefixIndex.IsShape(match.Prefix) && match.Prefix.MaterialAmount > 0)
+                && match.Prefix.IsShape && match.Prefix.MaterialAmount > 0)
             {
                 return match.Prefix.MaterialAmount;
             }
@@ -188,21 +175,18 @@ public sealed class ConservationService(
     }
 
     private static bool IsShape(string itemId, Dump dump, UnifiedItems unified) =>
-        (unified.OredictsByCanonical.GetValueOrDefault(itemId) ?? [])
-            .Any(dump.OrePrefixes.IsMaterialShape)
+        unified.OredictsOf(itemId).Any(dump.OrePrefixes.IsMaterialShape)
         || (dump.ItemData.PrefixOf(itemId) is { } prefix && dump.OrePrefixes.IsShapeName(prefix));
 
     private bool IsFarmable(string itemId, UnifiedItems unified) =>
-        (unified.OredictsByCanonical.GetValueOrDefault(itemId) ?? [])
+        unified.OredictsOf(itemId)
             .Any(o => _config.FarmableOredictPrefixes.Any(p => o.StartsWith(p, StringComparison.Ordinal)));
 
     private static bool IsContainer(string itemId, Dump dump, UnifiedItems unified) =>
-        (unified.OredictsByCanonical.GetValueOrDefault(itemId) ?? [])
+        unified.OredictsOf(itemId)
             .Any(o => dump.OrePrefixes.Match(o) is { Prefix.Container: true });
 
-    /// <summary>Items the world hands over: what a recipe takes from these is primary
-    /// production, however lopsided the matter looks — water and lava really do make
-    /// cobblestone.</summary>
+    /// <summary>Items the world hands over: taking from these is primary production, however lopsided the matter.</summary>
     private HashSet<string> WorldObtainable(Dump dump, UnifiedItems unified)
     {
         var world = new HashSet<string>();
@@ -214,8 +198,7 @@ public sealed class ConservationService(
                 world.Add(canonical);
             }
         }
-        // Any placed block drops itself when broken; only drops of world-minable blocks
-        // are the world handing something over.
+        // Any placed block drops itself; only drops of world-minable blocks are the world handing something over.
         foreach (var drop in dump.BlockDrops.Where(d => world.Contains(unified.Canonical(d.BlockItemId))))
         {
             world.Add(unified.Canonical(drop.DropItemId));

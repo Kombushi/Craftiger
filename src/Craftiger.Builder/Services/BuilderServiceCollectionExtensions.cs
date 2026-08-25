@@ -1,6 +1,12 @@
 using Craftiger.Builder.Interfaces;
+using Craftiger.Builder.Interfaces.DumpReaders;
+using Craftiger.Builder.Interfaces.Eras;
+using Craftiger.Builder.Interfaces.Recipes;
 using Craftiger.Builder.Models.Options;
 using Craftiger.Builder.Repositories;
+using Craftiger.Builder.Repositories.DumpReaders;
+using Craftiger.Builder.Services.Eras;
+using Craftiger.Builder.Services.Recipes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -31,10 +37,20 @@ public static class BuilderServiceCollectionExtensions
             .Configure<MachineOverlayConfiguration>(
                 configuration.GetSection(nameof(MachineOverlayConfiguration)))
             .Configure<SteamConfiguration>(configuration.GetSection(nameof(SteamConfiguration)))
+            .AddSingleton<IDumpItemReader, DumpItemReader>()
+            .AddSingleton<IDumpOredictReader, DumpOredictReader>()
+            .AddSingleton<IDumpRecipeReader, DumpRecipeReader>()
+            .AddSingleton<IDumpWorldgenReader, DumpWorldgenReader>()
+            .AddSingleton<IDumpMachineReader, DumpMachineReader>()
+            .AddSingleton<IDumpCropReader, DumpCropReader>()
             .AddSingleton<IDumpRepository, DumpRepository>()
             .AddSingleton<IPlannerRepository, PlannerRepository>()
             .AddSingleton<IUnificationService, UnificationService>()
             .AddSingleton<ISteamSynthesisService, SteamSynthesisService>()
+            .AddSingleton<IRecipeMachineListService, RecipeMachineListService>()
+            .AddSingleton<IRecipeSlotResolver, RecipeSlotResolver>()
+            .AddSingleton<IRecipeVariantService, RecipeVariantService>()
+            .AddSingleton<ICraftingGridService, CraftingGridService>()
             .AddSingleton<IRecipeTransformService, RecipeTransformService>()
             .AddSingleton<IConservationService, ConservationService>()
             .AddSingleton<ILeafTaggingService, LeafTaggingService>()
@@ -45,6 +61,10 @@ public static class BuilderServiceCollectionExtensions
             .AddSingleton<IFuelExtractionService, FuelExtractionService>()
             .AddSingleton<IMachinePropsService, MachinePropsService>()
             .AddSingleton<IRenewableSeedsService, RenewableSeedsService>()
+            .AddSingleton<IEraSeedService, EraSeedService>()
+            .AddSingleton<IEraPropagationService, EraPropagationService>()
+            .AddSingleton<ILeafTierService, LeafTierService>()
+            .AddSingleton<IMachineAvailabilityService, MachineAvailabilityService>()
             .AddSingleton<IEraSolveService, EraSolveService>()
             .AddSingleton<IPriceCheckService, PriceCheckService>()
             .AddSingleton<IAtlasBuilder, AtlasBuilder>()
