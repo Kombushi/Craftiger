@@ -14,17 +14,17 @@ public sealed class CostSolverService(
 {
     private readonly CostSolverOptions _options = options.Value;
 
-    /// <summary>The strict-improvement fixpoint in graph order: a recipe only wins where it beats what an output already costs, so cycles starve and the pointers stay acyclic.</summary>
+    /// <summary>The strict-improvement fixpoint in graph order: a recipe only wins where it beats what an output already costs, so cycles starve and the pointers stay acyclic; a recipe consuming nothing has no material cost to offer and never prices.</summary>
     public CostTable Solve(SolverGraph graph, Garage garage, WeightSettings weights)
     {
         var index = graph.Index;
-        var legal = new bool[index.RecipeCount];
+        var priceable = new bool[index.RecipeCount];
         var queue = new Queue<int>();
         var queued = new bool[index.RecipeCount];
         for (var r = 0; r < index.RecipeCount; r++)
         {
-            legal[r] = legality.IsLegal(index, r, garage);
-            if (legal[r])
+            priceable[r] = !index.ConsumesNothing(r) && legality.IsLegal(index, r, garage);
+            if (priceable[r])
             {
                 queue.Enqueue(r);
                 queued[r] = true;
@@ -68,7 +68,7 @@ public sealed class CostSolverService(
                 for (var c = index.ConsumerStart[item]; c < index.ConsumerStart[item + 1]; c++)
                 {
                     var consumer = index.ConsumerRecipe[c];
-                    if (legal[consumer] && !queued[consumer])
+                    if (priceable[consumer] && !queued[consumer])
                     {
                         queued[consumer] = true;
                         queue.Enqueue(consumer);
@@ -77,7 +77,7 @@ public sealed class CostSolverService(
             }
         }
 
-        routePreference.Apply(table, legal, seeds);
+        routePreference.Apply(table, priceable, seeds);
         return table.Build(converged: true);
     }
 }

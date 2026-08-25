@@ -123,8 +123,10 @@ internal static class Fx
     }
 
     public static FactoryRecipeData Data(
-        SolverGraph graph, Dictionary<string, (long DurationTicks, long EuT, long Amps)>? recipes = null) =>
-        FactoryRecipeData.Build(graph.Index, recipes);
+        SolverGraph graph,
+        Dictionary<string, (long DurationTicks, long EuT, long Amps)>? recipes = null,
+        IEnumerable<string>? treeFarms = null) =>
+        FactoryRecipeData.Build(graph.Index, recipes, treeFarms);
 
     public static FactoryMachineData Machines(
         Dictionary<string, IReadOnlyList<FactoryMachineBlock>> blocks,

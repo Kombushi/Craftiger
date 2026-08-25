@@ -9,12 +9,14 @@ namespace Craftiger.Builder.Services.Recipes;
 
 public sealed partial class RecipeTransformService(
     IOptions<RecipesConfiguration> options,
+    IOptions<TreeFarmConfiguration> treeFarm,
     IRecipeMachineListService machineLists,
     IRecipeSlotResolver slotResolver,
     IRecipeVariantService variants,
     ICraftingGridService grids) : IRecipeTransformService
 {
     private readonly RecipesConfiguration _config = options.Value;
+    private readonly TreeFarmConfiguration _treeFarm = treeFarm.Value;
 
     [GeneratedRegex(@" \((ULV|LV|MV|HV|EV|IV|LuV|ZPM|UV|UHV|UEV|UIV|UMV|UXV|MAX)\)$")]
     private static partial Regex TierSuffix();
@@ -34,8 +36,9 @@ public sealed partial class RecipeTransformService(
             {
                 continue;
             }
-            // Fuel maps burn their inputs for EU; their tabs are recipes only to NEI.
-            if (dump.RecipeMapByTypeId.GetValueOrDefault(recipe.RecipeTypeId) is { IsFuel: true })
+            // Fuel maps burn their inputs for EU; their tabs are recipes only to NEI. Tree farm rows are synthesized with their catalysts.
+            if (dump.RecipeMapByTypeId.GetValueOrDefault(recipe.RecipeTypeId) is { } map
+                && (map.IsFuel || map.UnlocalizedName == _treeFarm.Map))
             {
                 continue;
             }

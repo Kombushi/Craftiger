@@ -16,6 +16,7 @@ public sealed class BuilderPipeline(
     IDumpRepository dumpRepository,
     IUnificationService unification,
     IRecipeTransformService recipeTransform,
+    ITreeFarmRecipeService treeFarm,
     IConservationService conservation,
     IBlockBreakRecipeService blockBreak,
     IUndergroundFluidRecipeService undergroundFluid,
@@ -55,6 +56,7 @@ public sealed class BuilderPipeline(
         logger.LogInformation("  {Oredicted:N0} oredicted items in {Classes:N0} classes", unified.CanonicalByRawId.Count, unified.AliasesByCanonical.Count);
 
         var transformed = Stage("transform recipes", () => recipeTransform.Run(dump, unified));
+        transformed.AddRange(Stage("farm trees", () => treeFarm.Run(dump, unified)));
         transformed.AddRange(Stage("break blocks", () => blockBreak.Run(dump, unified)));
         transformed.AddRange(Stage("harvest crops", () => cropHarvest.Run(dump, unified)));
         var recipes = Stage("conserve matter", () => conservation.Run(transformed, dump, unified));
@@ -96,7 +98,8 @@ public sealed class BuilderPipeline(
         var itemParents = leafTagging.Parents(leafClasses, eraSolve.Tiers, unified, dump);
 
         var seeds = Stage(
-            "mark auto-infinite seeds", () => renewableSeeds.Run(dump, unified, leafClasses, itemIds));
+            "mark auto-infinite seeds",
+            () => renewableSeeds.Run(dump, unified, leafClasses, itemIds, CollectConjuredIds(solverRecipes)));
         logger.LogInformation("  {Seeds:N0} auto-infinite seeds", seeds.Count);
 
         if (_options.ExplainItem is { } query)
@@ -194,6 +197,10 @@ public sealed class BuilderPipeline(
         }
         return ids;
     }
+
+    /// <summary>What some recipe makes from no consumed input at all.</summary>
+    private static HashSet<string> CollectConjuredIds(IReadOnlyList<PlannerRecipe> recipes) =>
+        CollectProducedIds(recipes.Where(recipe => recipe.ConsumesNothing).ToList());
 
     private static HashSet<string> CollectItemIds(IReadOnlyList<PlannerRecipe> recipes)
     {

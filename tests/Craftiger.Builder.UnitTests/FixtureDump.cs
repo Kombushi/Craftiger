@@ -120,6 +120,12 @@ public static partial class FixtureDump
     public const string DataBox = "i~fixture~databox~0";
     public const string DataGhost = "i~fixture~dataghost~0";
     public const string FixtureWidget = "i~fixture~widget~0";
+    public const string TreeFarm = "i~gregtech~gt.blockmachines~15541";
+    public const string OakSapling = "i~minecraft~sapling~0";
+    public const string PineLog = "i~minecraft~log~1";
+    public const string Chainsaw = "i~gregtech~gt.metatool.01~110";
+    public const string BranchCutter = "i~gregtech~gt.metatool.01~30";
+    public const string WireCutterLv = "i~gregtech~gt.metatool.01~196";
 
     public static string Create(string directory)
     {
@@ -150,6 +156,7 @@ public static partial class FixtureDump
             CREATE TABLE RECIPE_TYPE_ITEM(RECIPE_TYPE_ID TEXT, ICON_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE(ID TEXT, AMPERAGE INTEGER, DURATION INTEGER, VOLTAGE INTEGER, VOLTAGE_TIER TEXT, RECIPE_CATEGORY TEXT, REQUIRES_CLEANROOM INTEGER, REQUIRES_LOW_GRAVITY INTEGER, RECIPE_SPECIAL_VALUE INTEGER, ADDITIONAL_INFO TEXT, RECIPE_ID TEXT);
             CREATE TABLE GREG_TECH_RECIPE_METADATA(GREG_TECH_RECIPE_ID TEXT, METADATA_KEY TEXT, METADATA_VALUE INTEGER);
+            CREATE TABLE GREG_TECH_RECIPE_ITEM(GREG_TECH_RECIPE_ID TEXT, SPECIAL_ITEMS_ID TEXT);
             CREATE TABLE ITEM_GROUP_ITEM_STACKS(ITEM_GROUP_ID TEXT, ITEM_STACKS_ITEM_ID TEXT, ITEM_STACKS_STACK_SIZE INTEGER);
             CREATE TABLE ORE_DICTIONARY(ID TEXT, NAME TEXT, ITEM_GROUP_ID TEXT);
             CREATE TABLE RECIPE_ITEM_GROUP(RECIPE_ID TEXT, ITEM_INPUTS_ID TEXT, ITEM_INPUTS_KEY INTEGER);
@@ -433,6 +440,12 @@ public static partial class FixtureDump
             }
         }
     }
+
+    /// <summary>The controller-slot item a GregTech map shows beside a recipe's inputs.</summary>
+    private static void SpecialItem(SqliteConnection db, string recipeId, string itemId) =>
+        db.Execute(
+            "INSERT INTO GREG_TECH_RECIPE_ITEM VALUES (@gtId, @itemId)",
+            new { gtId = $"gtr~{recipeId}", itemId });
 
     private static void FluidOutput(SqliteConnection db, string recipeId, long amount, string fluidId) =>
         db.Execute(

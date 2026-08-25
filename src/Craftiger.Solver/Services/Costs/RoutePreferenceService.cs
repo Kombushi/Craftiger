@@ -13,8 +13,8 @@ public sealed class RoutePreferenceService(
     private readonly SolverPreferences _preferences = preferences.Value;
     private readonly CostSolverOptions _options = options.Value;
 
-    /// <summary>Where another legal producer offers the same price, the pointer moves to the best-scoring one — unless its inputs reach the item over chosen edges, which would close a pointer loop.</summary>
-    public void Apply(CostTableBuilder table, IReadOnlyList<bool> legal, IReadOnlyDictionary<string, double> leafWeights)
+    /// <summary>Where another priceable producer offers the same price, the pointer moves to the best-scoring one — unless its inputs reach the item over chosen edges, which would close a pointer loop.</summary>
+    public void Apply(CostTableBuilder table, IReadOnlyList<bool> priceable, IReadOnlyDictionary<string, double> leafWeights)
     {
         var index = table.Index;
         var depths = Depths(table);
@@ -38,7 +38,7 @@ public sealed class RoutePreferenceService(
             for (var p = index.ProducerStart[item]; p < index.ProducerStart[item + 1]; p++)
             {
                 var producer = index.ProducerRecipe[p];
-                if (producer == current || !legal[producer])
+                if (producer == current || !priceable[producer])
                 {
                     continue;
                 }

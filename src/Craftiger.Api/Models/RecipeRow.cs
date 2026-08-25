@@ -9,4 +9,5 @@ internal sealed record RecipeRow(
     long? Heat,
     long DurationTicks,
     long EuT,
-    long Amps);
+    long Amps,
+    string? Overclock);

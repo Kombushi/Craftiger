@@ -45,7 +45,7 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                     var variant = run.Variant;
                     for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
                     {
-                        Accumulate(produced, index.OutputItem[o], index.OutputYield[o] * value);
+                        Accumulate(produced, index.OutputItem[o], index.OutputYield[o] * variant.OutputFactor * value);
                     }
                     for (var slot = 0; slot < index.SlotCount(recipe); slot++)
                     {

@@ -448,19 +448,31 @@ chain attractive *only* because its seed is free can be pruned before the LP
 sees it — acceptable while seed leaves price near zero; revisit if a
 free-seed route visibly goes missing.
 
-The **Tree Growth Simulator** is modeled from its real mechanics
-(user-specified): a sapling sits in the controller as a non-consumed
-catalyst, and a GregTech tool in the input bus selects the output class and
-multiplies it — logs via Saw ×1 / Buzzsaw ×2 / Chainsaw ×4, saplings via
-Branch Cutter ×1 / Grafter ×4, leaves via Shears ×1 / Wire Cutter ×2 /
-Automatic Snips ×4, fruit via Knife ×1 — with several tools (even mixed
-types) running simultaneously. Duration is fixed at 5 s; overclocking
-multiplies the *outputs* instead of shortening the run; electric tools are
-recharged externally (MFSU loop) and are not consumed; per-tree yields
-differ (Giant Sequoia far outproduces other saplings on logs). The dump's
-251 zero-input treefarm recipes gain the sapling and tool catalysts in the
-builder; the tool multipliers ship as the curated table above, and the exact
-power-to-output multiplier formula is pinned from source at implementation.
+The **Tree Growth Simulator** is modeled from its real mechanics, pinned
+in GT5-Unofficial's `MTETreeFarm`: a sapling sits in the controller as a
+non-consumed catalyst, and a GregTech tool in the input bus selects the
+output class and multiplies it — logs via Saw ×1 / Buzzsaw ×2 / Chainsaw
+×4, saplings via Branch Cutter ×1 / Grafter ×4, leaves via Shears ×1 / Wire
+Cutter ×2 / electric Wire Cutter ×4, fruit via Knife ×1 — with every mode
+that has a tool harvesting in the same run. Duration is fixed at 100
+ticks; the draw is the practical voltage of the tier the controller reads
+from its energy hatch, and every output is further multiplied by that
+tier's yield, `2t² − 2t + 5` (5 at LV, 9 at MV, 17 at HV, 29 at EV) — an
+output ladder, not a speed ladder. Electric tools are recharged externally
+and wearing ones survive the run, so no tool is consumed. The dump's 251
+input-less treefarm rows already carry the per-mode base multipliers (logs
+and saplings ×5, leaves ×2, fruit ×1); the builder adds the sapling (the
+row's controller-slot item) and, per mode, the best-multiplying tools of a
+curated table as catalyst slots, and ships the LV amounts with that tool's
+multiplier applied. A recipe consuming nothing never prices, so logs keep
+their farm-leaf weight in the cost engine, and a log a farm grows stops
+being a seed: the factory derives it through the farm — machines and EU —
+wherever the controller is legal, and buys it at its weight elsewhere.
+Two shortcuts are deliberate: the controller reads two ordinary energy
+hatches as the next tier (each hatch works two amps), the same amperage
+lift ignored on every multiblock, so a farm climbs exactly the garage's
+tiers; and the choice of tool is not a solver decision — catalysts neither
+price nor gate, so a lesser tool never wins.
 
 ## 5. Data
 
@@ -814,7 +826,9 @@ To pin during implementation (facts to evidence, not decisions):
 
 - Cleanroom controller EU/t draw — from the GTNH wiki, verified in source.
 - The low-gravity era threshold — from the rocket-tier → era ladder.
-- TGS power-to-output multiplier formula — from GT++ source.
+- TGS power-to-output multiplier formula — **pinned** from GT5-Unofficial
+  5.09.54.20 `MTETreeFarm`: `2·tier² − 2·tier + 5`, draw `VP[tier]`, 100
+  ticks (§4.6).
 - Naquadah reactor coolant/excited mode constants — from GoodGenerator
   source.
 - The v1 "most-used" lists: structure-part picker families and curated

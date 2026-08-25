@@ -3,22 +3,30 @@ using Craftiger.Solver.Models.Graph;
 
 namespace Craftiger.Solver.Models.Factory;
 
-/// <summary>Per-recipe rate data aligned to recipe positions: zero duration marks a free instant converter, EuT is per amp.</summary>
-public sealed record FactoryRecipeData(ImmutableArray<long> DurationTicks, ImmutableArray<long> EuT, ImmutableArray<long> Amps)
+/// <summary>Per-recipe rate data aligned to recipe positions: zero duration marks a free instant converter, EuT is per amp, Overclock names the ladder a recipe climbs.</summary>
+public sealed record FactoryRecipeData(
+    ImmutableArray<long> DurationTicks,
+    ImmutableArray<long> EuT,
+    ImmutableArray<long> Amps,
+    ImmutableArray<OverclockMode> Overclock)
 {
     public bool IsDurationless(int recipe) => DurationTicks[recipe] == 0;
 
     /// <summary>The recipe's full draw per tick: voltage times amps.</summary>
     public long DrawPerTick(int recipe) => EuT[recipe] * Amps[recipe];
 
-    /// <summary>The fixtures' way in: unlisted recipes are durationless, zero-EU, one-amp.</summary>
+    public OverclockMode OverclockOf(int recipe) => Overclock[recipe];
+
+    /// <summary>The fixtures' way in: unlisted recipes are durationless, zero-EU, one-amp, on the standard ladder.</summary>
     public static FactoryRecipeData Build(
         SolverIndex index,
-        IReadOnlyDictionary<string, (long DurationTicks, long EuT, long Amps)>? recipes = null)
+        IReadOnlyDictionary<string, (long DurationTicks, long EuT, long Amps)>? recipes = null,
+        IEnumerable<string>? treeFarms = null)
     {
         var duration = new long[index.RecipeCount];
         var euT = new long[index.RecipeCount];
         var amps = new long[index.RecipeCount];
+        var overclock = new OverclockMode[index.RecipeCount];
         Array.Fill(amps, 1);
 
         foreach (var (recipeId, values) in recipes ?? new Dictionary<string, (long, long, long)>())
@@ -30,6 +38,13 @@ public sealed record FactoryRecipeData(ImmutableArray<long> DurationTicks, Immut
                 amps[recipe] = values.Amps;
             }
         }
-        return new FactoryRecipeData([.. duration], [.. euT], [.. amps]);
+        foreach (var recipeId in treeFarms ?? [])
+        {
+            if (index.TryGetRecipe(recipeId, out var recipe))
+            {
+                overclock[recipe] = OverclockMode.TreeFarm;
+            }
+        }
+        return new FactoryRecipeData([.. duration], [.. euT], [.. amps], [.. overclock]);
     }
 }

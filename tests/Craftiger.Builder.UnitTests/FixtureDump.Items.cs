@@ -20,6 +20,12 @@ public static partial class FixtureDump
         Item(db, Plank, "Oak Wood Planks", "minecraft");
         Item(db, Log, "Oak Wood", "minecraft");
         Item(db, OakLeaves, "Oak Leaves", "minecraft");
+        Item(db, OakSapling, "Oak Sapling", "minecraft");
+        Item(db, PineLog, "Pine Wood", "minecraft");
+        Item(db, TreeFarm, "Tree Growth Simulator", "gregtech");
+        Item(db, Chainsaw, "Chainsaw (LV)", "gregtech", maxStack: 1);
+        Item(db, BranchCutter, "Branch Cutter", "gregtech", maxStack: 1);
+        Item(db, WireCutterLv, "Wire Cutter (LV)", "gregtech", maxStack: 1);
         Item(db, CherryLeaves, "Cherry Leaves", "etfuturum");
         Item(db, FixturePipe, "Fixture Pipe", "IC2");
         Fluid(db, Water, "water", "Water");
@@ -130,6 +136,8 @@ public static partial class FixtureDump
         Group(db, "g_saw", (Saw, 1));
         Group(db, "g_mold", (Mold, 0));
         Group(db, "g_log", (Log, 1));
+        Group(db, "g_pine_log", (PineLog, 1));
+        Group(db, "g_oak_sapling", (OakSapling, 1));
         Group(db, "g_mix_ingot", (MixIngot, 1));
         Group(db, "g_dear_ingot", (DearIngot, 1));
         Oredict(db, "ingotMixium", "g_mix_ingot");
@@ -196,6 +204,8 @@ public static partial class FixtureDump
         Oredict(db, "blockAluminium", "g_alu_block");
         Oredict(db, "stickAluminium", "g_alu_rod_oredict_unused");
         Oredict(db, "logWood", "g_log");
+        Oredict(db, "logWood", "g_pine_log");
+        Oredict(db, "treeSapling", "g_oak_sapling");
         Oredict(db, "plankWood", "g_plank_oredict_unused");
         Group(db, "g_two_leaves", (OakLeaves, 1), (CherryLeaves, 1));
         Oredict(db, "treeLeaves", "g_two_leaves");

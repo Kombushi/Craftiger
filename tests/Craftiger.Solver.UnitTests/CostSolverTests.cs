@@ -147,6 +147,20 @@ public sealed class CostSolverTests
     }
 
     [Fact]
+    public void ARecipeConsumingNothingNeverPrices()
+    {
+        // The tree farm conjures logs from a sapling in place; the log keeps its leaf weight, and an item only such a recipe makes stays unpriced.
+        var graph = Fx.Graph(
+            [Fx.Leaf("log", weight: 1)],
+            Fx.Recipe("farm", machine: "Tree Growth Simulator", outputs: [("log", 40, 1.0), ("leaves", 8, 1.0)]));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal(1, Cost(table, "log"));
+        Assert.False(table.IsPriced("leaves"));
+    }
+
+    [Fact]
     public void UnreachableItemsHaveNoCost()
     {
         var graph = Fx.Graph(

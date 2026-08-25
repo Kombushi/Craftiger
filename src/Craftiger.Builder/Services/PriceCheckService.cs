@@ -105,7 +105,7 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
 
     private double Tiered(int tier) => _config.PriceBase * Math.Pow(4, tier);
 
-    /// <summary>The cost fixpoint of the solver's engine: a recipe only wins where it strictly beats what an output already costs.</summary>
+    /// <summary>The cost fixpoint of the solver's engine: a recipe only wins where it strictly beats what an output already costs, and one consuming nothing never prices.</summary>
     private static (Dictionary<string, double> Cost, bool Converged) Solve(
         IReadOnlyList<PlannerRecipe> recipes, Dictionary<string, double> leafWeights)
     {
@@ -123,9 +123,10 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
         }
 
         var cost = new Dictionary<string, double>(leafWeights);
-        var queue = new Queue<PlannerRecipe>(recipes);
-        var queued = new HashSet<string>(recipes.Select(recipe => recipe.Id));
-        var budget = recipes.Count * MaxPassesPerRecipe;
+        var priceable = recipes.Where(recipe => !recipe.ConsumesNothing).ToList();
+        var queue = new Queue<PlannerRecipe>(priceable);
+        var queued = new HashSet<string>(priceable.Select(recipe => recipe.Id));
+        var budget = priceable.Count * MaxPassesPerRecipe;
         while (queue.TryDequeue(out var recipe))
         {
             queued.Remove(recipe.Id);

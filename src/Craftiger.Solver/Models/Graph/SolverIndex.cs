@@ -141,6 +141,9 @@ public sealed record SolverIndex
 
     public int SlotCount(int recipe) => SlotStart[recipe + 1] - SlotStart[recipe];
 
+    /// <summary>Whether the recipe consumes nothing at all — catalysts and EU never enter as slots — and so conjures its outputs.</summary>
+    public bool ConsumesNothing(int recipe) => SlotCount(recipe) == 0;
+
     public int AlternativeCount(int recipe, int slot)
     {
         var s = SlotStart[recipe] + slot;

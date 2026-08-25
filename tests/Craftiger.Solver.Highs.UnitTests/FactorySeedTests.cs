@@ -61,9 +61,9 @@ public class FactorySeedTests
     [Fact]
     public void CatalystOnlyRecipesQualifyAsAutoInfinite()
     {
-        // The index carries neither catalysts nor EU as slots, so a recipe needing only those has zero slots and seeds the fixpoint by itself.
+        // The index carries neither catalysts nor EU as slots, so a recipe needing only those has zero slots and seeds the fixpoint by itself; the seedling stays a priced leaf, since conjuring never prices.
         var graph = SolverGraph.Build(
-            [],
+            [Leaf("seedling", weight: 1)],
             [
                 Recipe("sprout", outputs: ("seedling", 1, 1.0)),
                 Recipe("grow", inputs: [("seedling", 1)], outputs: ("wood", 1, 1.0)),

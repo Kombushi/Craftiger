@@ -8,7 +8,7 @@ namespace Craftiger.Builder.Repositories;
 public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader can refuse what it does not know.</summary>
-    public const int SchemaVersion = 11;
+    public const int SchemaVersion = 12;
 
     public void Write(string path, PlannerData data)
     {
@@ -50,7 +50,8 @@ public sealed class PlannerRepository : IPlannerRepository
                 eu_t INTEGER NOT NULL,
                 amps INTEGER NOT NULL,
                 cleanroom INTEGER NOT NULL,
-                low_gravity INTEGER NOT NULL);
+                low_gravity INTEGER NOT NULL,
+                overclock TEXT);
             CREATE TABLE recipe_inputs(
                 recipe_id TEXT NOT NULL,
                 item_id TEXT NOT NULL,
@@ -157,14 +158,16 @@ public sealed class PlannerRepository : IPlannerRepository
                 .Prepend(data.Dump.NameOf(id))
                 .Select(text => new { Id = id, Text = text.ToLowerInvariant() })), tx);
 
+        // The standard overclock ladder is the null default; only the tree farm's output ladder is named.
         db.Execute(
-            "INSERT INTO recipes VALUES (@Id, @Machine, @Tier, @MultiTier, @Heat, @DurationTicks, @EuT, @Amps, @Cleanroom, @LowGravity)",
+            "INSERT INTO recipes VALUES (@Id, @Machine, @Tier, @MultiTier, @Heat, @DurationTicks, @EuT, @Amps, @Cleanroom, @LowGravity, @Overclock)",
             data.Recipes.Select(r => new
             {
                 r.Id, r.Machine, Tier = r.SingleBlockTier, MultiTier = r.MultiblockTier,
                 r.Heat, r.DurationTicks, r.EuT, r.Amps,
                 Cleanroom = r.RequiresCleanroom ? 1 : 0,
                 LowGravity = r.RequiresLowGravity ? 1 : 0,
+                Overclock = r.Overclock == OverclockMode.TreeFarm ? "TREE_FARM" : null,
             }), tx);
 
         // Rows sharing a slot are alternatives; catalyst rows never price, only their tool flag reaches the solver.

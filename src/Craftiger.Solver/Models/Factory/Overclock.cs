@@ -7,7 +7,11 @@ public readonly record struct Overclock(int Steps, int Perfect)
 
     public double DurationDivisor => Math.Pow(2, Standard) * Math.Pow(4, Perfect);
 
+    /// <summary>Energy per run after the duration shrinks: perfect steps are free, standard ones double it.</summary>
     public double EuMultiplier => Math.Pow(2, Standard);
+
+    /// <summary>Power draw per tick, quadrupled every step whatever the step does with the time.</summary>
+    public double PowerMultiplier => Math.Pow(4, Steps);
 
     /// <summary>Every overclock from none to the voltage gap, perfect steps first; a recipe drawing nothing has no power to trade and runs at base speed only.</summary>
     public static IEnumerable<Overclock> Ladder(int maxSteps, int perfectSteps, bool drawsPower)

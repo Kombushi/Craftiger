@@ -16,7 +16,7 @@ public sealed class PlannerArtifactRepository(
     ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 11;
+    public const int SupportedSchemaVersion = 12;
 
     private readonly GarageRules _rules = rules.Value;
 
@@ -136,6 +136,7 @@ public sealed class PlannerArtifactRepository(
         var durations = new List<long>();
         var euT = new List<long>();
         var amps = new List<long>();
+        var overclocks = new List<OverclockMode>();
         var catalystSlotStart = new List<int> { 0 };
         var catalystAlternativeStart = new List<int> { 0 };
         var catalystItemId = new List<string>();
@@ -178,13 +179,19 @@ public sealed class PlannerArtifactRepository(
         var output = outputs.MoveNext() ? outputs.Current : null;
 
         foreach (var recipe in recipesDb.Query<RecipeRow>(
-            "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT, amps FROM recipes ORDER BY rowid",
+            "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT, amps, overclock FROM recipes ORDER BY rowid",
             buffered: false))
         {
             builder.BeginRecipe(recipe.Id, recipe.Machine, (int)recipe.Tier, (int?)recipe.MultiTier, (int?)recipe.Heat);
             durations.Add(recipe.DurationTicks);
             euT.Add(recipe.EuT);
             amps.Add(recipe.Amps);
+            overclocks.Add(recipe.Overclock switch
+            {
+                null => OverclockMode.Standard,
+                "TREE_FARM" => OverclockMode.TreeFarm,
+                var other => throw new InvalidOperationException($"recipe {recipe.Id} names an unknown overclock ladder '{other}'"),
+            });
             var flags = machines.GetValueOrDefault(recipe.Machine);
             machines[recipe.Machine] = (flags.MultiTier || recipe.MultiTier is not null, flags.Heat || recipe.Heat is not null);
 
@@ -267,7 +274,7 @@ public sealed class PlannerArtifactRepository(
                 [.. gridStart],
                 [.. gridCell],
                 [.. gridSlot]),
-            new FactoryRecipeData([.. durations], [.. euT], [.. amps]),
+            new FactoryRecipeData([.. durations], [.. euT], [.. amps], [.. overclocks]),
             machines);
     }
 }

@@ -133,7 +133,7 @@ public sealed class FactoryModelService(
         foreach (var variant in runVariants.Variants(context, recipe))
         {
             var variantEntries = entries;
-            if ((euRow is not null && variant.DrawsEu) || variant.DrawsSteam)
+            if ((euRow is not null && variant.DrawsEu) || variant.DrawsSteam || variant.ScalesOutputs)
             {
                 var extras = new List<(int Row, double Delta)>();
                 if (euRow is { } eu && variant.DrawsEu)
@@ -144,6 +144,13 @@ public sealed class FactoryModelService(
                 {
                     // The recipe may already consume the same fluid as a real input.
                     extras.Add((assembly.RowOf(steamItem), -variant.SteamPerRun));
+                }
+                if (variant.ScalesOutputs)
+                {
+                    for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
+                    {
+                        extras.Add((assembly.RowOf(index.OutputItem[o]), index.OutputYield[o] * (variant.OutputFactor - 1)));
+                    }
                 }
                 variantEntries = balance.Entries(extras);
             }

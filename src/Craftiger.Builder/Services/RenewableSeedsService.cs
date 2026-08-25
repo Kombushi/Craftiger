@@ -18,7 +18,7 @@ public sealed class RenewableSeedsService(
 
     public IReadOnlyList<PlannerRenewableSeed> Run(
         Dump dump, UnifiedItems unified, IReadOnlyDictionary<string, string> leafClasses,
-        IReadOnlySet<string> itemIds)
+        IReadOnlySet<string> itemIds, IReadOnlySet<string> conjured)
     {
         var seeds = new Dictionary<string, PlannerRenewableSeed>();
 
@@ -39,9 +39,10 @@ public sealed class RenewableSeedsService(
             }
         }
 
+        // A farm leaf a machine conjures is derived, not primitive: the solver reaches it through that recipe where the machine is legal.
         foreach (var (itemId, leafClass) in leafClasses)
         {
-            if (_farmLeafClasses.Contains(leafClass))
+            if (_farmLeafClasses.Contains(leafClass) && !conjured.Contains(itemId))
             {
                 seeds.TryAdd(itemId, new PlannerRenewableSeed(itemId, "FARM"));
             }

@@ -23,6 +23,9 @@ public static class TierLadder
     /// <summary>EU/t per amp a tier's machines run at; Steam machines draw no EU.</summary>
     public static long Voltage(int tier) => tier <= 0 ? 0 : 32L << (2 * (tier - 1));
 
+    /// <summary>GT's practical voltage, 30/32 of the tier's voltage: what a recipe run at the tier draws.</summary>
+    public static long PracticalVoltage(int tier) => Voltage(tier) * 30 / 32;
+
     /// <summary>Fallback when the dump carries no tier label.</summary>
     public static int VoltageTier(long euT)
     {

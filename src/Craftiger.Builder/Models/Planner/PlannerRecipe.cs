@@ -24,6 +24,11 @@ public sealed record PlannerRecipe(
     /// <summary>The filled cells of a shaped crafting recipe, null for shapeless and machine recipes or when netting removed a cell's ingredient.</summary>
     public IReadOnlyList<PlannerGridCell>? Grid { get; init; }
 
+    public OverclockMode Overclock { get; init; } = OverclockMode.Standard;
+
+    /// <summary>Whether the recipe consumes no input at all: a catalyst-only run that conjures its outputs.</summary>
+    public bool ConsumesNothing => Inputs.Count == 0 && Choices.Count == 0;
+
     /// <summary>Every consumed stack, flat inputs first and then each choice's alternatives.</summary>
     public IEnumerable<(string ItemId, long Amount)> Ingredients =>
         Inputs.Select(input => (input.Key, input.Value))

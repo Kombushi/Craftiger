@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.39
+# GTNH Crafting Planner — Specification v1.40
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -162,7 +162,15 @@ Builder responsibilities, in order:
    that needs a mortar in place shows the mortar, it just never pays for it.
    A member that is such a wearing tool carries the `tool` flag too, so the
    solver can tell a slot that wears a wrench from one that holds a circuit
-   when two routes tie (§5).
+   when two routes tie (§5). The Tree Growth Simulator's rows list no
+   inputs at all — the sapling sits in the controller slot, the harvesting
+   tools in the bus, none consumed — so the builder synthesizes them: the
+   map's controller-slot item becomes the sapling catalyst, each output
+   class (log, sapling, leaves, fruit — the dump's output slots, in that
+   order) gets a catalyst slot holding the best-multiplying tools of a
+   curated table, and the amounts ship at LV with that tool's multiplier
+   applied, on a five-second run drawing LV's practical 30 EU/t; the
+   recipe's `overclock` names the tree farm's own ladder (§9).
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
 4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). Two tiers
@@ -309,7 +317,7 @@ Builder responsibilities, in order:
   folds its query the same way, so matching is case-insensitive on every
   script while SQLite's own ASCII-only `LIKE` folding never matters (§7)
 - `recipes(id, machine, tier, multi_tier NULL, heat NULL, duration_ticks, eu_t,
-  amps, cleanroom, low_gravity)`
+  amps, cleanroom, low_gravity, overclock NULL)`
   — `multi_tier` for maps whose multiblock lowers the tier, `heat` for
   coil-gated recipes only. `eu_t` is the per-amp voltage; total power draw is
   `eu_t × amps`, with `amps` from the recipe's own dump row (the exporter
@@ -317,7 +325,12 @@ Builder responsibilities, in order:
   recipes diverge from the map, the tripwire for that convention changing).
   `cleanroom` and `low_gravity` carry the recipe's environment requirements
   for rate planning; the cost engine keeps handling cleanroom through the
-  era solve and ignores both columns
+  era solve and ignores both columns. `overclock` names the ladder a recipe
+  climbs above its tier for rate planning: null for GregTech's standard one
+  (each step quadruples power and halves duration), `TREE_FARM` for the
+  Tree Growth Simulator's, where each step quadruples power and multiplies
+  every output by the tier's yield instead — 2t² − 2t + 5 at tier t, over
+  the value at the recipe's own tier — at unchanged duration
 - `recipe_inputs(recipe_id, item_id, amount, slot, catalyst, tool)` — amount
   in units, or mB for fluids; rows sharing a `slot` are alternatives the
   recipe accepts any one of; `catalyst = 1` rows are the tool, mold, and
@@ -395,9 +408,11 @@ Builder responsibilities, in order:
   obtainable automatically and forever, from which run-time derivation
   through garage-legal chains starts. `WORLD` rows come from a curated name
   list (water, air, cobblestone — never lava), `FARM` rows are the
-  farm-product leaf classes (logs, crop drops, farmables), and `MOB` rows
-  are the distinct drops of soul-vial-capturable mobs, includable per
-  factory
+  farm-product leaf classes (logs, crop drops, farmables) except what some
+  shipped recipe makes from no consumed input at all — a log a Tree Growth
+  Simulator grows is derived, and the solver reaches it through that recipe
+  wherever the machine is legal — and `MOB` rows are the distinct drops of
+  soul-vial-capturable mobs, includable per factory
 - `machine_eras(machine, era, multiblock)` — per map, the era solve's era of
   its cheapest serving machine block, floored by any configured gate; null
   where no block ever becomes craftable, 0 for maps served without machine
@@ -914,6 +929,24 @@ All "does not / never" rules live here; other sections only reference this one.
   would overprice every hand-ground dust. They ship as `catalyst`-flagged
   `recipe_inputs` rows; the solver reads only whether a slot holds a wearing
   tool, to break exact ties (§5), never what it costs.
+- **Recipes that consume nothing** — a recipe whose every input is a
+  catalyst conjures its outputs, and a material-only cost has nothing to
+  say about it: such a recipe never prices, in the shipped engine and in the
+  builder's own price check alike. The Tree Growth Simulator is the one
+  such recipe family that ships (§3 step 2): it exists for rate planning,
+  where a run costs machine time and EU, while its logs keep pricing at
+  their farm-leaf weight. A pin may still choose it for a BOM, which then
+  makes the logs for nothing. Its tool multipliers are GT5-Unofficial's
+  own: logs by Saw ×1, Buzzsaw ×2, Chainsaw ×4; saplings by Branch Cutter
+  ×1, Forestry Grafter ×4; leaves by Shears ×1, Wire Cutter ×2, electric
+  Wire Cutter ×4; fruit by Knife ×1 — every tool the controller accepts sits
+  in the builder's table, and the shipped catalyst slot holds only the
+  best. Electric tools recharge externally and wearing ones survive the
+  run, so none is consumed. The hatch tier's yield — 2t² − 2t + 5 — is
+  what the controller computes from one energy hatch; that two ordinary
+  hatches read as the next tier is the same amperage lift rate planning
+  ignores on every multiblock, so a tree farm climbs exactly the garage's
+  tiers.
 - **Byproduct credit** — sibling outputs never reduce a recipe's cost;
   crediting them collapses all prices toward zero through recycling loops.
 - **Pseudo-recipe sources** — bee breeding, mob drops, dungeon/chest loot,
@@ -1186,3 +1219,10 @@ All "does not / never" rules live here; other sections only reference this one.
     farm-product leaf a `FARM` seed, a capturable mob's drop a `MOB` seed,
     an uncapturable mob's drop no seed at all — and `tier_voltages` ships
     beside `tier_names`.
+49. A Tree Growth Simulator row ships once, at LV on a five-second run, with
+    its sapling and each output class's best tools as catalyst slots and
+    the chainsaw-class multiplier in its amounts; a log it grows is no
+    longer a `FARM` seed while a log no farm grows still is; the recipe
+    never prices, so the log keeps its leaf weight; and a factory line on
+    it multiplies outputs by the hatch tier's yield at unchanged duration,
+    on a real block and on the anonymous fallback alike.

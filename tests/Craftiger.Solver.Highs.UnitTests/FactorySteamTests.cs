@@ -11,8 +11,9 @@ public class FactorySteamTests
     public void BoilerSteamAndSteamMachineBalanceAsACarrier()
     {
         // A boiler line boils fuel and water into steam, a steam machine drinks it in place of EU, and the carrier balances as ordinary item flow.
+        // The ore is dug for free; its leaf weight only keeps the chain priceable, since a dig consuming nothing never prices.
         var graph = SolverGraph.Build(
-            [Leaf("fuelwood", weight: 1), Leaf("water", weight: 0)],
+            [Leaf("fuelwood", weight: 1), Leaf("water", weight: 0), Leaf("ore", weight: 1)],
             [
                 Recipe("boil", inputs: [("fuelwood", 1), ("water", 240)], machine: "Large Bronze Boiler",
                     outputs: ("f~IC2~ic2steam", 38400, 1.0)),

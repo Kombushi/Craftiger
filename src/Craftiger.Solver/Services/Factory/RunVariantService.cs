@@ -50,6 +50,7 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
         var coilTier = context.Machines.CoilTier(garage, map);
         var blocks = context.Machines.BlocksOf(map);
         var euPerTick = context.Recipes.DrawPerTick(recipe);
+        var mode = context.Recipes.OverclockOf(recipe);
         if (blocks is { Count: > 0 })
         {
             var allMulti = blocks.All(block => block.Multiblock);
@@ -80,8 +81,8 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
                     required = singleRequired;
                 }
                 AddOverclocks(
-                    variants, recipe, block.ItemId, durationTicks, euPerTick,
-                    voltageTier - required, perfectSteps, heatEuFactor, block.Effects(coilTier, voltageTier));
+                    variants, mode, recipe, block.ItemId, durationTicks, euPerTick,
+                    required, voltageTier - required, perfectSteps, heatEuFactor, block.Effects(coilTier, voltageTier));
             }
         }
 
@@ -89,8 +90,8 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
         {
             var required = multiBuilt ? multiRequired : singleRequired;
             AddOverclocks(
-                variants, recipe, null, durationTicks, euPerTick,
-                mapTier - required, perfectSteps, heatEuFactor, BlockEffects.Anonymous);
+                variants, mode, recipe, null, durationTicks, euPerTick,
+                required, mapTier - required, perfectSteps, heatEuFactor, BlockEffects.Anonymous);
         }
 
         if (blocks is not null && index.Tier[recipe] <= MaxSteamTier && index.HeatOf(recipe) is null
@@ -117,12 +118,15 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
         return variants;
     }
 
+    /// <summary>The standard ladder trades quadrupled power for halved duration; a tree farm keeps its duration and multiplies its yield by the tier's gain.</summary>
     private static void AddOverclocks(
         List<RunVariant> variants,
+        OverclockMode mode,
         int recipe,
         string? machineItemId,
         long durationTicks,
         long euPerTick,
+        int requiredTier,
         int maxSteps,
         int perfectSteps,
         double heatEuFactor,
@@ -130,16 +134,17 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
     {
         var baseSeconds = durationTicks / Ticks.PerSecond * effects.DurationFactor;
         var baseEu = durationTicks * (double)euPerTick * heatEuFactor * effects.EuFactor * effects.DurationFactor;
+        var treeFarm = mode == OverclockMode.TreeFarm;
         foreach (var overclock in Overclock.Ladder(maxSteps, perfectSteps, drawsPower: euPerTick > 0))
         {
-            variants.Add(new RunVariant(
-                recipe,
-                machineItemId,
-                overclock.Steps,
-                effects.Parallels,
-                baseSeconds / overclock.DurationDivisor,
-                baseEu * overclock.EuMultiplier,
-                effects.Estimated));
+            variants.Add(treeFarm
+                ? new RunVariant(
+                    recipe, machineItemId, overclock.Steps, effects.Parallels,
+                    baseSeconds, baseEu * overclock.PowerMultiplier, effects.Estimated,
+                    OutputFactor: TreeFarmYield.Gain(requiredTier, requiredTier + overclock.Steps))
+                : new RunVariant(
+                    recipe, machineItemId, overclock.Steps, effects.Parallels,
+                    baseSeconds / overclock.DurationDivisor, baseEu * overclock.EuMultiplier, effects.Estimated));
         }
     }
 }

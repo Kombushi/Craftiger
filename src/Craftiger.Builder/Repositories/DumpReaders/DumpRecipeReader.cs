@@ -28,17 +28,21 @@ public sealed class DumpRecipeReader(ILogger<DumpRecipeReader> logger) : IDumpRe
 
         // coil_heat metadata is authoritative; RECIPE_SPECIAL_VALUE holds the same number for EBF maps.
         var categoryColumn = DumpQueries.HasColumn(db, "GREG_TECH_RECIPE", "RECIPE_CATEGORY") ? "g.RECIPE_CATEGORY" : "''";
+        var specialItemJoin = DumpQueries.HasTable(db, "GREG_TECH_RECIPE_ITEM")
+            ? "LEFT JOIN GREG_TECH_RECIPE_ITEM s ON s.GREG_TECH_RECIPE_ID = g.ID"
+            : "LEFT JOIN (SELECT NULL AS GREG_TECH_RECIPE_ID, NULL AS SPECIAL_ITEMS_ID) s ON 0";
         var gt = new Dictionary<string, DumpGtData>();
-        foreach (var r in db.Query<(string Id, long? Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom, long? LowGravity, long? SpecialValue, string? AdditionalInfo, string? Category)>($"""
-            SELECT g.RECIPE_ID, g.VOLTAGE, g.AMPERAGE, g.DURATION, m.METADATA_VALUE, g.VOLTAGE_TIER, g.REQUIRES_CLEANROOM, g.REQUIRES_LOW_GRAVITY, g.RECIPE_SPECIAL_VALUE, g.ADDITIONAL_INFO, {categoryColumn}
+        foreach (var r in db.Query<(string Id, long? Voltage, long Amperage, long Duration, long? Heat, string? TierLabel, long? Cleanroom, long? LowGravity, long? SpecialValue, string? AdditionalInfo, string? Category, string? SpecialItemId)>($"""
+            SELECT g.RECIPE_ID, g.VOLTAGE, g.AMPERAGE, g.DURATION, m.METADATA_VALUE, g.VOLTAGE_TIER, g.REQUIRES_CLEANROOM, g.REQUIRES_LOW_GRAVITY, g.RECIPE_SPECIAL_VALUE, g.ADDITIONAL_INFO, {categoryColumn}, s.SPECIAL_ITEMS_ID
             FROM GREG_TECH_RECIPE g
             LEFT JOIN GREG_TECH_RECIPE_METADATA m ON m.GREG_TECH_RECIPE_ID = g.ID AND m.METADATA_KEY = 'coil_heat'
+            {specialItemJoin}
             """))
         {
             gt[r.Id] = new DumpGtData(
                 r.Id, r.Voltage, r.Amperage, r.Duration, (int?)r.Heat, r.TierLabel,
                 r.Cleanroom is not (null or 0), r.LowGravity is not (null or 0),
-                r.SpecialValue, r.AdditionalInfo, r.Category ?? "");
+                r.SpecialValue, r.AdditionalInfo, r.Category ?? "", r.SpecialItemId);
         }
         if (categoryColumn == "''")
         {

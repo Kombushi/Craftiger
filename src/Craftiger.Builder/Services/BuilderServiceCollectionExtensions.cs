@@ -37,6 +37,7 @@ public static class BuilderServiceCollectionExtensions
             .Configure<MachineOverlayConfiguration>(
                 configuration.GetSection(nameof(MachineOverlayConfiguration)))
             .Configure<SteamConfiguration>(configuration.GetSection(nameof(SteamConfiguration)))
+            .Configure<TreeFarmConfiguration>(configuration.GetSection(nameof(TreeFarmConfiguration)))
             .AddSingleton<IDumpItemReader, DumpItemReader>()
             .AddSingleton<IDumpOredictReader, DumpOredictReader>()
             .AddSingleton<IDumpRecipeReader, DumpRecipeReader>()
@@ -52,6 +53,7 @@ public static class BuilderServiceCollectionExtensions
             .AddSingleton<IRecipeVariantService, RecipeVariantService>()
             .AddSingleton<ICraftingGridService, CraftingGridService>()
             .AddSingleton<IRecipeTransformService, RecipeTransformService>()
+            .AddSingleton<ITreeFarmRecipeService, TreeFarmRecipeService>()
             .AddSingleton<IConservationService, ConservationService>()
             .AddSingleton<ILeafTaggingService, LeafTaggingService>()
             .AddSingleton<IBlockBreakRecipeService, BlockBreakRecipeService>()

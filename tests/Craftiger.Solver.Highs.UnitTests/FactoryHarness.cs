@@ -58,7 +58,8 @@ internal static class FactoryHarness
         Dictionary<string, (long DurationTicks, long EuT, long Amps)>? data = null,
         FactoryMachineData? machines = null,
         int garageTier = 0,
-        FactorySeedData? seeds = null)
+        FactorySeedData? seeds = null,
+        IEnumerable<string>? treeFarms = null)
     {
         var legality = new GarageLegalityService(Options.Create(Rules));
         var costOptions = Options.Create(new CostSolverOptions());
@@ -80,7 +81,7 @@ internal static class FactoryHarness
         var weights = new WeightSettings(4, new Dictionary<string, double>());
         var context = new FactoryContext(
             graph,
-            FactoryRecipeData.Build(graph.Index, data),
+            FactoryRecipeData.Build(graph.Index, data, treeFarms),
             machines ?? FactoryMachineData.Empty,
             seeds ?? FactorySeedData.Empty,
             new FactorySteamRules(["f~IC2~ic2steam", "f~Railcraft~steam"], "f~IC2~ic2distilledwater", 0.5, 160),
