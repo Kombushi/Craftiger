@@ -61,6 +61,7 @@ public sealed class DumpRepository(
             MultiblockMachines = machineSet.MultiblockMachines,
             TurbineRotors = machineSet.TurbineRotors,
             MobDropItemIds = cropSet.MobDropItemIds,
+            MobDropsByMob = cropSet.MobDropsByMob,
             DeprecatedItems = itemSet.DeprecatedItems,
             ExporterVersion = metadata.ExporterVersion,
             ExportedAt = metadata.ExportedAt,

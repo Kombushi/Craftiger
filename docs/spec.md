@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.40
+# GTNH Crafting Planner — Specification v1.41
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -217,8 +217,11 @@ Builder responsibilities, in order:
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
    era of every input)`. World-origin items seed the fixpoint: farmables,
-   logs, minable blocks, the world fluids config lists (water, lava), and
-   mined `ore*` items —
+   logs, minable blocks, the world fluids config lists (water, lava), the
+   drops of mobs a checked-in list dates (the Wither at Steam, since the
+   Nether is — the dump names no mob's world, so an unlisted mob's drops
+   seed nothing and its Nether Star would otherwise wait for a ZPM-era ore
+   vein), and mined `ore*` items —
    except ores generated only in later worlds, which seed at the era of
    reaching their cheapest generating dimension. That era is derived from the
    dump's GT worldgen tables (veins, small ores, dimension tiers) through two
@@ -407,11 +410,12 @@ Builder responsibilities, in order:
 - `renewable_seeds(item_id, kind)` — the auto-infinite primitives: items
   obtainable automatically and forever, from which run-time derivation
   through garage-legal chains starts. `WORLD` rows come from a curated name
-  list (water, air, cobblestone — never lava), `FARM` rows are the
-  farm-product leaf classes (logs, crop drops, farmables) except what some
-  shipped recipe makes from no consumed input at all — a log a Tree Growth
-  Simulator grows is derived, and the solver reaches it through that recipe
-  wherever the machine is legal — and `MOB` rows are the distinct drops of
+  list (water, air, cobblestone — never lava), `FARM` rows are the crop
+  drops and farmables except what some shipped recipe makes from no
+  consumed input at all — a sapling a Tree Growth Simulator grows is
+  derived, and the solver reaches it through that recipe wherever the
+  machine is legal — and never logs: wood is tree-farmed or bought at its
+  weight, never free of machines; `MOB` rows are the distinct drops of
   soul-vial-capturable mobs, includable per factory
 - `machine_eras(machine, era, multiblock)` — per map, the era solve's era of
   its cheapest serving machine block, floored by any configured gate; null
@@ -1216,13 +1220,17 @@ All "does not / never" rules live here; other sections only reference this one.
     typed bonus rows with their scaling axes, and a rotor its per-fuel
     tight and loose stats.
 48. Auto-infinite seeds mark their source kind: water is a `WORLD` seed, a
-    farm-product leaf a `FARM` seed, a capturable mob's drop a `MOB` seed,
-    an uncapturable mob's drop no seed at all — and `tier_voltages` ships
-    beside `tier_names`.
+    crop drop or farmable a `FARM` seed and a log never, a capturable mob's
+    drop a `MOB` seed, an uncapturable mob's drop no seed at all — and
+    `tier_voltages` ships beside `tier_names`.
 49. A Tree Growth Simulator row ships once, at LV on a five-second run, with
     its sapling and each output class's best tools as catalyst slots and
-    the chainsaw-class multiplier in its amounts; a log it grows is no
-    longer a `FARM` seed while a log no farm grows still is; the recipe
-    never prices, so the log keeps its leaf weight; and a factory line on
-    it multiplies outputs by the hatch tier's yield at unchanged duration,
-    on a real block and on the anonymous fallback alike.
+    the chainsaw-class multiplier in its amounts; the sapling it grows is
+    no longer a `FARM` seed; the recipe never prices, so the log keeps its
+    leaf weight; and a factory line on it multiplies outputs by the hatch
+    tier's yield at unchanged duration, on a real block and on the
+    anonymous fallback alike.
+50. A dated mob's drops seed the era solve at the mob's era — a relic
+    smelted from an MV-dated boss's drop tiers at MV — while an unlisted
+    mob's drop seeds nothing and the same ingot only gets its recipe-tier
+    fallback.

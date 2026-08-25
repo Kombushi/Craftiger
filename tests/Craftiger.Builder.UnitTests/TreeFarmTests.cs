@@ -49,11 +49,12 @@ public sealed class TreeFarmTests(BuilderPipelineFixture fixture) : IClassFixtur
     }
 
     [Fact]
-    public void ConjuredLogsAreDerivedWhileUnfarmedLogsStaySeeds()
+    public void NoLogIsASeedAndConjuredFarmablesAreDerived()
     {
+        // Logs stay priced leaves — tree-farmed or bought, never free of machines — and the farmed sapling is derived rather than primitive.
         Assert.Equal("log", fixture.Scalar<string>($"SELECT leaf_class FROM items WHERE id = '{FixtureDump.Log}'"));
-        Assert.Equal(0, fixture.Scalar<int>($"SELECT COUNT(*) FROM renewable_seeds WHERE item_id = '{FixtureDump.Log}'"));
+        Assert.Equal(0, fixture.Scalar<int>($"SELECT COUNT(*) FROM renewable_seeds WHERE item_id IN ('{FixtureDump.Log}', '{FixtureDump.PineLog}')"));
+        Assert.Equal("farmable", fixture.Scalar<string>($"SELECT leaf_class FROM items WHERE id = '{FixtureDump.OakSapling}'"));
         Assert.Equal(0, fixture.Scalar<int>($"SELECT COUNT(*) FROM renewable_seeds WHERE item_id = '{FixtureDump.OakSapling}'"));
-        Assert.Equal("FARM", fixture.Scalar<string>($"SELECT kind FROM renewable_seeds WHERE item_id = '{FixtureDump.PineLog}'"));
     }
 }

@@ -12,7 +12,8 @@ public sealed class RenewableSeedsService(
     IOptions<RenewableSeedsConfiguration> config,
     ILogger<RenewableSeedsService> logger) : IRenewableSeedsService
 {
-    private static readonly HashSet<string> _farmLeafClasses = ["log", "crop_drop", "farmable"];
+    /// <summary>Logs are never seeds: wood is tree-farmed or bought, never free of machines.</summary>
+    private static readonly HashSet<string> _farmLeafClasses = ["crop_drop", "farmable"];
 
     private readonly RenewableSeedsConfiguration _config = config.Value;
 

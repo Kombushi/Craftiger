@@ -72,5 +72,12 @@ public static partial class FixtureDump
         db.Execute("INSERT INTO MOB_INFO_DROPS VALUES ('mi~1', 'i~fixture~mob_pearl', 1, 0, 0.5, 1, 'NORMAL')");
         db.Execute("INSERT INTO MOB_INFO VALUES ('mi~2', 0, 0, 0, 0, 'mob~2')");
         db.Execute("INSERT INTO MOB_INFO_DROPS VALUES ('mi~2', 'i~fixture~boss_relic', 1, 0, 1.0, 1, 'NORMAL')");
+        // The relic smelts into an ingot, so a dated mob shows up as the ingot's tier.
+        Item(db, RelicIngot, "Relicium Ingot", "fixture");
+        Group(db, "g_boss_relic", ("i~fixture~boss_relic", 1));
+        Group(db, "g_relic_ingot", (RelicIngot, 1));
+        Oredict(db, "ingotRelicium", "g_relic_ingot");
+        Unify(db, "ingotRelicium", RelicIngot);
+        Recipe(db, "r_relic_smelt", "t_furnace", inputs: [("g_boss_relic", 0)], outputs: [(RelicIngot, 1, 1.0)]);
     }
 }

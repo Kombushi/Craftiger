@@ -43,7 +43,25 @@ public sealed class DumpCropReader(ILogger<DumpCropReader> logger) : IDumpCropRe
                 cropUnderBlocks.GetValueOrDefault(r.Id) ?? []));
         }
 
-        return new DumpCropSet(crops, blockDrops, ReadMobDropItemIds(db));
+        return new DumpCropSet(crops, blockDrops, ReadMobDropItemIds(db), ReadMobDropsByMob(db));
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> ReadMobDropsByMob(SqliteConnection db)
+    {
+        var drops = new Dictionary<string, List<string>>();
+        if (DumpQueries.HasTable(db, "MOB_INFO_DROPS"))
+        {
+            foreach (var (mobId, itemId) in db.Query<(string, string)>("""
+                SELECT m.MOB_ID, d.DROPS_ITEM_ID
+                FROM MOB_INFO_DROPS d
+                JOIN MOB_INFO m ON m.ID = d.MOB_INFO_ID
+                WHERE d.DROPS_ITEM_ID IS NOT NULL
+                """))
+            {
+                DumpQueries.Add(drops, mobId, itemId);
+            }
+        }
+        return DumpQueries.Freeze(drops);
     }
 
     private HashSet<string> ReadMobDropItemIds(SqliteConnection db)

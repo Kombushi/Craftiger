@@ -405,8 +405,9 @@ has two parts, and neither is a baked per-item flag:
 - **The artifact ships only a curated seed set** of primitives
   (`renewable_seeds`, from a checked-in builder config), decided: start from
   gtnh-flow's renewables catalog **minus lava**; **Air and Cobblestone are
-  seeds**; Water, farm-product leaves (logs, latex, crop drops) and
-  mob-drop leaves are in; **automated fishing and scrapbox loops are not**
+  seeds**; Water, farm-product leaves (latex, crop drops, farmables) and
+  mob-drop leaves are in; **logs are not** — wood is tree-farmed or bought,
+  never free of machines; **automated fishing and scrapbox loops are not**
   (v1). Leaf classes are *not* trusted: of the 8 `world_fluid` leaves only
   Water qualifies (the rest are Lava and six finite oils); `minable_block`
   mixes Cobblestone with finite End Stone.
@@ -465,9 +466,12 @@ and saplings ×5, leaves ×2, fruit ×1); the builder adds the sapling (the
 row's controller-slot item) and, per mode, the best-multiplying tools of a
 curated table as catalyst slots, and ships the LV amounts with that tool's
 multiplier applied. A recipe consuming nothing never prices, so logs keep
-their farm-leaf weight in the cost engine, and a log a farm grows stops
-being a seed: the factory derives it through the farm — machines and EU —
-wherever the controller is legal, and buys it at its weight elsewhere.
+their farm-leaf weight in the cost engine; no log is a seed, and what the
+farm conjures (saplings, leaves, fruit) stops being one: the factory
+derives wood through the farm — machines and EU — wherever the controller
+is legal, and buys it at its weight elsewhere. The controller's own era
+follows the Nether Star in its Field Generators, which the era solve dates
+by the Wither's world once mob drops seed it.
 Two shortcuts are deliberate: the controller reads two ordinary energy
 hatches as the next tier (each hatch works two amps), the same amperage
 lift ignored on every multiblock, so a farm climbs exactly the garage's

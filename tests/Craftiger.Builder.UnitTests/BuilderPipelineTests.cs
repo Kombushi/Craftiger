@@ -198,6 +198,12 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     }
 
     [Fact]
+    public void AnUndatedMobsDropSeedsNothing() =>
+        // The relic never becomes reachable, so its ingot only gets the recipe-tier fallback.
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.RelicIngot}'"));
+
+    [Fact]
     public void ArtifactStampsItsSchemaVersion()
     {
         Assert.Equal(12, Repositories.PlannerRepository.SchemaVersion);

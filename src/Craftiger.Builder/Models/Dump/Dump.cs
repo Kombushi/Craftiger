@@ -67,6 +67,9 @@ public sealed record Dump
     /// <summary>Distinct drops of soul-vial-capturable mobs: what an auto mob farm yields.</summary>
     public required IReadOnlySet<string> MobDropItemIds { get; init; }
 
+    /// <summary>Every mob's drop item ids by mob id, capturable or not.</summary>
+    public required IReadOnlyDictionary<string, IReadOnlyList<string>> MobDropsByMob { get; init; }
+
     /// <summary>Items wearing GT's rigid deprecation banner; superseded controllers never ship as machine blocks.</summary>
     public required IReadOnlySet<string> DeprecatedItems { get; init; }
 

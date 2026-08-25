@@ -11,11 +11,13 @@ namespace Craftiger.Builder.Services.Eras;
 /// <summary>Order matters here: the first seed of an item wins, and only seeds are immune to recipes.</summary>
 public sealed class EraSeedService(
     IOptions<WorldConfiguration> world,
+    IOptions<ErasConfiguration> eras,
     ILogger<EraSeedService> logger) : IEraSeedService
 {
     private static readonly HashSet<string> _worldOriginClasses = ["minable_block", "farmable", "log"];
 
     private readonly WorldConfiguration _world = world.Value;
+    private readonly ErasConfiguration _eras = eras.Value;
 
     public EraTable Run(
         IReadOnlyDictionary<string, string> leafClasses, UnifiedItems unified, Dump dump, WorldgenEras worldgen)
@@ -64,6 +66,19 @@ public sealed class EraSeedService(
         foreach (var (id, dropEra) in worldgen.Drops)
         {
             table.Lower(id, dropEra);
+        }
+        // A dated mob's drops start at its era the same way: the Wither's star is a Steam Age hunt.
+        foreach (var (mobId, mobEra) in _eras.MobDropEras.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            if (!dump.MobDropsByMob.TryGetValue(mobId, out var drops))
+            {
+                logger.LogWarning("mob {MobId} has an era but is unknown to this dump; skipped", mobId);
+                continue;
+            }
+            foreach (var drop in drops.Where(dump.Items.ContainsKey))
+            {
+                table.Lower(unified.Canonical(drop), mobEra);
+            }
         }
 
         logger.LogInformation(
