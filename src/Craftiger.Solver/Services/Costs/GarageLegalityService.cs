@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Craftiger.Solver.Interfaces.Costs;
 using Craftiger.Solver.Models.Costs;
 using Craftiger.Solver.Models.Graph;
@@ -11,12 +12,16 @@ public sealed class GarageLegalityService(IOptions<GarageRules> options) : IGara
     /// <summary>Heat granted per energy hatch tier above MV on maps with the bonus, verified against GT5-Unofficial source.</summary>
     private const int HeatPerTierAboveMv = 100;
 
-    private readonly GarageRules _rules = options.Value;
+    private readonly FrozenSet<string> _alwaysOwned = options.Value.AlwaysOwnedMachines.ToFrozenSet();
+    private readonly FrozenSet<string> _heatExempt = options.Value.HeatExemptMachines.ToFrozenSet();
+    private readonly FrozenSet<string> _heatBonus = options.Value.HeatBonusMachines.ToFrozenSet();
+
+    public bool IsAlwaysOwned(string machine) => _alwaysOwned.Contains(machine);
 
     public int? EffectiveTier(string machine, Garage garage)
     {
         var overridden = garage.TryGetOverride(machine, out var tier);
-        if (_rules.IsAlwaysOwned(machine))
+        if (IsAlwaysOwned(machine))
         {
             return overridden && tier is { } owned ? owned : garage.DefaultTier;
         }
@@ -38,14 +43,14 @@ public sealed class GarageLegalityService(IOptions<GarageRules> options) : IGara
         }
 
         return index.HeatOf(recipe) is not { } heat
-            || _rules.IsHeatExempt(machine)
+            || _heatExempt.Contains(machine)
             || heat <= HeatCapacity(machine, garage);
     }
 
     public int HeatCapacity(string machine, Garage garage)
     {
         var capacity = garage.CoilHeatOf(machine);
-        if (_rules.HasHeatBonus(machine) && EffectiveTier(machine, garage) is { } tier)
+        if (_heatBonus.Contains(machine) && EffectiveTier(machine, garage) is { } tier)
         {
             capacity += HeatPerTierAboveMv * Math.Max(0, tier - 2);
         }

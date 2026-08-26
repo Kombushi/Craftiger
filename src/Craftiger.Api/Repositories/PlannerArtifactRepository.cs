@@ -1,24 +1,21 @@
 using System.Text.Json;
 using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
+using Craftiger.Solver.Interfaces.Costs;
 using Craftiger.Solver.Models.Factory;
 using Craftiger.Solver.Models.Graph;
-using Craftiger.Solver.Models.Options;
 using Dapper;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Options;
 
 namespace Craftiger.Api.Repositories;
 
 public sealed class PlannerArtifactRepository(
     IFactoryArtifactReader factoryReader,
-    IOptions<GarageRules> rules,
+    IGarageLegalityService legality,
     ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
     public const int SupportedSchemaVersion = 12;
-
-    private readonly GarageRules _rules = rules.Value;
 
     public PlannerArtifact Load(string artifactsDir)
     {
@@ -92,7 +89,7 @@ public sealed class PlannerArtifactRepository(
         var machineDtos = machines
             .Select(pair => new MachineDto(
                 pair.Key, pair.Value.MultiTier, pair.Value.Heat,
-                _rules.IsAlwaysOwned(pair.Key),
+                legality.IsAlwaysOwned(pair.Key),
                 machineEras.GetValueOrDefault(pair.Key).Era,
                 machineEras.GetValueOrDefault(pair.Key).Multiblock))
             .OrderBy(machine => machine.Name, StringComparer.Ordinal)

@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Craftiger.Solver.Interfaces.Costs;
 using Craftiger.Solver.Models.Costs;
 using Craftiger.Solver.Models.Options;
@@ -9,7 +10,8 @@ public sealed class RoutePreferenceService(
     IOptions<SolverPreferences> preferences,
     IOptions<CostSolverOptions> options) : IRoutePreferenceService
 {
-    private readonly SolverPreferences _preferences = preferences.Value;
+    /// <summary>Rank per leaf class, the first listing winning; unlisted classes rank best at zero.</summary>
+    private readonly FrozenDictionary<string, int> _rank = RankByClass(preferences.Value.LeafClassPriority);
     private readonly CostSolverOptions _options = options.Value;
 
     /// <summary>Where another priceable producer offers the same price, the pointer moves to the best-scoring one — unless its inputs reach the item over chosen edges, which would close a pointer loop.</summary>
@@ -21,7 +23,7 @@ public sealed class RoutePreferenceService(
         var leafWeight = new double[index.ItemCount];
         for (var i = 0; i < index.ItemCount; i++)
         {
-            rank[i] = _preferences.Rank(index.LeafClass[i]);
+            rank[i] = Rank(index.LeafClass[i]);
             if (index.IsLeaf(i))
             {
                 leafWeight[i] = leafWeights.GetValueOrDefault(index.ItemIds[i]);
@@ -60,6 +62,18 @@ public sealed class RoutePreferenceService(
                 break;
             }
         }
+    }
+
+    private int Rank(string? leafClass) => leafClass is not null && _rank.TryGetValue(leafClass, out var rank) ? rank : 0;
+
+    private static FrozenDictionary<string, int> RankByClass(IReadOnlyList<string> priority)
+    {
+        var ranks = new Dictionary<string, int>();
+        for (var i = 0; i < priority.Count; i++)
+        {
+            ranks.TryAdd(priority[i], i);
+        }
+        return ranks.ToFrozenDictionary();
     }
 
     private static RouteScore Score(

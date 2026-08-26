@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Text.RegularExpressions;
 using Craftiger.Builder.Interfaces.Recipes;
 using Craftiger.Builder.Models.Dump;
@@ -17,6 +18,8 @@ public sealed partial class RecipeTransformService(
 {
     private readonly RecipesConfiguration _config = options.Value;
     private readonly TreeFarmConfiguration _treeFarm = treeFarm.Value;
+    private readonly FrozenSet<string> _excludedMachines = options.Value.ExcludedMachines.ToFrozenSet();
+    private readonly FrozenSet<string> _eraOnlyMachines = options.Value.EraOnlyMachines.ToFrozenSet();
 
     [GeneratedRegex(@" \((ULV|LV|MV|HV|EV|IV|LuV|ZPM|UV|UHV|UEV|UIV|UMV|UXV|MAX)\)$")]
     private static partial Regex TierSuffix();
@@ -177,7 +180,7 @@ public sealed partial class RecipeTransformService(
                     slots,
                     gt?.RequiresCleanroom ?? false,
                     gt?.RequiresLowGravity ?? false,
-                    _config.EraOnlyMachines.Contains(machine))
+                    _eraOnlyMachines.Contains(machine))
                 {
                     Catalysts = catalysts,
                     Grid = cellRefs is null ? null : grids.GridOf(cellRefs, variantInputs, choices.Count),
@@ -203,5 +206,5 @@ public sealed partial class RecipeTransformService(
         dump.IsFluid(id) || unified.OredictsOf(id).Any(dump.OrePrefixes.IsMaterialShape);
 
     private bool IsExcluded(string machine) =>
-        _config.ExcludedMachines.Contains(machine);
+        _excludedMachines.Contains(machine);
 }

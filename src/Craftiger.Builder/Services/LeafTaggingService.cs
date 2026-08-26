@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
@@ -11,7 +12,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
     : ILeafTaggingService
 {
     /// <summary>Material leaf classes keyed by the oredict's exact GT prefix; intermediates are distinct prefixes and never match.</summary>
-    private static readonly Dictionary<string, string> _classByPrefix = new()
+    private static readonly FrozenDictionary<string, string> _classByPrefix = new Dictionary<string, string>
     {
         ["dust"] = "dust",
         ["dustSmall"] = "dust_small",
@@ -23,7 +24,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
         ["gemFlawless"] = "gem_flawless",
         ["gemExquisite"] = "gem_exquisite",
         ["nugget"] = "nugget"
-    };
+    }.ToFrozenDictionary();
 
     private readonly WorldConfiguration _config = options.Value;
 

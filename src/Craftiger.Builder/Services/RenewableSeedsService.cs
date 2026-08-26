@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
@@ -13,7 +14,7 @@ public sealed class RenewableSeedsService(
     ILogger<RenewableSeedsService> logger) : IRenewableSeedsService
 {
     /// <summary>Logs are never seeds: wood is tree-farmed or bought, never free of machines.</summary>
-    private static readonly HashSet<string> _farmLeafClasses = ["crop_drop", "farmable"];
+    private static readonly FrozenSet<string> _farmLeafClasses = FrozenSet.ToFrozenSet<string>(["crop_drop", "farmable"]);
 
     private readonly RenewableSeedsConfiguration _config = config.Value;
 

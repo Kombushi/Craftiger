@@ -6,6 +6,9 @@ namespace Craftiger.Solver.Interfaces.Costs;
 /// <summary>Decides which recipes a garage can run.</summary>
 public interface IGarageLegalityService
 {
+    /// <summary>Whether every garage owns the machine at tier 0, so a None override cannot disown it.</summary>
+    bool IsAlwaysOwned(string machine);
+
     /// <summary>The tier the garage runs this machine at, or null when it is not owned.</summary>
     int? EffectiveTier(string machine, Garage garage);
 

@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace Craftiger.Builder.Models.Planner;
 
 /// <summary>The tier ladder (Steam = 0, LV = 1, ...) shared by recipes, machines, and artifact metadata.</summary>
@@ -9,12 +11,12 @@ public static class TierLadder
         "UV", "UHV", "UEV", "UIV", "UMV", "UXV", "MAX"
     ];
 
-    private static readonly Dictionary<string, int> _labelTiers = new()
+    private static readonly FrozenDictionary<string, int> _labelTiers = new Dictionary<string, int>
     {
         ["ULV"] = 1, ["LV"] = 1, ["MV"] = 2, ["HV"] = 3, ["EV"] = 4, ["IV"] = 5,
         ["LuV"] = 6, ["ZPM"] = 7, ["UV"] = 8, ["UHV"] = 9, ["UEV"] = 10,
         ["UIV"] = 11, ["UMV"] = 12, ["UXV"] = 13, ["MAX"] = 14
-    };
+    }.ToFrozenDictionary();
 
     /// <summary>GT's own per-recipe tier label; it already accounts for machine amperage.</summary>
     public static int? LabelTier(string? label) =>

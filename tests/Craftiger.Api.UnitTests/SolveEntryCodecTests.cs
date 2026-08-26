@@ -3,6 +3,7 @@ using Craftiger.Api.Repositories;
 using Craftiger.Api.Services;
 using Craftiger.Solver.Models.Costs;
 using Craftiger.Solver.Models.Options;
+using Craftiger.Solver.Services.Costs;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -20,7 +21,7 @@ public sealed class SolveEntryCodecTests : IDisposable
         Directory.CreateDirectory(_dir);
         ApiFixture.WriteArtifact(Path.Combine(_dir, "planner.sqlite"), schemaVersion: PlannerArtifactRepository.SupportedSchemaVersion);
         var rules = Options.Create(new GarageRules());
-        _artifact = new PlannerArtifactRepository(new FactoryArtifactReader(), rules, NullLogger<PlannerArtifactRepository>.Instance).Load(_dir);
+        _artifact = new PlannerArtifactRepository(new FactoryArtifactReader(), new GarageLegalityService(rules), NullLogger<PlannerArtifactRepository>.Instance).Load(_dir);
         var solver = ApiFixture.CostSolver(rules);
         var garage = new Garage(
             3, new Dictionary<string, int?> { ["Extruder"] = null, ["Wiremill"] = 2 },

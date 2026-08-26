@@ -11,10 +11,4 @@ public sealed record GarageRules
 
     /// <summary>Maps whose heat capacity grows with the energy hatch tier.</summary>
     public IReadOnlyList<string> HeatBonusMachines { get; init; } = [];
-
-    public bool IsAlwaysOwned(string machine) => AlwaysOwnedMachines.Contains(machine);
-
-    public bool IsHeatExempt(string machine) => HeatExemptMachines.Contains(machine);
-
-    public bool HasHeatBonus(string machine) => HeatBonusMachines.Contains(machine);
 }

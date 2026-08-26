@@ -1,9 +1,11 @@
+using System.Collections.Frozen;
+
 namespace Craftiger.Builder.Models.Planner;
 
 /// <summary>Result of oredict unification: raw item id to canonical id, plus the names behind each.</summary>
 public sealed record UnifiedItems
 {
-    private static readonly IReadOnlySet<string> _noNames = new HashSet<string>();
+    private static readonly IReadOnlySet<string> _noNames = FrozenSet<string>.Empty;
 
     public required IReadOnlyDictionary<string, string> CanonicalByRawId { get; init; }
 

@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Craftiger.Builder.Interfaces.Eras;
 using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Eras;
@@ -14,7 +15,7 @@ public sealed class EraSeedService(
     IOptions<ErasConfiguration> eras,
     ILogger<EraSeedService> logger) : IEraSeedService
 {
-    private static readonly HashSet<string> _worldOriginClasses = ["minable_block", "farmable", "log"];
+    private static readonly FrozenSet<string> _worldOriginClasses = FrozenSet.ToFrozenSet<string>(["minable_block", "farmable", "log"]);
 
     private readonly WorldConfiguration _world = world.Value;
     private readonly ErasConfiguration _eras = eras.Value;

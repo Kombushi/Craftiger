@@ -4,20 +4,4 @@ namespace Craftiger.Solver.Models.Options;
 public sealed record SolverPreferences
 {
     public IReadOnlyList<string> LeafClassPriority { get; init; } = [];
-
-    public int Rank(string? leafClass)
-    {
-        if (leafClass is null)
-        {
-            return 0;
-        }
-        for (var i = 0; i < LeafClassPriority.Count; i++)
-        {
-            if (LeafClassPriority[i] == leafClass)
-            {
-                return i;
-            }
-        }
-        return 0;
-    }
 }

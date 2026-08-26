@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Craftiger.Builder.Interfaces.Eras;
 using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Eras;
@@ -13,7 +14,7 @@ public sealed class LeafTierService(
     ILogger<LeafTierService> logger) : ILeafTierService
 {
     /// <summary>Leaf classes priced by production era rather than a flat weight.</summary>
-    private static readonly HashSet<string> _tieredClasses = ["ingot", "gem", "dust"];
+    private static readonly FrozenSet<string> _tieredClasses = FrozenSet.ToFrozenSet<string>(["ingot", "gem", "dust"]);
 
     private readonly CoilLadder _coils = new(eras.Value.Coils);
 
