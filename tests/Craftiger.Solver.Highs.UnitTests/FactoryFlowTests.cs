@@ -190,7 +190,8 @@ public class FactoryFlowTests
         var second = Solve(graph, Produce([("out", 3)]));
 
         Assert.Equal(FactoryPlanStatus.Solved, first.Status);
-        Assert.Equal(first.Lines, second.Lines);
+        // Line flows are lists, so record equality stops at them; equivalence compares the values.
+        Assert.Equivalent(first.Lines, second.Lines, strict: true);
         Assert.Equal(first.Inflows, second.Inflows);
         Assert.Equal(first.Flows, second.Flows);
     }

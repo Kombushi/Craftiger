@@ -963,7 +963,9 @@ Screens:
   machine map, machine item id, runs/s, OC steps, parallels, busy-machine
   count, after-OC duration and per-instance EU/t (negative for a generator's
   net emission; line EU/t is the product with the busy count), plus the
-  durationless and estimated flags; `items` is the same display lookup the
+  durationless and estimated flags, and its input and output item streams
+  in units per second — choice-slot draws spread over a recipe's variant
+  lines by run share; `items` is the same display lookup the
   other endpoints ship. Shape errors (no targets, an unknown kind or
   objective, a non-positive rate, an out-of-range tier) are 400s; everything
   the solve itself diagnoses answers 200 with a `status` and structured

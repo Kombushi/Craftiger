@@ -124,6 +124,8 @@ public sealed class FactoryCacheService(
             {
                 ids.Add(machineItem);
             }
+            ids.UnionWith((line.Inputs ?? []).Select(flow => flow.ItemId));
+            ids.UnionWith((line.Outputs ?? []).Select(flow => flow.ItemId));
         }
         ids.UnionWith(plan.Flows.Select(flow => flow.ItemId));
         ids.UnionWith(plan.Inflows.Select(inflow => inflow.ItemId));

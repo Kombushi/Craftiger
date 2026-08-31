@@ -32,6 +32,45 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
         void Accumulate(Dictionary<int, double> rates, int item, double amount) =>
             rates[item] = rates.GetValueOrDefault(item) + amount;
 
+        // Streams within one line aggregate per item; a chanced recipe lists an output many times.
+        void Add(List<FactoryLineFlow> flows, int item, double perSecond)
+        {
+            var itemId = index.ItemIds[item];
+            var at = flows.FindIndex(flow => flow.ItemId == itemId);
+            if (at >= 0)
+            {
+                flows[at] = flows[at] with { PerSecond = flows[at].PerSecond + perSecond };
+            }
+            else
+            {
+                flows.Add(new FactoryLineFlow(itemId, perSecond));
+            }
+        }
+
+        // Choice-slot draws belong to the recipe as a whole; each variant line takes its run share.
+        var splitFlows = new Dictionary<int, Dictionary<int, double>>();
+        var recipeRuns = new Dictionary<int, double>();
+        for (var c = 0; c < model.Columns.Count; c++)
+        {
+            var value = values[c];
+            if (value <= _options.RateEpsilon)
+            {
+                continue;
+            }
+            switch (model.Columns[c])
+            {
+                case SplitColumn split:
+                    var draws = splitFlows.TryGetValue(split.Recipe, out var existing)
+                        ? existing
+                        : splitFlows[split.Recipe] = new Dictionary<int, double>();
+                    draws[split.Item] = draws.GetValueOrDefault(split.Item) + split.Amount * value;
+                    break;
+                case RunColumn run:
+                    recipeRuns[run.Recipe] = recipeRuns.GetValueOrDefault(run.Recipe) + value;
+                    break;
+            }
+        }
+
         for (var c = 0; c < model.Columns.Count; c++)
         {
             var value = values[c];
@@ -44,9 +83,13 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                 case RunColumn run:
                     var recipe = run.Recipe;
                     var variant = run.Variant;
+                    var inputs = new List<FactoryLineFlow>();
+                    var outputs = new List<FactoryLineFlow>();
                     for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
                     {
-                        Accumulate(produced, index.OutputItem[o], index.OutputYield[o] * variant.OutputFactor * value);
+                        var rate = index.OutputYield[o] * variant.OutputFactor * value;
+                        Accumulate(produced, index.OutputItem[o], rate);
+                        Add(outputs, index.OutputItem[o], rate);
                     }
                     for (var slot = 0; slot < index.SlotCount(recipe); slot++)
                     {
@@ -54,11 +97,21 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                         {
                             var a = index.AlternativeAt(recipe, slot, 0);
                             Accumulate(consumed, index.AlternativeItem[a], index.AlternativeAmount[a] * value);
+                            Add(inputs, index.AlternativeItem[a], index.AlternativeAmount[a] * value);
                         }
                     }
                     if (variant.SteamItem is { } steamItem)
                     {
                         Accumulate(consumed, steamItem, variant.SteamPerRun * value);
+                        Add(inputs, steamItem, variant.SteamPerRun * value);
+                    }
+                    if (splitFlows.TryGetValue(recipe, out var chosen))
+                    {
+                        var share = value / recipeRuns[recipe];
+                        foreach (var (item, rate) in chosen)
+                        {
+                            Add(inputs, item, rate * share);
+                        }
                     }
                     cleanroomHosts |= context.Recipes.NeedsCleanroom(recipe);
                     var busy = variant.BusyMachines(value);
@@ -77,25 +130,33 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                         variant.DurationSeconds,
                         variant.IsDurationless
                             ? 0
-                            : variant.EuPerRun * variant.Parallels / (variant.DurationSeconds * Ticks.PerSecond)));
+                            : variant.EuPerRun * variant.Parallels / (variant.DurationSeconds * Ticks.PerSecond),
+                        inputs,
+                        outputs));
                     break;
                 case SplitColumn split:
                     Accumulate(consumed, split.Item, split.Amount * value);
                     break;
                 case GenerateColumn generate:
                     var line = generate.Line;
+                    var fuelFlows = new List<FactoryLineFlow>();
+                    var extraFlows = new List<FactoryLineFlow>();
                     Accumulate(consumed, line.FuelItem, line.UnitsPerSecond * value);
+                    Add(fuelFlows, line.FuelItem, line.UnitsPerSecond * value);
                     if (line.CondensateItem is { } condensate)
                     {
                         Accumulate(produced, condensate, line.CondensatePerSecond * value);
+                        Add(extraFlows, condensate, line.CondensatePerSecond * value);
                     }
                     foreach (var flow in line.Inputs)
                     {
                         Accumulate(consumed, flow.Item, flow.PerSecond * value);
+                        Add(fuelFlows, flow.Item, flow.PerSecond * value);
                     }
                     foreach (var flow in line.Outputs)
                     {
                         Accumulate(produced, flow.Item, flow.PerSecond * value);
+                        Add(extraFlows, flow.Item, flow.PerSecond * value);
                     }
                     exportEuT += line.NetEuT * value;
                     busyMachines += value;
@@ -109,7 +170,9 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                         value,
                         Durationless: false,
                         Estimated: false,
-                        EuTPerMachine: -line.NetEuT));
+                        EuTPerMachine: -line.NetEuT,
+                        Inputs: fuelFlows,
+                        Outputs: extraFlows));
                     break;
                 case SupplyColumn supply:
                     Accumulate(supplied, supply.Item, value);
@@ -130,7 +193,7 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
             busyMachines += 1;
             lines.Add(new FactoryLine(
                 FactoryEnvironment.CleanroomLineId, "Cleanroom", environment.CleanroomItemId, 1, 0, 1, 1,
-                Durationless: false, Estimated: false, EuTPerMachine: hostingDraw));
+                Durationless: false, Estimated: false, EuTPerMachine: hostingDraw, Inputs: [], Outputs: []));
         }
 
         var allWarnings = new List<FactoryWarning>(warnings);

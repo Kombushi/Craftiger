@@ -29,7 +29,9 @@ public sealed class FactoryPlanCodecTests : IDisposable
 
     private static FactoryPlan Plan() => new(
         FactoryPlanStatus.Solved,
-        [new FactoryLine("r_wire", "Wiremill", "wiremill-lv", 1.6, 2, 4, 0.5, false, false, 1.25, 640)],
+        [new FactoryLine(
+            "r_wire", "Wiremill", "wiremill-lv", 1.6, 2, 4, 0.5, false, false, 1.25, 640,
+            [new FactoryLineFlow("ing", 1.6)], [new FactoryLineFlow("wire", 3.2)])],
         [new FactoryItemFlow("wire", 1.6, 0, 0.4, 0, AutoInfinite: false)],
         [new FactoryInflow("ing", 0.8, 4, AutoInfinite: true)],
         [FactoryWarning.RoutesPruned(), FactoryWarning.InfeasibleItem("rod")],
@@ -62,7 +64,8 @@ public sealed class FactoryPlanCodecTests : IDisposable
     {
         var codec = new FactoryPlanCodec(_artifact);
         var payload = codec.Encode(Plan());
-        BitConverter.GetBytes(2).CopyTo(payload, sizeof(int));
+        // Same magic, previous format version: the body is unreadable to this reader.
+        BitConverter.GetBytes(1).CopyTo(payload, sizeof(int));
 
         Assert.Null(codec.Decode([1, 2, 3]));
         Assert.Null(codec.Decode(payload));

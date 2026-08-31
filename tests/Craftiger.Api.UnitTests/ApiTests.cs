@@ -366,6 +366,10 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.NotEmpty(plan.Lines);
         var wire = plan.Flows.Single(flow => flow.ItemId == "wire");
         Assert.True(wire.Produced >= 1.6 - 1e-6);
+        Assert.Equal(
+            wire.Produced,
+            plan.Lines.Sum(line => (line.Outputs ?? []).Where(flow => flow.ItemId == "wire").Sum(flow => flow.PerSecond)),
+            6);
         Assert.True(plan.Items.ContainsKey("wire"));
         Assert.Equal(plan.DrawEuT, plan.Lines.Sum(line => line.LineEuT), 6);
     }

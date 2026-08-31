@@ -12,7 +12,7 @@ namespace Craftiger.Api.Services;
 public sealed class FactoryPlanCodec(PlannerArtifact artifact) : IFactoryPlanCodec
 {
     private const int Magic = 0x50434643;
-    private const int FormatVersion = 1;
+    private const int FormatVersion = 2;
     private const int HeaderLength = 2 * sizeof(int);
 
     public byte[] Encode(FactoryPlan plan)
