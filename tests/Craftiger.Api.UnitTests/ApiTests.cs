@@ -480,17 +480,33 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task AnEnergyTargetWithoutGeneratorsDiagnoses()
+    public async Task AnEnergyTargetAboveEveryGeneratorDiagnoses()
     {
+        // The fixture's one generator emits at LV; demanding HV export leaves nothing legal.
         var plan = await FactorySolveAsync(new
         {
             garage = _hvGarage,
             b = 4,
-            targets = new[] { new { kind = "energy", rate = 32.0 } },
+            targets = new[] { new { kind = "energy", rate = 32.0, generatorTier = 3 } },
         });
 
         Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
         Assert.Contains(plan.Warnings, warning => warning.Kind == FactoryWarningKind.NoGenerator);
+    }
+
+    [Fact]
+    public async Task TheGeneratorCatalogListsBuildableLines()
+    {
+        var response = await Client.PostAsJsonAsync("/api/factory/generators", new { garage = _hvGarage, b = 4 });
+        response.EnsureSuccessStatusCode();
+        var catalog = (await response.Content.ReadFromJsonAsync<GeneratorCatalogResponse>())!;
+
+        var line = Assert.Single(catalog.Lines);
+        Assert.Equal("generator|gen-lv|ing", line.Id);
+        Assert.Equal("ing", line.FuelItemId);
+        Assert.Equal(1, line.Tier);
+        Assert.True(line.NetEuT > 0);
+        Assert.True(catalog.Items.ContainsKey("ing"));
     }
 
     [Fact]

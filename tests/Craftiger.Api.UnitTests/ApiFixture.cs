@@ -167,8 +167,13 @@ public sealed class ApiFixture : IDisposable
                 ('Extruder', NULL, 0),
                 ('Circuit Assembly Line', 3, 0),
                 ('Assembler', 1, 0);
-            INSERT INTO machine_items VALUES ('Wiremill', 'wiremill-lv', 1, 0, 0, 0);
-            INSERT INTO machine_props VALUES ('wiremill-lv', 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+            INSERT INTO machine_items VALUES
+                ('Wiremill', 'wiremill-lv', 1, 0, 0, 0),
+                ('Gen', 'gen-lv', 1, 0, 0, 0);
+            INSERT INTO machine_props VALUES
+                ('wiremill-lv', 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+                ('gen-lv', 0, 100.0, 32, 1, NULL, NULL, NULL, NULL, NULL);
+            INSERT INTO fuels VALUES ('Gen', 'ing', 1, 360, NULL, NULL, NULL, 0);
             INSERT INTO renewable_seeds VALUES ('ing', 'WORLD');
             """);
         db.Execute(

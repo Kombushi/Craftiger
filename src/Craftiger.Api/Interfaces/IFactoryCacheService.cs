@@ -6,4 +6,6 @@ namespace Craftiger.Api.Interfaces;
 public interface IFactoryCacheService
 {
     Task<FactoryResponse> SolveAsync(FactorySolveRequest request);
+
+    Task<GeneratorCatalogResponse> GeneratorsAsync(GeneratorCatalogRequest request);
 }

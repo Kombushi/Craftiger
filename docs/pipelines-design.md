@@ -932,14 +932,22 @@ checks 65–68).
   one LCR polymerization step → one line, monomer inflows at standing
   prices, no PTFE items anywhere, 0.27 s cold.
 
-The **Planner web tab** (`#/planner`, next slice) builds on this: a step
-list with a recipe picker, target rows reused from the Factory tab, live
-re-solve, the shared flow graph, and unplanned inflows that click into
-"add a step for this / leave it supplied". The automatic tab's
-buy-anything behavior stays as designed for now — the machines-first
-outsourcing question is answered by pipelines rather than by a new buy
-heuristic; restricting automatic buys to standing-price leaves remains an
-open option if it still grates.
+The **Planner web tab** (`#/planner`) is live per spec §7 — a step list
+with the recipe picker (an item's garage-legal producers with candidate
+costs), a generator picker over the new unpruned catalog endpoint
+(`/api/factory/generators`, check 69), its own target rows and priority
+(ruled: separate from the Factory tab's), and the live loop (ruled:
+debounced auto-solve, no button). Step rows surface the solver's chosen
+block/OC/machine count with a LOCK that captures them as the step's pin
+and ± overclock nudges; clicking an inflow opens the add-step picker for
+that item, and "start from the Factory plan" seeds steps from the
+automatic tab's lines. Shared internals extracted on the way: the sidebar
+shell (`SidebarLayout`), the solved-plan sections (`PlanResults`) and the
+target editor (`TargetsEditor`) now serve both rate tabs. The automatic
+tab's buy-anything behavior stays as designed for now — the
+machines-first outsourcing question is answered by pipelines rather than
+by a new buy heuristic; restricting automatic buys to standing-price
+leaves remains an open option if it still grates.
 
 ## 7. The three examples, mapped
 

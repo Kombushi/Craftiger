@@ -16,12 +16,26 @@ const messages: Record<string, (name: string) => string> = {
   timeout: () => 'The solve hit its time budget — try again, or simplify the targets.',
   solver_error: () => 'The solver failed — try again.',
   routes_pruned: () => 'Routes priced far off the optimum were left out of the model.',
+  step_unknown: (name) => `The step '${name}' names no recipe or generator line — left out of the solve.`,
+  step_illegal: (name) => `The step '${name}' is not legal in this garage — left out of the solve.`,
+  step_variant_unknown: (name) =>
+    `No buildable variant of '${name}' matches its lock — the lock was ignored.`,
 }
 
 /** Informational rather than alarming rows. */
 const informational = new Set(['routes_pruned'])
 
-export function FactoryWarnings({ plan }: { plan: FactoryResponse }) {
+/** Rows whose id names a step, not an item — they never open item detail. */
+const stepKinds = new Set(['step_unknown', 'step_illegal', 'step_variant_unknown'])
+
+export function FactoryWarnings({
+  plan,
+  names,
+}: {
+  plan: FactoryResponse
+  /** Extra id→label lookups — the Planner's step labels — tried after the plan's items. */
+  names?: Record<string, string>
+}) {
   const { openDetail } = useStore()
   if (plan.warnings.length === 0) {
     return null
@@ -29,13 +43,15 @@ export function FactoryWarnings({ plan }: { plan: FactoryResponse }) {
   return (
     <ul className="warnings">
       {plan.warnings.map((warning, index) => {
-        const name = plan.items[warning.itemId]?.name ?? warning.itemId
+        const name =
+          plan.items[warning.itemId]?.name ?? names?.[warning.itemId] ?? warning.itemId
         const text = messages[warning.kind]?.(name) ?? `${warning.kind}: ${name}`
+        const clickable = warning.itemId !== '' && !stepKinds.has(warning.kind)
         return (
           <li
             key={index}
-            className={`warning-row${informational.has(warning.kind) ? ' warning-info' : ''}${warning.itemId !== '' ? ' warning-clickable' : ''}`}
-            onClick={warning.itemId !== '' ? () => openDetail(warning.itemId) : undefined}
+            className={`warning-row${informational.has(warning.kind) ? ' warning-info' : ''}${clickable ? ' warning-clickable' : ''}`}
+            onClick={clickable ? () => openDetail(warning.itemId) : undefined}
           >
             {text}
           </li>

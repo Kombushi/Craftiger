@@ -13,6 +13,7 @@ public sealed class FactoryCacheService(
     IFactoryRequestService requests,
     ISolveCacheService costs,
     IFactorySolverService solver,
+    IGeneratorCatalogService generatorCatalog,
     ISolveStore store,
     IFactoryPlanCodec codec,
     IOptions<ApiOptions> options,
@@ -61,14 +62,7 @@ public sealed class FactoryCacheService(
             }
             logger.LogWarning("factory {FactoryId}: stored plan is not this artifact's or is unreadable; recomputing", factoryId);
         }
-        var solve = await costs.SolveAsync(new SolveRequest(request.Garage, request.B, request.Weights));
-        var entry = await costs.GetAsync(solve.SolveId)
-            ?? throw new InvalidOperationException($"cost solve {solve.SolveId} vanished before the factory solve read it");
-        var context = new FactoryContext(
-            artifact.Graph,
-            artifact.Factory.Recipes, artifact.Factory.Machines, artifact.Factory.Seeds,
-            artifact.Factory.Steam, artifact.Factory.Environment,
-            entry.Table, entry.Garage, entry.Weights);
+        var context = await ContextForAsync(request.Garage, request.B, request.Weights);
         var plan = solver.Solve(context, translated);
         logger.LogInformation(
             "factory {FactoryId}: {Status} with {Lines:N0} lines, {Warnings:N0} warnings",
@@ -78,6 +72,39 @@ public sealed class FactoryCacheService(
             await StoreAsync(factoryId, plan);
         }
         return plan;
+    }
+
+    /// <summary>Every generator line the garage could run, unpruned, for the Planner's picker.</summary>
+    public async Task<GeneratorCatalogResponse> GeneratorsAsync(GeneratorCatalogRequest request)
+    {
+        var context = await ContextForAsync(request.Garage, request.B, request.Weights);
+        var index = artifact.Graph.Index;
+        var lines = generatorCatalog.Eligible(context, [], prune: false)
+            .Select(line => new GeneratorLineDto(
+                line.LineId(index), line.Map, line.BlockItemId, index.ItemIds[line.FuelItem],
+                line.Tier, line.NetEuT, line.UnitsPerSecond, line.Variant))
+            .OrderBy(line => line.Id, StringComparer.Ordinal)
+            .ToList();
+        var ids = new HashSet<string>();
+        foreach (var line in lines)
+        {
+            ids.Add(line.MachineItemId);
+            ids.Add(line.FuelItemId);
+        }
+        return new GeneratorCatalogResponse(lines, Refs(ids));
+    }
+
+    /// <summary>The factory context over the cost solve for these settings, reused from its cache.</summary>
+    private async Task<FactoryContext> ContextForAsync(GarageDto garage, double b, Dictionary<string, double>? weights)
+    {
+        var solve = await costs.SolveAsync(new SolveRequest(garage, b, weights));
+        var entry = await costs.GetAsync(solve.SolveId)
+            ?? throw new InvalidOperationException($"cost solve {solve.SolveId} vanished before the factory solve read it");
+        return new FactoryContext(
+            artifact.Graph,
+            artifact.Factory.Recipes, artifact.Factory.Machines, artifact.Factory.Seeds,
+            artifact.Factory.Steam, artifact.Factory.Environment,
+            entry.Table, entry.Garage, entry.Weights);
     }
 
     /// <summary>The response waits for the write so a follow-up on another replica finds the plan; a failed write is logged and only costs a later recompute.</summary>
@@ -130,7 +157,13 @@ public sealed class FactoryCacheService(
         ids.UnionWith(plan.Flows.Select(flow => flow.ItemId));
         ids.UnionWith(plan.Inflows.Select(inflow => inflow.ItemId));
         ids.UnionWith(plan.Warnings.Where(warning => warning.ItemId.Length > 0).Select(warning => warning.ItemId));
-        var items = ids.Where(artifact.Items.ContainsKey).ToDictionary(
+        return new FactoryResponse(
+            factoryId, plan.Status, plan.Lines, plan.Flows, plan.Inflows, plan.Warnings,
+            plan.PricedInflowCost, plan.DrawEuT, plan.ExportEuT, plan.BusyMachines, Refs(ids));
+    }
+
+    private IReadOnlyDictionary<string, ItemRefDto> Refs(IEnumerable<string> ids) =>
+        ids.Where(artifact.Items.ContainsKey).ToDictionary(
             id => id,
             id =>
             {
@@ -138,8 +171,4 @@ public sealed class FactoryCacheService(
                 return new ItemRefDto(
                     item.Name, item.AtlasIdx, item.IsFluid, item.LeafClass, null, item.Uncraftable, item.MaxStack);
             });
-        return new FactoryResponse(
-            factoryId, plan.Status, plan.Lines, plan.Flows, plan.Inflows, plan.Warnings,
-            plan.PricedInflowCost, plan.DrawEuT, plan.ExportEuT, plan.BusyMachines, items);
-    }
 }

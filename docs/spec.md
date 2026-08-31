@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.48
+# GTNH Crafting Planner — Specification v1.49
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -731,10 +731,10 @@ without re-deriving any choice the walk already made.
 
 ## 7. UI
 
-Single-page app, English item names (dump locale), three routes in one
-topbar — **Crafting** (`#/`), **Factory** (`#/factory`), **Price list**
-(`#/list`) — with a per-route status readout and the global Weights button
-(weights feed both solvers). Transient errors — an
+Single-page app, English item names (dump locale), four routes in one
+topbar — **Crafting** (`#/`), **Factory** (`#/factory`), **Planner**
+(`#/planner`), **Price list** (`#/list`) — with a per-route status readout
+and the global Weights button (weights feed every solver). Transient errors — an
 unreachable API, a failed solve — surface as self-dismissing toast
 notifications, never as layout-shifting inline rows; BOM warnings stay inline
 with the results they describe. The planner's sidebar (cart + garage) resizes
@@ -876,6 +876,23 @@ Screens:
   second) converts every displayed rate, is display-only, and never
   travels in the request or the cache key. The target list, toggles,
   priority and unit choice persist (§8).
+- **Planner** — the manual pipeline tab over the same engine (§8 `steps`):
+  a step list — each step one recipe, picked from an item's garage-legal
+  producers, or one generator line from the catalog endpoint — beside its
+  own target rows and priority picker, re-solving live a breath after
+  every edit with no button: hand-picked models solve in milliseconds,
+  and only the first solve after a garage or weights change pays for the
+  cost solve behind it. A step row shows the solver's chosen block,
+  overclock and whole-machine count; **LOCK** captures that choice as the
+  step's pin, the ± arrows nudge the pinned overclock, and a generator
+  step has nothing to lock. The entering streams are the building loop:
+  clicking an inflow opens the add-step picker for that item, so a chain
+  grows top-down from its target with the plan solved at every stage;
+  "start from the Factory plan" seeds the step list from the automatic
+  tab's solved lines. Pins never apply here (§9) and the pins row stays
+  on the Factory tab; the scope toggles gate only the mob-seed set. The
+  steps, targets, toggles and priority persist under `gtnhp.planner`
+  (§8); the plan stays in memory.
 - **Config** — the `B` input and the editable per-item leaf-weights table (§4)
   live in a separate weights window; both apply on the next Calculate. Leaf
   membership — which blocks are minable, which fluids are world fluids — is
@@ -1037,6 +1054,10 @@ Screens:
   build it was solved on — recomputed, never served, on any mismatch. A
   `timed_out` or `failed` plan is answered but never cached, so a retry
   starts over; the wall-clock budget per solve is configuration.
+- `POST /api/factory/generators` — body `{garage, b, weights}` → every
+  buildable generator line, unpruned — the id a pipeline step names, its
+  map, block, fuel, tier, net EU/t and fuel rate — plus the display
+  lookup for the blocks and fuels; feeds the Planner's generator picker.
 - `GET /api/meta` → tier ladder, tier voltages (EU/t per amp per tier,
   indexed like the ladder), machine list (each with its availability
   era), coil list, pack version, atlas dimensions
@@ -1051,7 +1072,9 @@ overrides, per-map coils, built multiblocks), `gtnhp.config` (B), `gtnhp.ui`
 (display caches plus the applied solve, so an unchanged reload resumes on the
 cached solve instead of asking for a recalculation), `gtnhp.factory` (the
 factory targets, scope toggles and layer priority; the plan itself stays in
-memory — a reload starts idle), `gtnhp.rateUnit`, and the layout
+memory — a reload starts idle), `gtnhp.planner` (the pipeline steps with
+their locks, and its own targets, toggles and priority; the live loop
+re-solves on load once steps and targets exist), `gtnhp.rateUnit`, and the layout
 preferences `gtnhp.sidebarWidth`, `gtnhp.sidebarHidden`, and
 `gtnhp.chainOrientation` (shared by both flow graphs). Machine keys inside
 `gtnhp.machines` follow the
@@ -1453,3 +1476,6 @@ All "does not / never" rules live here; other sections only reference this one.
 68. Steps hash into the `factoryId` in place of the pins a pipeline
     ignores: adding a pin changes nothing, changing a step's overclock
     changes the id.
+69. `/api/factory/generators` lists a buildable line with its net EU/t
+    and fuel rate; an energy target demanding a tier above every line
+    still answers `no_generator`.

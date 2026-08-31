@@ -243,6 +243,32 @@ export interface FactoryWarning {
 
 export type FactoryStatus = 'solved' | 'infeasible' | 'unbounded' | 'timed_out' | 'failed'
 
+/** One Planner step as stored: the id a pipeline names, a display snapshot, and the optional block/OC lock. */
+export interface PlannerStep {
+  id: string
+  label: string
+  atlasIdx: number
+  machine: string
+  machineItemId: string | null
+  ocSteps: number | null
+}
+
+export interface GeneratorLineDto {
+  id: string
+  map: string
+  machineItemId: string
+  fuelItemId: string
+  tier: number
+  netEuT: number
+  fuelPerSecond: number
+  variant: string | null
+}
+
+export interface GeneratorCatalogResponse {
+  lines: GeneratorLineDto[]
+  items: Record<string, ItemRef>
+}
+
 export interface FactoryResponse {
   factoryId: string
   status: FactoryStatus

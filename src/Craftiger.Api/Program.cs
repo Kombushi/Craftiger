@@ -125,6 +125,9 @@ app.MapPost("/api/bom", async (
 app.MapPost("/api/factory/solve", (FactorySolveRequest request, IFactoryCacheService cache) =>
     cache.SolveAsync(request));
 
+app.MapPost("/api/factory/generators", (GeneratorCatalogRequest request, IFactoryCacheService cache) =>
+    cache.GeneratorsAsync(request));
+
 app.MapGet("/atlas.webp", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas.webp", "image/webp"));
 app.MapGet("/atlas-offsets.json", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas-offsets.json", "application/json"));
 

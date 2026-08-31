@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CraftingPage } from './components/CraftingPage'
 import { FactoryPage } from './components/FactoryPage'
 import { ItemDetailOverlay } from './components/ItemDetailOverlay'
 import { PlannerPage } from './components/PlannerPage'
@@ -8,6 +9,8 @@ import { TooltipProvider } from './components/Tooltip'
 import { WeightsModal } from './components/WeightsModal'
 import { useFactory } from './factoryContext'
 import { FactoryProvider } from './factoryStore'
+import { usePlanner } from './plannerContext'
+import { PlannerProvider } from './plannerStore'
 import { StoreProvider } from './store'
 import { useStore } from './storeContext'
 import { usePersistent } from './usePersistent'
@@ -22,19 +25,30 @@ function useHashRoute(): string {
   return hash
 }
 
+function planSummary(plan: { status: string; lines: unknown[]; drawEuT: number } | null): string {
+  if (plan === null) {
+    return ''
+  }
+  return plan.status === 'solved'
+    ? `${plan.lines.length} lines · ${Math.round(plan.drawEuT).toLocaleString('en-US')} EU/t`
+    : plan.status
+}
+
 function TopbarStatus({ route }: { route: string }) {
   const { results, status } = useStore()
   const factory = useFactory()
+  const planner = usePlanner()
   if (route === '#/factory') {
     return (
       <span className="topbar-status mono">
-        {factory.status.phase === 'solving'
-          ? 'solving…'
-          : factory.plan
-            ? factory.plan.status === 'solved'
-              ? `${factory.plan.lines.length} lines · ${Math.round(factory.plan.drawEuT).toLocaleString('en-US')} EU/t`
-              : factory.plan.status
-            : ''}
+        {factory.status.phase === 'solving' ? 'solving…' : planSummary(factory.plan)}
+      </span>
+    )
+  }
+  if (route === '#/planner') {
+    return (
+      <span className="topbar-status mono">
+        {planner.status.phase === 'solving' ? 'balancing…' : planSummary(planner.plan)}
       </span>
     )
   }
@@ -54,7 +68,7 @@ function Shell() {
   const hash = useHashRoute()
   const [weightsOpen, setWeightsOpen] = useState(false)
   const [sidebarHidden, setSidebarHidden] = usePersistent('gtnhp.sidebarHidden', false)
-  const route = hash === '#/list' || hash === '#/factory' ? hash : '#/'
+  const route = hash === '#/list' || hash === '#/factory' || hash === '#/planner' ? hash : '#/'
 
   return (
     <div className="app">
@@ -81,6 +95,9 @@ function Shell() {
           <a className={route === '#/factory' ? 'nav-active' : ''} href="#/factory">
             Factory
           </a>
+          <a className={route === '#/planner' ? 'nav-active' : ''} href="#/planner">
+            Planner
+          </a>
           <a className={route === '#/list' ? 'nav-active' : ''} href="#/list">
             Price list
           </a>
@@ -94,8 +111,10 @@ function Shell() {
         <PriceListPage />
       ) : route === '#/factory' ? (
         <FactoryPage sidebarHidden={sidebarHidden} />
-      ) : (
+      ) : route === '#/planner' ? (
         <PlannerPage sidebarHidden={sidebarHidden} />
+      ) : (
+        <CraftingPage sidebarHidden={sidebarHidden} />
       )}
       <ItemDetailOverlay />
       {weightsOpen ? <WeightsModal onClose={() => setWeightsOpen(false)} /> : null}
@@ -108,9 +127,11 @@ export default function App() {
   return (
     <StoreProvider>
       <FactoryProvider>
-        <TooltipProvider>
-          <Shell />
-        </TooltipProvider>
+        <PlannerProvider>
+          <TooltipProvider>
+            <Shell />
+          </TooltipProvider>
+        </PlannerProvider>
       </FactoryProvider>
     </StoreProvider>
   )

@@ -2,6 +2,7 @@ import type {
   BomResponse,
   FactoryResponse,
   GarageState,
+  GeneratorCatalogResponse,
   ItemDetail,
   ItemSummary,
   ListResponse,
@@ -79,6 +80,12 @@ export interface FactorySolveTarget {
   generatorTier?: number
 }
 
+export interface FactorySolveStep {
+  id: string
+  machineItemId?: string | null
+  ocSteps?: number | null
+}
+
 export const factorySolve = (
   garage: GarageState,
   b: number,
@@ -88,7 +95,11 @@ export const factorySolve = (
   pins: Record<string, string>,
   mobFarms: boolean,
   bredSeeds: boolean,
+  steps?: FactorySolveStep[],
 ) =>
   post<FactoryResponse>('/api/factory/solve', {
-    garage, b, weights, targets, priority, pins, mobFarms, bredSeeds,
+    garage, b, weights, targets, priority, pins, mobFarms, bredSeeds, steps,
   })
+
+export const factoryGenerators = (garage: GarageState, b: number, weights: Record<string, number>) =>
+  post<GeneratorCatalogResponse>('/api/factory/generators', { garage, b, weights })
