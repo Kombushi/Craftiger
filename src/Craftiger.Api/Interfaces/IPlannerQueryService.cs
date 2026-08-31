@@ -13,7 +13,7 @@ public interface IPlannerQueryService
 
     ItemDetailResponse? ItemDetail(SolveEntry entry, string itemId);
 
-    IReadOnlyList<string> Machines(IEnumerable<string> targetIds);
+    IReadOnlyList<string> Machines(IEnumerable<string> targetIds, bool deep);
 
     BomResponse Bom(SolveEntry entry, BomRequest request);
 }

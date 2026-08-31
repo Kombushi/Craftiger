@@ -1,3 +1,5 @@
+import type { RateUnit } from './types'
+
 /** Compact badge text for slot counts: "12", "4.88", "1.2k", "3.4M". */
 export function fmtCount(value: number): string {
   if (value >= 1_000_000) {
@@ -66,6 +68,41 @@ export function fmtHeat(heat: number): string {
 
 function trim(value: number, decimals: number): string {
   return value.toFixed(decimals).replace(/\.?0+$/, '')
+}
+
+const RATE_UNITS = {
+  tick: { factor: 1 / 20, label: '/t' },
+  second: { factor: 1, label: '/s' },
+  minute: { factor: 60, label: '/min' },
+} as const
+
+/** Three significant digits: per-tick rates are tiny and per-minute rates large, so fixed decimals fit neither. */
+function sig(value: number): string {
+  if (value === 0) {
+    return '0'
+  }
+  if (value >= 10_000) {
+    return fmtCount(value)
+  }
+  if (value >= 100) {
+    return String(Math.round(value))
+  }
+  return trim(value, Math.min(6, Math.max(0, 2 - Math.floor(Math.log10(value)))))
+}
+
+/** A per-second rate rendered in the display unit: "1.6/s", "0.533 mB/t", "96/min". */
+export function fmtRate(perSecond: number, unit: RateUnit, isFluid = false): string {
+  const { factor, label } = RATE_UNITS[unit]
+  return `${sig(perSecond * factor)}${isFluid ? ' mB' : ''}${label}`
+}
+
+/** The bare converted number for slot badges; the unit lives in the tooltip and the global picker. */
+export function fmtRateBadge(perSecond: number, unit: RateUnit): string {
+  return sig(perSecond * RATE_UNITS[unit].factor)
+}
+
+export function fmtEuT(value: number): string {
+  return `${value >= 100 ? Math.round(value).toLocaleString('en-US') : trim(value, 1)} EU/t`
 }
 /** Item name plus the display aliases unification merged away: "Tin Nugget (aka Tin Oreberry)". */
 export function fmtAka(

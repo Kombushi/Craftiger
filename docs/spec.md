@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.46
+# GTNH Crafting Planner — Specification v1.47
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -731,7 +731,10 @@ without re-deriving any choice the walk already made.
 
 ## 7. UI
 
-Single-page app, English item names (dump locale). Transient errors — an
+Single-page app, English item names (dump locale), three routes in one
+topbar — **Crafting** (`#/`), **Factory** (`#/factory`), **Price list**
+(`#/list`) — with a per-route status readout and the global Weights button
+(weights feed both solvers). Transient errors — an
 unreachable API, a failed solve — surface as self-dismissing toast
 notifications, never as layout-shifting inline rows; BOM warnings stay inline
 with the results they describe. The planner's sidebar (cart + garage) resizes
@@ -836,7 +839,43 @@ Screens:
   default tier (§2) is dropped from the relevance list entirely — the default
   garage cannot own it, so it only appears under "show all" or once the user
   has configured it explicitly; there its inherit state reads "Not built",
-  and picking an explicit tier claims it.
+  and picking an explicit tier claims it. The factory tab shows the same
+  garage, its relevance filter walking the deep closure — through
+  leaf-class items — because the factory solve expands them (§8 `deep`).
+- **Factory** — the rate planner over the same garage, weights and pins.
+  Targets are rates: a produce or consume row is an amount per window
+  (ticks, seconds or minutes) with the normalized per-second rate read
+  back beside it; produce/consume is a segmented toggle and consume rows
+  keep a persistent visual cue. One energy row asks for net exported power
+  as amps × tier — the live EU/t from the meta tier voltages, also editable
+  directly — and its tier floors the generators' output tier. Beside the
+  targets sit the mob-farms and bred-seeds toggles and the layer-priority
+  picker; the active pins list in the sidebar with a clear button each,
+  because the factory cache keys on them (§8) and an invisible pin would
+  shape plans silently. An explicit **Solve** posts the whole context; a
+  banner marks the shown plan stale once targets, garage, weights, pins,
+  toggles or priority drift from what solved it. Results mirror the
+  crafting reading order: structured warnings first (a row naming an item
+  opens its detail), a totals strip — priced inflow rate, machine draw,
+  net export while generators run, and the whole-machine count — then the
+  entering streams (auto-infinite ones marked **∞**), the byproduct and
+  surplus streams as `+rate` badges, then one flow graph of the whole
+  plan, not per target: a card per machine line with the machine count as
+  its badge (runs, busy machines, parallels and OC steps in its tooltip),
+  `OC×n`/`P×n` chips, the after-OC duration and per-instance EU/t in the
+  footer — a generator's footer shows its emission — and the per-item
+  stream rates on the slots; streams entering from outside get source
+  cards. Layers come from SCC condensation ordered by longest path, so a
+  loop's members share one `LOOP`-tagged layer; there are no seed cards —
+  a steady state has no first unit. A line run on assumptions — a
+  durationless converter, a machine without curated bonus data — carries
+  an `EST` chip whose tooltip states the exact assumption, and the plan
+  gets one accent-styled note; unaffected cards carry nothing. A plan
+  whose status is not solved keeps the results empty beside its warnings.
+  The global rate-unit picker (per tick, second or minute; default
+  second) converts every displayed rate, is display-only, and never
+  travels in the request or the cache key. The target list, toggles,
+  priority and unit choice persist (§8).
 - **Config** — the `B` input and the editable per-item leaf-weights table (§4)
   live in a separate weights window; both apply on the next Calculate. Leaf
   membership — which blocks are minable, which fluids are world fluids — is
@@ -942,8 +981,10 @@ Screens:
   slots first then catalysts, or null; null for a recipe without a shape),
   and an `items` display lookup (name, atlas index, fluid flag, leaf class,
   cost, stack size) for every item id the recipes reference.
-- `GET /api/machines?targets=` — upstream-closure machine list for the given
-  item ids; drives the relevance-filtered garage.
+- `GET /api/machines?targets=&deep=` — upstream-closure machine list for the
+  given item ids; drives the relevance-filtered garage. The default walk
+  stops at leaf-class items the way a BOM does; `deep=true` walks through
+  them, matching the factory solve's expansion.
 - `POST /api/bom` — body `{solveId, targets: [{itemId, count}],
   pins: {itemId: recipeId}}` → `{targets: [{itemId, count, recipeId,
   inputs: [{itemId, amount}]}], leaves: [{itemId, amount, wholeAmount}],
@@ -990,9 +1031,12 @@ Screens:
 `gtnhp.cart`, `gtnhp.pins`, `gtnhp.weights`, `gtnhp.machines` (default tier,
 overrides, per-map coils, built multiblocks), `gtnhp.config` (B), `gtnhp.ui`
 (display caches plus the applied solve, so an unchanged reload resumes on the
-cached solve instead of asking for a recalculation), and the layout
+cached solve instead of asking for a recalculation), `gtnhp.factory` (the
+factory targets, scope toggles and layer priority; the plan itself stays in
+memory — a reload starts idle), `gtnhp.rateUnit`, and the layout
 preferences `gtnhp.sidebarWidth`, `gtnhp.sidebarHidden`, and
-`gtnhp.chainOrientation`. Machine keys inside `gtnhp.machines` follow the
+`gtnhp.chainOrientation` (shared by both flow graphs). Machine keys inside
+`gtnhp.machines` follow the
 artifact's renames on load, so a stored tier or coil outlives a rebuild that
 renamed its map.
 
@@ -1369,3 +1413,6 @@ All "does not / never" rules live here; other sections only reference this one.
     rate is a 400; an energy target no legal generator can serve answers
     `infeasible` with a `no_generator` warning, and `/api/meta` ships the
     tier voltages.
+64. The machine closure stops at leaf-class items unless `deep=true` walks
+    through them: a recipe-producible leaf lists its machines only on the
+    deep walk.

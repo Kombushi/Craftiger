@@ -111,9 +111,10 @@ app.MapGet("/api/item/{id}", async (
         ? query.ItemDetail(entry, id) is { } detail ? Results.Ok(detail) : Results.NotFound()
         : Results.NotFound());
 
-app.MapGet("/api/machines", (string targets, IPlannerQueryService query) =>
-    query.Machines(targets.Split(
-        ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+app.MapGet("/api/machines", (string targets, bool? deep, IPlannerQueryService query) =>
+    query.Machines(
+        targets.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+        deep ?? false));
 
 app.MapPost("/api/bom", async (
     BomRequest request, ISolveCacheService cache, IPlannerQueryService query) =>

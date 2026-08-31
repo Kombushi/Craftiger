@@ -1331,3 +1331,154 @@ a:focus-visible {
     overflow-y: visible;
   }
 }
+
+/* ---- factory tab ---- */
+
+.seg {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--line);
+}
+
+.seg button {
+  padding: 3px 7px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.seg button + button {
+  border-left: 1px solid var(--line);
+}
+
+.seg .seg-active {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.target-row {
+  flex-wrap: wrap;
+}
+
+/* Consume rows keep a persistent cue: the plan absorbs these instead of making them. */
+.target-consume {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border-left: 3px solid var(--accent-dark);
+  padding-left: 5px;
+}
+
+.target-amount {
+  width: 72px;
+}
+
+.target-window {
+  width: 64px;
+}
+
+.target-per {
+  color: var(--dim);
+  flex: none;
+}
+
+.target-unit {
+  flex: none;
+}
+
+.target-entry {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 32px;
+}
+
+.target-rate {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--dim);
+}
+
+.target-eut {
+  width: 110px;
+}
+
+.slot-energy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.target-add-energy {
+  align-self: flex-start;
+  border: 1px dashed var(--line);
+  padding: 4px 8px;
+}
+
+.pins-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.factory-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 8px 10px;
+  background: var(--panel-strip);
+  border: 1px solid var(--line);
+  color: var(--accent);
+}
+
+.est-banner {
+  color: var(--accent);
+  font-size: 12px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-left: 3px solid var(--accent);
+  margin: 8px 0 0;
+}
+
+.tag-est {
+  color: var(--accent);
+  border: 1px dashed var(--accent);
+}
+
+.tag-chip {
+  color: var(--dim);
+  border: 1px solid var(--line);
+}
+
+.warning-info {
+  color: var(--dim);
+  background: color-mix(in srgb, var(--dim) 10%, transparent);
+  border-left-color: var(--dim);
+}
+
+.warning-clickable {
+  cursor: pointer;
+}
+
+.warning-clickable:hover {
+  filter: brightness(1.2);
+}
+
+.unit-picker {
+  margin-left: auto;
+}

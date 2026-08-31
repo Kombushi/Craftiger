@@ -133,7 +133,8 @@ public sealed class ApiFixture : IDisposable
                 ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32, 1, 1, NULL, 0, NULL),
                 ('r_frame_hand', 'Crafting Table', 0, NULL, NULL, 0, 0, 1, 0, NULL, 0, NULL),
                 ('r_frame_asm', 'Assembler', 1, NULL, NULL, 64, 7, 1, 0, NULL, 0, NULL),
-                ('r_farm_wire', 'Wiremill', 1, NULL, NULL, 100, 0, 1, 0, 'FACTORY', 0, 'FIXED');
+                ('r_farm_wire', 'Wiremill', 1, NULL, NULL, 100, 0, 1, 0, 'FACTORY', 0, 'FIXED'),
+                ('r_sil', 'Wiremill', 1, NULL, NULL, 100, 32, 1, 0, NULL, 0, NULL);
             INSERT INTO recipe_inputs VALUES
                 ('r_wire', 'ing', 1, 0, 0, 0),
                 ('r_wire', 'saw', 1, 1, 1, 1),
@@ -143,8 +144,10 @@ public sealed class ApiFixture : IDisposable
                 ('r_frame_hand', 'ing', 2, 0, 0, 0),
                 ('r_frame_hand', 'saw', 1, 1, 1, 1),
                 ('r_frame_asm', 'ing', 1, 0, 0, 0),
-                ('r_frame_asm', 'card', 1, 1, 1, 0);
+                ('r_frame_asm', 'card', 1, 1, 1, 0),
+                ('r_sil', 'ing', 1, 0, 0, 0);
             INSERT INTO recipe_outputs VALUES
+                ('r_sil', 'sil', 1, 1.0),
                 ('r_wire', 'wire', 2, 1.0),
                 ('r_farm_wire', 'wire', 8, 1.0),
                 ('r_ebf', 'hot', 1, 1.0),

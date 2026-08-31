@@ -883,6 +883,28 @@ guard.
   rows naming items (clickable via openDetail), with the results-empty
   center panel pattern; toasts are for transport errors only.
 
+- **Shipped mechanics**: the tab is live per spec §7 — nav rename, the
+  `gtnhp.factory` slice (targets, toggles, priority; the plan stays in
+  memory and a reload starts idle rather than auto-resolving), the target
+  editor with the amps×tier energy row, the results column and the flow
+  graph behind the shared `arrange()` layout core (`chainLayout.arrange`,
+  used by both graphs; the factory adapter adds Tarjan SCC condensation +
+  longest-path layering in `factoryLayout.ts`). The totals strip shows
+  `exportEuT − drawEuT` as the net figure — the solver's `exportEuT` is the
+  generators' gross emission, and the plan's own draw comes out of it
+  first. The garage panel is shared; on the factory tab its relevance
+  filter uses the new `deep` closure (`/api/machines?deep=true`, spec
+  check 64) because the crafting closure stops at leaf-class items the
+  factory solve expands through. Deviations, each with cause: the sidebar
+  pins row lists **every** active pin, not just those inside the current
+  closure — closure membership is not computable client-side and a hidden
+  pin that keys the cache would shape plans silently; the burnable-surplus
+  figure is deferred until the API ships it (fuel tables never reach the
+  client, so it must be priced server-side); §6.3 stays open — the garage
+  Power group needs builder-emitted generator era rows, and the rotor
+  picker plus per-line tight/loose and variant pins need request plumbing
+  through the solver stack.
+
 ## 7. The three examples, mapped
 
 1. **32 PE/min at HV** — produce target `32/60 s⁻¹`; with resource-first

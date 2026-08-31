@@ -1,5 +1,6 @@
 import type {
   BomResponse,
+  FactoryResponse,
   GarageState,
   ItemDetail,
   ItemSummary,
@@ -60,11 +61,34 @@ export const list = (solveId: string, page: number, pageSize: number, hideUnreac
 export const itemDetail = (itemId: string, solveId: string) =>
   request<ItemDetail>(`/api/item/${encodeURIComponent(itemId)}?solveId=${solveId}`)
 
-export const machinesFor = (targetIds: string[]) =>
-  request<string[]>(`/api/machines?targets=${encodeURIComponent(targetIds.join(','))}`)
+export const machinesFor = (targetIds: string[], deep = false) =>
+  request<string[]>(
+    `/api/machines?targets=${encodeURIComponent(targetIds.join(','))}${deep ? '&deep=true' : ''}`,
+  )
 
 export const bom = (
   solveId: string,
   targets: { itemId: string; count: number }[],
   pins: Record<string, string>,
 ) => post<BomResponse>('/api/bom', { solveId, targets, pins })
+
+export interface FactorySolveTarget {
+  kind: 'produce' | 'consume' | 'energy'
+  itemId?: string
+  rate: number
+  generatorTier?: number
+}
+
+export const factorySolve = (
+  garage: GarageState,
+  b: number,
+  weights: Record<string, number>,
+  targets: FactorySolveTarget[],
+  priority: string[],
+  pins: Record<string, string>,
+  mobFarms: boolean,
+  bredSeeds: boolean,
+) =>
+  post<FactoryResponse>('/api/factory/solve', {
+    garage, b, weights, targets, priority, pins, mobFarms, bredSeeds,
+  })

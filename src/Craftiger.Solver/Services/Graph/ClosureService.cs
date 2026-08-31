@@ -5,8 +5,8 @@ namespace Craftiger.Solver.Services.Graph;
 
 public sealed class ClosureService : IClosureService
 {
-    /// <summary>Every machine whose recipes could take part in any route to the targets; plans end at leaves, so recipes below one are irrelevant to the cart.</summary>
-    public IReadOnlyList<string> MachinesFor(SolverGraph graph, IEnumerable<string> targetIds)
+    /// <summary>Every machine whose recipes could take part in any route to the targets; crafting plans end at leaves, so recipes below one only matter to the deep walk.</summary>
+    public IReadOnlyList<string> MachinesFor(SolverGraph graph, IEnumerable<string> targetIds, bool deep = false)
     {
         var index = graph.Index;
         var seen = new HashSet<int>();
@@ -21,7 +21,7 @@ public sealed class ClosureService : IClosureService
         }
         while (pending.TryPop(out var item))
         {
-            if (!seen.Add(item) || index.IsLeaf(item))
+            if (!seen.Add(item) || (!deep && index.IsLeaf(item)))
             {
                 continue;
             }

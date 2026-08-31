@@ -338,6 +338,16 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task TheDeepClosureWalksThroughLeafItems()
+    {
+        var shallow = await Client.GetFromJsonAsync<List<string>>("/api/machines?targets=sil");
+        var deep = await Client.GetFromJsonAsync<List<string>>("/api/machines?targets=sil&deep=true");
+
+        Assert.Empty(shallow!);
+        Assert.Equal(["Wiremill"], deep);
+    }
+
+    [Fact]
     public async Task TheOffsetsFileIsServedAndTheMissingAtlasIsNot()
     {
         Assert.Equal(HttpStatusCode.OK, (await Client.GetAsync("/atlas-offsets.json")).StatusCode);

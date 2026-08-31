@@ -22,6 +22,8 @@ export interface AtlasDto {
 export interface MetaResponse {
   packVersion: string
   tierNames: string[]
+  /** EU/t per amp per tier, indexed like tierNames. */
+  tierVoltages: number[]
   coils: CoilDto[]
   machines: MachineDto[]
   atlas: AtlasDto | null
@@ -169,4 +171,88 @@ export interface CartEntry {
   name: string
   atlasIdx: number
   isFluid: boolean
+}
+
+export type RateUnit = 'tick' | 'second' | 'minute'
+
+/** A produce or consume target as the editor stores it: amount per window, normalized to per-second for the request. */
+export interface FactoryItemTarget {
+  kind: 'produce' | 'consume'
+  itemId: string
+  name: string
+  atlasIdx: number
+  amount: number
+  window: number
+  windowUnit: RateUnit
+}
+
+/** The energy target: amps × tier gives the EU/t unless it was edited directly; the tier also floors the generators' output tier. */
+export interface FactoryEnergyTarget {
+  kind: 'energy'
+  amps: number
+  tier: number
+  euT: number
+}
+
+export type FactoryTargetState = FactoryItemTarget | FactoryEnergyTarget
+
+export interface FactoryLineFlow {
+  itemId: string
+  perSecond: number
+}
+
+export interface FactoryLine {
+  recipeId: string
+  machine: string
+  machineItemId: string | null
+  runsPerSecond: number
+  ocSteps: number
+  parallels: number
+  busyMachines: number
+  durationless: boolean
+  estimated: boolean
+  /** One run after overclocking, in seconds; 0 on durationless and generator lines. */
+  durationSeconds: number
+  /** One busy instance's draw in EU/t; negative is a generator's net emission. */
+  euTPerMachine: number
+  lineEuT: number
+  inputs: FactoryLineFlow[] | null
+  outputs: FactoryLineFlow[] | null
+}
+
+export interface FactoryItemFlow {
+  itemId: string
+  produced: number
+  consumed: number
+  surplus: number
+  supplied: number
+  autoInfinite: boolean
+}
+
+export interface FactoryInflow {
+  itemId: string
+  rate: number
+  weight: number
+  autoInfinite: boolean
+}
+
+export interface FactoryWarning {
+  kind: string
+  itemId: string
+}
+
+export type FactoryStatus = 'solved' | 'infeasible' | 'unbounded' | 'timed_out' | 'failed'
+
+export interface FactoryResponse {
+  factoryId: string
+  status: FactoryStatus
+  lines: FactoryLine[]
+  flows: FactoryItemFlow[]
+  inflows: FactoryInflow[]
+  warnings: FactoryWarning[]
+  pricedInflowCost: number
+  drawEuT: number
+  exportEuT: number
+  busyMachines: number
+  items: Record<string, ItemRef>
 }

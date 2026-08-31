@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FOOTER,
   HEADER,
@@ -16,15 +16,8 @@ import { useStore } from '../storeContext'
 import { useTooltipTarget } from '../tooltipContext'
 import type { BomNode, BomResponse } from '../types'
 import { usePersistent } from '../usePersistent'
+import { GraphViewport } from './GraphViewport'
 import { Slot } from './Slot'
-
-const MARGIN = 40
-
-interface View {
-  x: number
-  y: number
-  k: number
-}
 
 export function ChainGraph({ bom }: { bom: BomResponse }) {
   const [orientation, setOrientation] = usePersistent<ChainOrientation>(
@@ -32,152 +25,37 @@ export function ChainGraph({ bom }: { bom: BomResponse }) {
     'horizontal',
   )
   const layout = useMemo(() => layoutChain(bom, orientation), [bom, orientation])
-  const viewport = useRef<HTMLDivElement>(null)
-  const [view, setView] = useState<View>({ x: MARGIN, y: MARGIN, k: 1 })
   const [hovered, setHovered] = useState<string | null>(null)
-  const drag = useRef<{
-    pointerId: number
-    originX: number
-    originY: number
-    lastX: number
-    lastY: number
-    moved: boolean
-  } | null>(null)
-
-  const fit = () => {
-    const element = viewport.current
-    if (!element || layout.width === 0) {
-      return
-    }
-    const bounds = element.getBoundingClientRect()
-    const k = Math.min(
-      1,
-      (bounds.width - MARGIN * 2) / layout.width,
-      (bounds.height - MARGIN * 2) / layout.height,
-    )
-    setView({
-      x: (bounds.width - layout.width * k) / 2,
-      y: (bounds.height - layout.height * k) / 2,
-      k: Math.max(0.15, k),
-    })
-  }
-
-  // Refit whenever a different chain arrives.
-  useEffect(fit, [layout])
-
-  useEffect(() => {
-    const element = viewport.current
-    if (!element) {
-      return
-    }
-    const onWheel = (event: WheelEvent) => {
-      event.preventDefault()
-      const bounds = element.getBoundingClientRect()
-      const cx = event.clientX - bounds.left
-      const cy = event.clientY - bounds.top
-      setView((previous) => {
-        const k = Math.min(2.5, Math.max(0.1, previous.k * Math.exp(-event.deltaY * 0.0012)))
-        return {
-          k,
-          x: cx - ((cx - previous.x) * k) / previous.k,
-          y: cy - ((cy - previous.y) * k) / previous.k,
-        }
-      })
-    }
-    element.addEventListener('wheel', onWheel, { passive: false })
-    return () => element.removeEventListener('wheel', onWheel)
-  }, [])
 
   return (
-    <div
-      ref={viewport}
-      className="chain-viewport"
-      onPointerDown={(event) => {
-        if (event.button !== 0) {
-          return
-        }
-        drag.current = {
-          pointerId: event.pointerId,
-          originX: event.clientX,
-          originY: event.clientY,
-          lastX: event.clientX,
-          lastY: event.clientY,
-          moved: false,
-        }
-      }}
-      onPointerMove={(event) => {
-        const state = drag.current
-        if (!state || state.pointerId !== event.pointerId) {
-          return
-        }
-        const dx = event.clientX - state.lastX
-        const dy = event.clientY - state.lastY
-        state.lastX = event.clientX
-        state.lastY = event.clientY
-        // Capture only once a real drag starts — capturing on pointerdown swallows child clicks.
-        if (
-          !state.moved &&
-          Math.abs(event.clientX - state.originX) + Math.abs(event.clientY - state.originY) > 4
-        ) {
-          state.moved = true
-          event.currentTarget.setPointerCapture(event.pointerId)
-        }
-        setView((previous) => ({ ...previous, x: previous.x + dx, y: previous.y + dy }))
-      }}
-      onPointerUp={() => {
-        drag.current = null
-      }}
-      onPointerLeave={() => {
-        if (drag.current !== null && !drag.current.moved) {
-          drag.current = null
-        }
-      }}
-      onClickCapture={(event) => {
-        if (drag.current?.moved) {
-          event.stopPropagation()
-        }
-      }}
+    <GraphViewport
+      width={layout.width}
+      height={layout.height}
+      orientation={orientation}
+      onToggleOrientation={() => setOrientation(orientation === 'vertical' ? 'horizontal' : 'vertical')}
     >
-      <div
-        className="chain-canvas"
-        style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}
+      <svg
+        className="chain-edges"
+        width={layout.width}
+        height={layout.height}
+        viewBox={`0 0 ${Math.max(1, layout.width)} ${Math.max(1, layout.height)}`}
       >
-        <svg
-          className="chain-edges"
-          width={layout.width}
-          height={layout.height}
-          viewBox={`0 0 ${Math.max(1, layout.width)} ${Math.max(1, layout.height)}`}
-        >
-          {layout.edges.map((edge, index) => (
-            <path
-              key={index}
-              className={`edge${edge.loop ? ' edge-loop' : ''}${hovered === edge.itemId ? ' edge-active' : ''}`}
-              d={edgePath(edge, orientation)}
-            />
-          ))}
-        </svg>
-        {layout.cards.map((card) =>
-          card.kind === 'recipe' ? (
-            <RecipeCard key={card.id} card={card} bom={bom} onHover={setHovered} />
-          ) : (
-            <EndCard key={card.id} card={card} bom={bom} onHover={setHovered} />
-          ),
-        )}
-      </div>
-      <div className="chain-controls">
-        <button
-          type="button"
-          className="ghost-button"
-          title={orientation === 'vertical' ? 'Horizontal layout' : 'Vertical layout'}
-          onClick={() => setOrientation(orientation === 'vertical' ? 'horizontal' : 'vertical')}
-        >
-          {orientation === 'vertical' ? '⇄' : '⇅'}
-        </button>
-        <button type="button" className="ghost-button" title="Fit to view" onClick={fit}>
-          ⤢
-        </button>
-      </div>
-    </div>
+        {layout.edges.map((edge, index) => (
+          <path
+            key={index}
+            className={`edge${edge.loop ? ' edge-loop' : ''}${hovered === edge.itemId ? ' edge-active' : ''}`}
+            d={edgePath(edge, orientation)}
+          />
+        ))}
+      </svg>
+      {layout.cards.map((card) =>
+        card.kind === 'recipe' ? (
+          <RecipeCard key={card.id} card={card} bom={bom} onHover={setHovered} />
+        ) : (
+          <EndCard key={card.id} card={card} bom={bom} onHover={setHovered} />
+        ),
+      )}
+    </GraphViewport>
   )
 }
 

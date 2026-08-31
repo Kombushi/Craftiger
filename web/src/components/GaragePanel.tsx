@@ -4,13 +4,15 @@ import { fmtHeat } from '../format'
 import { useStore } from '../storeContext'
 import type { MachineDto } from '../types'
 
-export function GaragePanel() {
+/** The garage; relevance-filtered by the crafting cart unless the caller names its own target
+ * items — the deep closure then walks through leaf-class items, the way a factory solve does. */
+export function GaragePanel({ targetIds }: { targetIds?: string[] }) {
   const { meta, cart, garage, setGarage } = useStore()
   const [relevant, setRelevant] = useState<string[]>([])
   const [showAll, setShowAll] = useState(false)
-  const cartKey = cart
-    .map((entry) => entry.itemId)
-    .sort()
+  const deep = targetIds !== undefined
+  const cartKey = (targetIds ?? cart.map((entry) => entry.itemId))
+    .toSorted()
     .join(',')
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export function GaragePanel() {
     }
     let live = true
     api
-      .machinesFor(cartKey.split(','))
+      .machinesFor(cartKey.split(','), deep)
       .then((machines) => {
         if (live) {
           setRelevant(machines)
@@ -34,7 +36,7 @@ export function GaragePanel() {
     return () => {
       live = false
     }
-  }, [cartKey])
+  }, [cartKey, deep])
 
   const rows = useMemo(() => {
     if (!meta) {
@@ -132,8 +134,8 @@ export function GaragePanel() {
           ))}
         </select>
       </div>
-      {cart.length === 0 && !showAll ? (
-        <p className="hint">Machines used by your craft list appear here.</p>
+      {cartKey === '' && !showAll ? (
+        <p className="hint">Machines used by your targets appear here.</p>
       ) : null}
       <ul className="garage-list">
         {(() => {

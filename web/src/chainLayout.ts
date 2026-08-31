@@ -8,8 +8,8 @@ export const FOOTER = 22
 export const ARROW = 26
 const LAYER_GAP = 80
 const CARD_GAP = 26
-const LEAF_W = 200
-const LEAF_H = 56
+export const LEAF_W = 200
+export const LEAF_H = 56
 /** How far an edge running against the flow swings out before turning back. */
 const LOOP_BEND = 80
 
@@ -24,6 +24,26 @@ export interface ChainCard {
   y: number
   w: number
   h: number
+}
+
+/** The geometry any card must carry to be placed and routed; body kinds anchor edges at their slot grid, the rest at their middle. */
+export interface LayoutCard {
+  id: string
+  kind: string
+  outCols: number
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export interface LayoutLink {
+  from: string
+  to: string
+  itemId: string
+  row: number
+  column: number
+  loop: boolean
 }
 
 export interface ChainEdge {
@@ -107,23 +127,25 @@ export function outputColumns(node: BomNode): number {
   return Math.min(2, Math.max(1, node.outputs.length))
 }
 
-function gridWidth(columns: number): number {
+export function slotGridWidth(columns: number): number {
   return columns * SLOT + (columns - 1) * SLOT_GAP
 }
 
 /** Narrow cards still fit their machine name in the header strip. */
-const MIN_RECIPE_W = 210
+export const MIN_RECIPE_W = 210
 
-function recipeSize(node: BomNode): { w: number; h: number } {
-  const inCols = inputColumns(node)
-  const outCols = outputColumns(node)
-  const inRows = inputRows(node)
-  const outRows = Math.max(1, Math.ceil(node.outputs.length / outCols))
+/** The card size for a body of input and output slot grids under a header and over a footer. */
+export function bodySize(inCols: number, inRows: number, outCols: number, outRows: number): { w: number; h: number } {
   const rows = Math.max(inRows, outRows)
   return {
-    w: Math.max(MIN_RECIPE_W, PAD * 2 + gridWidth(inCols) + ARROW + gridWidth(outCols)),
+    w: Math.max(MIN_RECIPE_W, PAD * 2 + slotGridWidth(inCols) + ARROW + slotGridWidth(outCols)),
     h: HEADER + PAD * 2 + rows * SLOT + (rows - 1) * SLOT_GAP + FOOTER,
   }
+}
+
+function recipeSize(node: BomNode): { w: number; h: number } {
+  const outCols = outputColumns(node)
+  return bodySize(inputColumns(node), inputRows(node), outCols, Math.max(1, Math.ceil(node.outputs.length / outCols)))
 }
 
 /** Places recipe cards in topological layers from the leaves to the target, along the
@@ -190,23 +212,36 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
 
   // Every producer→consumer link by card id: each node's inputs feed it, and a loop's seed
   // feeds the loop members that consume its item.
-  const links: { from: string; to: string; itemId: string; row: number; column: number }[] = []
+  const links: LayoutLink[] = []
   for (const node of bom.nodes) {
     const seen = new Set<string>()
     node.inputsPerRun.forEach((input, slotIndex) => {
       if (!seen.has(input.itemId) && cards.has(input.itemId)) {
         seen.add(input.itemId)
-        links.push({ from: input.itemId, to: nodeKey(node), itemId: input.itemId, ...slotPosition(node, slotIndex) })
+        links.push({
+          from: input.itemId, to: nodeKey(node), itemId: input.itemId, loop: false,
+          ...slotPosition(node, slotIndex),
+        })
       }
     })
     if (node.seed && node.loop !== null) {
       for (const member of loopMembers.get(node.loop) ?? []) {
         const slotIndex = member.inputsPerRun.findIndex((input) => input.itemId === node.itemId)
         if (slotIndex !== -1) {
-          links.push({ from: nodeKey(node), to: member.itemId, itemId: node.itemId, ...slotPosition(member, slotIndex) })
+          links.push({
+            from: nodeKey(node), to: member.itemId, itemId: node.itemId, loop: false,
+            ...slotPosition(member, slotIndex),
+          })
         }
       }
     }
+  }
+  for (const link of links) {
+    const from = cards.get(link.from)!
+    const to = cards.get(link.to)!
+    link.loop =
+      from.node !== null && to.node !== null && !from.node.seed && !to.node.seed &&
+      from.node.loop !== null && from.node.loop === to.node.loop
   }
 
   // Nodes arrive targets-first, so the reversed order sees producers before consumers. A
@@ -253,6 +288,18 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
     layers[layerOf.get(nodeKey(node)) ?? 0].push(nodeKey(node))
   }
 
+  const { edges, width, height } = arrange(layers, cards, links, orientation)
+  return { cards: [...cards.values()], edges, width, height }
+}
+
+/** Barycenter-sweeps the given layers, places them along the orientation, and routes the
+ * edges — shared by the crafting chain and the factory flow graph. */
+export function arrange<TCard extends LayoutCard>(
+  layers: string[][],
+  cards: Map<string, TCard>,
+  links: LayoutLink[],
+  orientation: ChainOrientation,
+): { edges: ChainEdge[]; width: number; height: number } {
   const producersOf = new Map<string, string[]>()
   const consumersOf = new Map<string, string[]>()
   for (const link of links) {
@@ -292,26 +339,27 @@ export function layoutChain(bom: BomResponse, orientation: ChainOrientation): Ch
   const edges: ChainEdge[] = links.map((link) => {
     const from = cards.get(link.from)!
     const to = cards.get(link.to)!
-    const loop =
-      from.node !== null && to.node !== null && !from.node.seed && !to.node.seed &&
-      from.node.loop !== null && from.node.loop === to.node.loop
     return orientation === 'vertical'
-      ? verticalEdge(from, to, link.itemId, link.column, loop)
-      : horizontalEdge(from, to, link.itemId, link.row, loop)
+      ? verticalEdge(from, to, link.itemId, link.column, link.loop)
+      : horizontalEdge(from, to, link.itemId, link.row, link.loop)
   })
 
   // Loop arcs swing out past the last layer; the extent must include them or fit clips them.
   const hasLoop = edges.some((edge) => edge.loop)
   return {
-    cards: [...cards.values()],
     edges,
     width: width + (hasLoop && orientation === 'horizontal' ? LOOP_BEND : 0),
     height: height + (hasLoop && orientation === 'vertical' ? LOOP_BEND : 0),
   }
 }
 
+/** Cards with a header, slot body and footer; the rest anchor edges at their middle. */
+function isBody(card: LayoutCard): boolean {
+  return card.kind === 'recipe' || card.kind === 'line'
+}
+
 /** One column per layer, left to right; each column is centered on the tallest one. */
-function placeColumns(layers: string[][], cards: Map<string, ChainCard>): { width: number; height: number } {
+function placeColumns(layers: string[][], cards: Map<string, LayoutCard>): { width: number; height: number } {
   const columnWidths = layers.map((layer) =>
     Math.max(0, ...layer.map((id) => cards.get(id)!.w)),
   )
@@ -335,7 +383,7 @@ function placeColumns(layers: string[][], cards: Map<string, ChainCard>): { widt
 }
 
 /** One row per layer, top to bottom; each row is centered on the widest one. */
-function placeRows(layers: string[][], cards: Map<string, ChainCard>): { width: number; height: number } {
+function placeRows(layers: string[][], cards: Map<string, LayoutCard>): { width: number; height: number } {
   const rowHeights = layers.map((layer) =>
     Math.max(0, ...layer.map((id) => cards.get(id)!.h)),
   )
@@ -360,7 +408,7 @@ function placeRows(layers: string[][], cards: Map<string, ChainCard>): { width: 
 
 /** Leaves the producer's right edge at its body's middle and enters the consuming slot's row. */
 function horizontalEdge(
-  from: ChainCard, to: ChainCard, itemId: string, row: number, loop: boolean,
+  from: LayoutCard, to: LayoutCard, itemId: string, row: number, loop: boolean,
 ): ChainEdge {
   return {
     from: from.id,
@@ -368,7 +416,7 @@ function horizontalEdge(
     itemId,
     loop,
     x1: from.x + from.w,
-    y1: from.y + (from.kind === 'recipe' ? HEADER + (from.h - HEADER - FOOTER) / 2 : from.h / 2),
+    y1: from.y + (isBody(from) ? HEADER + (from.h - HEADER - FOOTER) / 2 : from.h / 2),
     x2: to.x,
     y2: to.y + HEADER + PAD + row * (SLOT + SLOT_GAP) + SLOT / 2,
   }
@@ -376,14 +424,14 @@ function horizontalEdge(
 
 /** Leaves the producer's bottom edge under its output grid and enters the consuming slot's column. */
 function verticalEdge(
-  from: ChainCard, to: ChainCard, itemId: string, column: number, loop: boolean,
+  from: LayoutCard, to: LayoutCard, itemId: string, column: number, loop: boolean,
 ): ChainEdge {
   return {
     from: from.id,
     to: to.id,
     itemId,
     loop,
-    x1: from.x + (from.kind === 'recipe' ? from.w - PAD - gridWidth(from.outCols) / 2 : from.w / 2),
+    x1: from.x + (isBody(from) ? from.w - PAD - slotGridWidth(from.outCols) / 2 : from.w / 2),
     y1: from.y + from.h,
     x2: to.x + PAD + column * (SLOT + SLOT_GAP) + SLOT / 2,
     y2: to.y,
