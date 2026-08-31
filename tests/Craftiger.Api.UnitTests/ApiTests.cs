@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Craftiger.Api.Models;
 using Craftiger.Solver.Models.Bom;
+using Craftiger.Solver.Models.Factory;
 
 namespace Craftiger.Api.UnitTests;
 
@@ -30,6 +31,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 
         Assert.Equal("test-pack", meta!.PackVersion);
         Assert.Equal(["Steam", "LV", "MV", "HV"], meta.TierNames);
+        Assert.Equal([0L, 32L, 128L, 512L], meta.TierVoltages);
         Assert.Equal(2, meta.Coils.Count);
         Assert.True(meta.Machines.Single(machine => machine.Name == "Electric Blast Furnace").HeatGated);
         Assert.False(meta.Machines.Single(machine => machine.Name == "Wiremill").HeatGated);
@@ -340,6 +342,83 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         Assert.Equal(HttpStatusCode.OK, (await Client.GetAsync("/atlas-offsets.json")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await Client.GetAsync("/atlas.webp")).StatusCode);
+    }
+
+    private async Task<FactoryResponse> FactorySolveAsync(object body)
+    {
+        var response = await Client.PostAsJsonAsync("/api/factory/solve", body);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<FactoryResponse>())!;
+    }
+
+    [Fact]
+    public async Task AFactorySolvePlansLinesAndShipsRefs()
+    {
+        var plan = await FactorySolveAsync(new
+        {
+            garage = _hvGarage,
+            b = 4,
+            targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.6 } },
+        });
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        Assert.Equal(32, plan.FactoryId.Length);
+        Assert.NotEmpty(plan.Lines);
+        var wire = plan.Flows.Single(flow => flow.ItemId == "wire");
+        Assert.True(wire.Produced >= 1.6 - 1e-6);
+        Assert.True(plan.Items.ContainsKey("wire"));
+        Assert.Equal(plan.DrawEuT, plan.Lines.Sum(line => line.LineEuT), 6);
+    }
+
+    [Fact]
+    public async Task PinsAndTogglesHashIntoTheFactoryId()
+    {
+        object Body(Dictionary<string, string>? pins = null, bool bredSeeds = false) => new
+        {
+            garage = _hvGarage,
+            b = 4,
+            targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.6 } },
+            pins,
+            bredSeeds,
+        };
+
+        var first = (await FactorySolveAsync(Body())).FactoryId;
+        var again = (await FactorySolveAsync(Body())).FactoryId;
+        var pinned = (await FactorySolveAsync(Body(pins: new Dictionary<string, string> { ["wire"] = "r_wire" }))).FactoryId;
+        var bred = (await FactorySolveAsync(Body(bredSeeds: true))).FactoryId;
+
+        Assert.Equal(first, again);
+        Assert.NotEqual(first, pinned);
+        Assert.NotEqual(first, bred);
+    }
+
+    [Fact]
+    public async Task AMalformedFactoryRequestIsRefused()
+    {
+        var empty = await Client.PostAsJsonAsync("/api/factory/solve", new { garage = _hvGarage, b = 4 });
+        var unknownKind = await Client.PostAsJsonAsync("/api/factory/solve", new
+        {
+            garage = _hvGarage,
+            b = 4,
+            targets = new[] { new { kind = "conjure", itemId = "wire", rate = 1.0 } },
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, unknownKind.StatusCode);
+    }
+
+    [Fact]
+    public async Task AnEnergyTargetWithoutGeneratorsDiagnoses()
+    {
+        var plan = await FactorySolveAsync(new
+        {
+            garage = _hvGarage,
+            b = 4,
+            targets = new[] { new { kind = "energy", rate = 32.0 } },
+        });
+
+        Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
+        Assert.Contains(plan.Warnings, warning => warning.Kind == FactoryWarningKind.NoGenerator);
     }
 
     [Fact]

@@ -1,8 +1,5 @@
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
 using Craftiger.Solver.Interfaces.Costs;
@@ -248,24 +245,5 @@ public sealed class SolveCacheService(
     }
 
     /// <summary>A stable content hash, so identical settings land on the same cache entry.</summary>
-    private static string SolveIdOf(SolveRequest request)
-    {
-        var canonical = new StringBuilder();
-        canonical.Append("b=").Append(request.B.ToString("R", CultureInfo.InvariantCulture));
-        canonical.Append(";default=").Append(request.Garage.DefaultTier);
-        Append(canonical, "machines", (request.Garage.Machines ?? [])
-            .Select(m => $"{m.Key}={m.Value?.ToString() ?? "none"}"));
-        Append(canonical, "built", request.Garage.BuiltMultiblocks ?? []);
-        Append(canonical, "coils", (request.Garage.Coils ?? []).Select(c => $"{c.Key}={c.Value}"));
-        Append(canonical, "weights", (request.Weights ?? [])
-            .Select(w => $"{w.Key}={w.Value.ToString("R", CultureInfo.InvariantCulture)}"));
-        return Convert.ToHexStringLower(
-            SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString())))[..32];
-    }
-
-    private static void Append(StringBuilder canonical, string label, IEnumerable<string> parts)
-    {
-        canonical.Append(';').Append(label).Append('=');
-        canonical.AppendJoin(',', parts.Order(StringComparer.Ordinal));
-    }
+    private static string SolveIdOf(SolveRequest request) => CacheKeys.Hash(CacheKeys.Settings(request));
 }

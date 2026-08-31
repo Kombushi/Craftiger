@@ -12,6 +12,7 @@ public sealed record PlannerArtifact(
     string PackVersion,
     string BuildId,
     IReadOnlyList<string> TierNames,
+    IReadOnlyList<long> TierVoltages,
     IReadOnlyList<CoilDto> Coils,
     IReadOnlyList<MachineDto> Machines,
     AtlasDto? Atlas,

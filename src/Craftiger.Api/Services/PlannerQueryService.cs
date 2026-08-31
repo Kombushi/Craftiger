@@ -26,8 +26,8 @@ public sealed class PlannerQueryService(
     private const int ShortQueryScanLimit = 500;
 
     public MetaResponse Meta() => new(
-        artifact.PackVersion, artifact.TierNames, artifact.Coils, artifact.Machines,
-        artifact.Atlas);
+        artifact.PackVersion, artifact.TierNames, artifact.TierVoltages, artifact.Coils,
+        artifact.Machines, artifact.Atlas);
 
     public ListResponse List(SolveEntry entry, int page, int pageSize, bool hideUnreachable)
     {

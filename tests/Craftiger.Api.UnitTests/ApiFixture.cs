@@ -172,6 +172,7 @@ public sealed class ApiFixture : IDisposable
             "INSERT INTO meta VALUES ('schema_version', @Version), " +
             "('pack_version', 'test-pack'), ('build_id', 'test-build'), " +
             "('tier_names', '[\"Steam\",\"LV\",\"MV\",\"HV\"]'), " +
+            "('tier_voltages', '[0,32,128,512]'), " +
             "('coils', '[{\"Name\":\"Cupronickel\",\"MaxHeat\":1800,\"Tier\":1},{\"Name\":\"Kanthal\",\"MaxHeat\":2700,\"Tier\":2}]'), " +
             "('atlas_width', '192'), ('atlas_height', '32'), ('atlas_cell', '32'), " +
             "('steam', '{\"SteamFluidIds\":[\"f~IC2~ic2steam\"],\"DistilledWaterId\":null,\"EuPerLiter\":0.5,\"WaterPerSteam\":160}'), " +

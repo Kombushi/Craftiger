@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.45
+# GTNH Crafting Planner — Specification v1.46
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -657,9 +657,11 @@ Caching and pins:
   one computation and wait only for it, requests for other keys — cached or
   new — proceed at once, and there is no cap on how many distinct solves run
   at a time. A solve that fails is not kept; the next request recomputes.
-- **Pins never enter the cache key.** The sorted list always shows the unpinned
-  baseline; pins are applied as an overlay when resolving the item detail view and
-  the BOM walk. v1 simplification: a pin changes recipe *choice*, not the listed price.
+- **Pins never enter the cost-solve cache key.** The sorted list always shows the
+  unpinned baseline; pins are applied as an overlay when resolving the item detail
+  view and the BOM walk. v1 simplification: a pin changes recipe *choice*, not the
+  listed price. The factory solve is the exception: there pins shape the feasible
+  set itself, so its own cache key hashes them (§8).
 - A pin whose recipe the garage cannot run is ignored with a visible red
   warning, falling back to auto-cheapest. Pins cannot bypass the garage filter.
   A pin that would close a cycle in the BOM walk is likewise ignored with a
@@ -951,7 +953,31 @@ Screens:
   {name, atlasIdx, isFluid, leafClass, cost, uncraftable, maxStack}}}` — the chain nodes of §6 in both
   accountings plus the same display lookup, so one request feeds a whole
   chain view.
-- `GET /api/meta` → tier ladder, machine list (each with its availability
+- `POST /api/factory/solve` — body `{garage, b, weights, targets: [{kind,
+  itemId, rate, generatorTier}], priority, pins, mobFarms, bredSeeds}` where
+  `kind` is `produce`, `consume` or `energy`, `rate` is units per second (EU/t
+  of net export for energy) and `priority` orders the lexicographic layers
+  (`resource`, `energy`, `machines`; empty means that order) →
+  `{factoryId, status, lines, flows, inflows, warnings, pricedInflowCost,
+  drawEuT, exportEuT, busyMachines, items}`. Each line carries its recipe,
+  machine map, machine item id, runs/s, OC steps, parallels, busy-machine
+  count, after-OC duration and per-instance EU/t (negative for a generator's
+  net emission; line EU/t is the product with the busy count), plus the
+  durationless and estimated flags; `items` is the same display lookup the
+  other endpoints ship. Shape errors (no targets, an unknown kind or
+  objective, a non-positive rate, an out-of-range tier) are 400s; everything
+  the solve itself diagnoses answers 200 with a `status` and structured
+  `warnings`. The `factoryId` is a content hash of everything that shapes
+  the plan — garage, `b`, weights, targets, priority order, **pins**, and
+  the mob-farms and bred-seeds toggles (§5: the cost-solve key excludes
+  pins; this one cannot). Entries run single-flight per id and live in the
+  same two cache tiers under `craftiger:{schema}:{pack}:{build_id}:factory:
+  {factoryId}`, the value a versioned Brotli-compressed plan naming the
+  build it was solved on — recomputed, never served, on any mismatch. A
+  `timed_out` or `failed` plan is answered but never cached, so a retry
+  starts over; the wall-clock budget per solve is configuration.
+- `GET /api/meta` → tier ladder, tier voltages (EU/t per amp per tier,
+  indexed like the ladder), machine list (each with its availability
   era), coil list, pack version, atlas dimensions
 - Static: `/atlas.webp`, `/atlas-offsets.json`
 - Probes: `GET /livez`, `GET /readyz` — bare health checks; the eager artifact
@@ -1329,3 +1355,15 @@ All "does not / never" rules live here; other sections only reference this one.
 59. A bred row waits for the bred-seeds toggle and rates a 31/31 seed —
     64 growth points against a fresh seed's 12 on a tier-1 crop — and a
     factory-scoped row never lists among an item's crafting recipes.
+60. `/api/factory/solve` plans machine lines for a produce target, the
+    per-line EU/t sums to the plan's draw, and the response ships the
+    display lookup for every item the plan names.
+61. Identical factory requests land on one `factoryId`; changing a pin or
+    a scope toggle lands on another — unlike the cost `solveId`, which
+    ignores pins.
+62. A replica serves a stored factory plan without re-solving, and a plan
+    from another artifact build decodes to nothing and is recomputed.
+63. A factory request with no targets, an unknown kind or a non-positive
+    rate is a 400; an energy target no legal generator can serve answers
+    `infeasible` with a `no_generator` warning, and `/api/meta` ships the
+    tier voltages.

@@ -112,6 +112,7 @@ public sealed class PlannerArtifactRepository(
             meta.GetValueOrDefault("build_id")
                 ?? throw new InvalidOperationException("planner.sqlite carries no build_id; rebuild it with the current builder"),
             JsonSerializer.Deserialize<List<string>>(meta.GetValueOrDefault("tier_names") ?? "[]") ?? [],
+            JsonSerializer.Deserialize<List<long>>(meta.GetValueOrDefault("tier_voltages") ?? "[]") ?? [],
             JsonSerializer.Deserialize<List<CoilDto>>(meta.GetValueOrDefault("coils") ?? "[]") ?? [],
             machineDtos,
             meta.TryGetValue("atlas_width", out var value)

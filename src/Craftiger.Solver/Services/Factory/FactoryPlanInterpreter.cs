@@ -73,7 +73,11 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                         variant.Parallels,
                         busy,
                         variant.IsDurationless,
-                        variant.Estimated));
+                        variant.Estimated,
+                        variant.DurationSeconds,
+                        variant.IsDurationless
+                            ? 0
+                            : variant.EuPerRun * variant.Parallels / (variant.DurationSeconds * Ticks.PerSecond)));
                     break;
                 case SplitColumn split:
                     Accumulate(consumed, split.Item, split.Amount * value);
@@ -104,7 +108,8 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                         1,
                         value,
                         Durationless: false,
-                        Estimated: false));
+                        Estimated: false,
+                        EuTPerMachine: -line.NetEuT));
                     break;
                 case SupplyColumn supply:
                     Accumulate(supplied, supply.Item, value);
@@ -120,11 +125,12 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
         if (cleanroomHosts)
         {
             var environment = context.Environment;
-            drawEuT += environment.CleanroomDrawEuT(context.Garage.DefaultTier);
+            var hostingDraw = environment.CleanroomDrawEuT(context.Garage.DefaultTier);
+            drawEuT += hostingDraw;
             busyMachines += 1;
             lines.Add(new FactoryLine(
                 FactoryEnvironment.CleanroomLineId, "Cleanroom", environment.CleanroomItemId, 1, 0, 1, 1,
-                Durationless: false, Estimated: false));
+                Durationless: false, Estimated: false, EuTPerMachine: hostingDraw));
         }
 
         var allWarnings = new List<FactoryWarning>(warnings);

@@ -784,13 +784,27 @@ guard.
   price the objective, pins shape the feasible set, so all are in the key
   (the cost-solve key precedent: `(garageHash, B, weightsHash)`; the
   cost-side rule "pins never in the solve cache key" is re-scoped to cost
-  solves in spec §9, and CLAUDE.md's invariant bullet is edited in the same
+  solves in spec §5, and CLAUDE.md's invariant bullet is edited in the same
   commit). Valkey key `craftiger:{schema}:{pack}:{build_id}:factory:{factoryId}`,
   value = versioned compressed response DTO under the existing solve-store
   rules (magic, unparseable ⇒ recompute, write-before-answer, no expiry);
   single-flight per factoryId. Cross-replica determinism of the native
   solver is pinned by §4.3's settings + canonicalization layer and covered
   by an acceptance check; first writer wins.
+- **Shipped mechanics**: the endpoint is `POST /api/factory/solve` per spec
+  §8 (checks 60–63). The factoryId also hashes the priority order (layers
+  run in it) and the mob-farms and bred-seeds toggles. The stored value is
+  the plan alone — the `items` display lookup is rebuilt per response from
+  the artifact, so cached values stay lean and display data always matches
+  the serving build. Per-line EU/t ships as `FactoryLine.EuTPerMachine`
+  (after-OC per-instance draw; negative = a generator's net emission) with
+  the line total its product with `busyMachines`, and lines carry the
+  after-OC duration. `timed_out` and `failed` plans answer but never cache
+  — in memory or the store — so a retry recomputes; the per-solve budget is
+  `ApiOptions:FactoryTimeLimitSeconds`. Shape errors are 400s; every solve
+  outcome is a 200 with `status` + structured warnings. The cost solve
+  behind a plan runs through the existing solve cache, so a factory hit
+  never pays for one.
 
 ### 6.3 Garage delta
 

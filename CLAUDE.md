@@ -41,7 +41,8 @@ behavior must change, update `spec.md` in the same commit as the code.
 - Chanced outputs divide by `chance` (expected value) in both prices and run
   counts (spec §4, §6).
 - No byproduct credit: each output is priced from the recipe's full input cost.
-- Pins overlay recipe choice only: never part of the solve cache key, never
+- Pins overlay recipe choice only: never part of the cost-solve cache key
+  (the factory cache key does hash them, spec §8), never
   able to bypass garage legality (spec §5).
 - Every "does not / never" product rule lives in spec §9. Add new ones there,
   nowhere else.

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Craftiger.Solver\Craftiger.Solver.csproj" />
+    <ProjectReference Include="..\Craftiger.Solver.Highs\Craftiger.Solver.Highs.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -3,12 +3,18 @@ using Craftiger.Api.Interfaces;
 using Craftiger.Api.Models;
 using Craftiger.Api.Repositories;
 using Craftiger.Api.Services;
+using Craftiger.Solver.Highs.Interfaces;
+using Craftiger.Solver.Highs.Models;
+using Craftiger.Solver.Highs.Services;
 using Craftiger.Solver.Interfaces.Bom;
 using Craftiger.Solver.Interfaces.Costs;
+using Craftiger.Solver.Interfaces.Factory;
 using Craftiger.Solver.Interfaces.Graph;
+using Craftiger.Solver.Interfaces.Lp;
 using Craftiger.Solver.Models.Options;
 using Craftiger.Solver.Services.Bom;
 using Craftiger.Solver.Services.Costs;
+using Craftiger.Solver.Services.Factory;
 using Craftiger.Solver.Services.Graph;
 using Microsoft.Extensions.Options;
 
@@ -20,6 +26,7 @@ builder.Services.Configure<SolverPreferences>(builder.Configuration.GetSection(n
 builder.Services.Configure<CostSolverOptions>(builder.Configuration.GetSection(nameof(CostSolverOptions)));
 builder.Services.Configure<BomOptions>(builder.Configuration.GetSection(nameof(BomOptions)));
 builder.Services.Configure<FactorySolverOptions>(builder.Configuration.GetSection(nameof(FactorySolverOptions)));
+builder.Services.Configure<HighsOptions>(builder.Configuration.GetSection(nameof(HighsOptions)));
 
 builder.Services.AddSingleton<IFactoryArtifactReader, FactoryArtifactReader>();
 builder.Services.AddSingleton<IPlannerArtifactRepository, PlannerArtifactRepository>();
@@ -39,6 +46,23 @@ builder.Services.AddSingleton<ISolveEntryCodec, SolveEntryCodec>();
 builder.Services.AddSingleton<ISolveStore, ValkeySolveStore>();
 builder.Services.AddSingleton<ISolveCacheService, SolveCacheService>();
 builder.Services.AddSingleton<IPlannerQueryService, PlannerQueryService>();
+
+// The factory solver stack, with the native HiGHS adapter as its LP engine.
+builder.Services.AddSingleton<IHighsModelLoader, HighsModelLoader>();
+builder.Services.AddSingleton<ILexicographicLayerRunner, LexicographicLayerRunner>();
+builder.Services.AddSingleton<ILinearProgramSolver, HighsLinearProgramSolver>();
+builder.Services.AddSingleton<IRunVariantService, RunVariantService>();
+builder.Services.AddSingleton<IFactoryTargetService, FactoryTargetService>();
+builder.Services.AddSingleton<IGeneratorCatalogService, GeneratorCatalogService>();
+builder.Services.AddSingleton<ICandidateWalkService, CandidateWalkService>();
+builder.Services.AddSingleton<IFactoryModelService, FactoryModelService>();
+builder.Services.AddSingleton<IAutoInfiniteService, AutoInfiniteService>();
+builder.Services.AddSingleton<IFactoryDiagnosisService, FactoryDiagnosisService>();
+builder.Services.AddSingleton<IFactoryPlanInterpreter, FactoryPlanInterpreter>();
+builder.Services.AddSingleton<IFactorySolverService, FactorySolverService>();
+builder.Services.AddSingleton<IFactoryRequestService, FactoryRequestService>();
+builder.Services.AddSingleton<IFactoryPlanCodec, FactoryPlanCodec>();
+builder.Services.AddSingleton<IFactoryCacheService, FactoryCacheService>();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
@@ -96,6 +120,9 @@ app.MapPost("/api/bom", async (
     await cache.GetAsync(request.SolveId) is { } entry
         ? Results.Ok(query.Bom(entry, request))
         : Results.NotFound());
+
+app.MapPost("/api/factory/solve", (FactorySolveRequest request, IFactoryCacheService cache) =>
+    cache.SolveAsync(request));
 
 app.MapGet("/atlas.webp", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas.webp", "image/webp"));
 app.MapGet("/atlas-offsets.json", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas-offsets.json", "application/json"));
