@@ -127,6 +127,7 @@ public sealed class BuilderPipeline(
                     .Select(TierLadder.Voltage)),
             ["coils"] = JsonSerializer.Serialize(_eras.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier })),
             ["steam"] = JsonSerializer.Serialize(steam.Carrier),
+            ["environment"] = JsonSerializer.Serialize(eraSolve.Environment),
             ["price_leaks"] = prices.Undercut.ToString(),
             ["price_free_items"] = prices.Free.ToString(),
             ["price_converged"] = prices.Converged ? "1" : "0"

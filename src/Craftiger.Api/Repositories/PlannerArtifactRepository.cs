@@ -15,7 +15,7 @@ public sealed class PlannerArtifactRepository(
     ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 12;
+    public const int SupportedSchemaVersion = 13;
 
     public PlannerArtifact Load(string artifactsDir)
     {
@@ -134,6 +134,8 @@ public sealed class PlannerArtifactRepository(
         var euT = new List<long>();
         var amps = new List<long>();
         var overclocks = new List<OverclockMode>();
+        var cleanrooms = new List<bool>();
+        var lowGravities = new List<bool>();
         var catalystSlotStart = new List<int> { 0 };
         var catalystAlternativeStart = new List<int> { 0 };
         var catalystItemId = new List<string>();
@@ -176,13 +178,15 @@ public sealed class PlannerArtifactRepository(
         var output = outputs.MoveNext() ? outputs.Current : null;
 
         foreach (var recipe in recipesDb.Query<RecipeRow>(
-            "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT, amps, overclock FROM recipes ORDER BY rowid",
+            "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT, amps, cleanroom, low_gravity AS LowGravity, overclock FROM recipes ORDER BY rowid",
             buffered: false))
         {
             builder.BeginRecipe(recipe.Id, recipe.Machine, (int)recipe.Tier, (int?)recipe.MultiTier, (int?)recipe.Heat);
             durations.Add(recipe.DurationTicks);
             euT.Add(recipe.EuT);
             amps.Add(recipe.Amps);
+            cleanrooms.Add(recipe.Cleanroom != 0);
+            lowGravities.Add(recipe.LowGravity != 0);
             overclocks.Add(recipe.Overclock switch
             {
                 null => OverclockMode.Standard,
@@ -271,7 +275,8 @@ public sealed class PlannerArtifactRepository(
                 [.. gridStart],
                 [.. gridCell],
                 [.. gridSlot]),
-            new FactoryRecipeData([.. durations], [.. euT], [.. amps], [.. overclocks]),
+            new FactoryRecipeData(
+                [.. durations], [.. euT], [.. amps], [.. overclocks], [.. cleanrooms], [.. lowGravities]),
             machines);
     }
 }

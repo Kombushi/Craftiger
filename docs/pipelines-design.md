@@ -274,10 +274,14 @@ Per column `(r, m, k)`, effective parameters are computed at model build:
   zero machine time and zero power — free infinite-rate converters, flagged
   per line in the UI; accepted v1 behavior.
 - **Recipe requirements**: `REQUIRES_CLEANROOM` (762 recipes) and
-  `REQUIRES_LOW_GRAVITY` (7) ship in the schema bump. The Cleanroom runs as
-  a hosting machine line with continuous draw; its EU/t figure is taken from
-  the GTNH wiki and verified at implementation. Low-gravity recipes are
-  gated by era (the rocket-tier era threshold, pinned at implementation).
+  `REQUIRES_LOW_GRAVITY` (7) ship as recipe flags, gated by the era walls
+  the artifact carries in `meta.environment` (the controller's solved era
+  and the first rocket's era). A plan with running cleanroom lines gets one
+  hosting Cleanroom line appended after the solve — a fixed charge is not
+  LP-expressible, and one warm room is noise against factory scale — at
+  the steady draw of `MTECleanroom`'s 40 EU/t recipe overclocked by a
+  hatch of the garage's tier, over ten: 4 EU/t through MV, quadrupling
+  per tier above. Low gravity is a place, not a machine: era wall only.
 
 Machine construction is free and instantaneous in the model (multiblock
 casings and coils are among the pack's most expensive crafts — a real
@@ -828,8 +832,12 @@ per-second, no machine count caps (§6.4, §8).
 
 To pin during implementation (facts to evidence, not decisions):
 
-- Cleanroom controller EU/t draw — from the GTNH wiki, verified in source.
-- The low-gravity era threshold — from the rocket-tier → era ladder.
+- Cleanroom controller EU/t draw — **pinned** from GT5-Unofficial
+  5.09.54.20 `MTECleanroom`: 40 EU/t recipe, running draw `consumption/10`
+  (4 EU/t steady on the LV hatch, which alone accepts 2 A), one energy
+  hatch only; modeled at the garage tier's hatch (§4.4).
+- The low-gravity era threshold — **pinned** as the configured T1-rocket
+  era (`DimensionTierEras`, Moon: HV) shipped in `meta.environment`.
 - TGS power-to-output multiplier formula — **pinned** from GT5-Unofficial
   5.09.54.20 `MTETreeFarm`: `2·tier² − 2·tier + 5`, draw `VP[tier]`, 100
   ticks (§4.6).

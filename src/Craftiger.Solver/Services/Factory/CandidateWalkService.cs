@@ -31,7 +31,8 @@ public sealed class CandidateWalkService(IGarageLegalityService legality, IOptio
         bool Admit(int recipe, IReadOnlySet<int>? free = null)
         {
             if (candidates.Contains(recipe) || rejected.Contains(recipe)
-                || !legality.IsLegal(index, recipe, context.Garage))
+                || !legality.IsLegal(index, recipe, context.Garage)
+                || !context.Environment.Admits(context.Recipes, recipe, context.Garage))
             {
                 return false;
             }

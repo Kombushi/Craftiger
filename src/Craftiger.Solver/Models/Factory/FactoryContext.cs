@@ -12,6 +12,7 @@ public sealed record FactoryContext
         FactoryMachineData machines,
         FactorySeedData seeds,
         FactorySteamRules steam,
+        FactoryEnvironment environment,
         CostTable costs,
         Garage garage,
         WeightSettings weights)
@@ -25,6 +26,7 @@ public sealed record FactoryContext
         Machines = machines;
         Seeds = seeds;
         Steam = steam;
+        Environment = environment;
         Costs = costs;
         Garage = garage;
         Weights = weights;
@@ -39,6 +41,8 @@ public sealed record FactoryContext
     public FactorySeedData Seeds { get; }
 
     public FactorySteamRules Steam { get; }
+
+    public FactoryEnvironment Environment { get; }
 
     public CostTable Costs { get; }
 

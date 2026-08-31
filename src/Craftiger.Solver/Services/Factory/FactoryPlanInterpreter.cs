@@ -27,6 +27,7 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
         var drawEuT = 0.0;
         var exportEuT = 0.0;
         var busyMachines = 0.0;
+        var cleanroomHosts = false;
 
         void Accumulate(Dictionary<int, double> rates, int item, double amount) =>
             rates[item] = rates.GetValueOrDefault(item) + amount;
@@ -59,6 +60,7 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                     {
                         Accumulate(consumed, steamItem, variant.SteamPerRun * value);
                     }
+                    cleanroomHosts |= context.Recipes.NeedsCleanroom(recipe);
                     var busy = variant.BusyMachines(value);
                     drawEuT += variant.DrawEuT(value);
                     busyMachines += busy;
@@ -104,6 +106,17 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                     cost += value * model.ChargedWeight(index, buy.Item);
                     break;
             }
+        }
+
+        // The hosting cleanroom stays out of the LP: one warm room and its draw are a post-solve overhead.
+        if (cleanroomHosts)
+        {
+            var environment = context.Environment;
+            drawEuT += environment.CleanroomDrawEuT(context.Garage.DefaultTier);
+            busyMachines += 1;
+            lines.Add(new FactoryLine(
+                FactoryEnvironment.CleanroomLineId, "Cleanroom", environment.CleanroomItemId, 1, 0, 1, 1,
+                Durationless: false, Estimated: false));
         }
 
         var allWarnings = new List<FactoryWarning>(warnings);

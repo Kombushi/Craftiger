@@ -59,7 +59,10 @@ internal static class FactoryHarness
         FactoryMachineData? machines = null,
         int garageTier = 0,
         FactorySeedData? seeds = null,
-        IEnumerable<string>? treeFarms = null)
+        IEnumerable<string>? treeFarms = null,
+        IEnumerable<string>? cleanroom = null,
+        IEnumerable<string>? lowGravity = null,
+        FactoryEnvironment? environment = null)
     {
         var legality = new GarageLegalityService(Options.Create(Rules));
         var costOptions = Options.Create(new CostSolverOptions());
@@ -81,10 +84,11 @@ internal static class FactoryHarness
         var weights = new WeightSettings(4, new Dictionary<string, double>());
         var context = new FactoryContext(
             graph,
-            FactoryRecipeData.Build(graph.Index, data, treeFarms),
+            FactoryRecipeData.Build(graph.Index, data, treeFarms, cleanroom, lowGravity),
             machines ?? FactoryMachineData.Empty,
             seeds ?? FactorySeedData.Empty,
             new FactorySteamRules(["f~IC2~ic2steam", "f~Railcraft~steam"], "f~IC2~ic2distilledwater", 0.5, 160),
+            environment ?? FactoryEnvironment.None,
             costSolver.Solve(graph, garage, weights),
             garage,
             weights);

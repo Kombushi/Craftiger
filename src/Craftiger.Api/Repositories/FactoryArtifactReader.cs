@@ -76,6 +76,13 @@ public sealed class FactoryArtifactReader : IFactoryArtifactReader
         var steam = new FactorySteamRules(
             steamMeta.SteamFluidIds, steamMeta.DistilledWaterId, steamMeta.EuPerLiter, steamMeta.WaterPerSteam);
 
-        return new FactoryArtifactData(recipes, machines, seeds, steam);
+        var environmentMeta = JsonSerializer.Deserialize<EnvironmentMeta>(
+            meta.GetValueOrDefault("environment")
+            ?? throw new InvalidOperationException("planner.sqlite carries no environment meta; rebuild it with the current builder"))
+            ?? throw new InvalidOperationException("planner.sqlite carries an unreadable environment meta");
+        var environment = new FactoryEnvironment(
+            environmentMeta.CleanroomItemId, environmentMeta.CleanroomEra, environmentMeta.LowGravityEra);
+
+        return new FactoryArtifactData(recipes, machines, seeds, steam, environment);
     }
 }

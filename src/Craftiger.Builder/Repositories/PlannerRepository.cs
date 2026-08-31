@@ -8,7 +8,7 @@ namespace Craftiger.Builder.Repositories;
 public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader can refuse what it does not know.</summary>
-    public const int SchemaVersion = 12;
+    public const int SchemaVersion = 13;
 
     public void Write(string path, PlannerData data)
     {

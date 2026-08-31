@@ -170,7 +170,8 @@ public sealed class ApiFixture : IDisposable
             "('tier_names', '[\"Steam\",\"LV\",\"MV\",\"HV\"]'), " +
             "('coils', '[{\"Name\":\"Cupronickel\",\"MaxHeat\":1800,\"Tier\":1},{\"Name\":\"Kanthal\",\"MaxHeat\":2700,\"Tier\":2}]'), " +
             "('atlas_width', '192'), ('atlas_height', '32'), ('atlas_cell', '32'), " +
-            "('steam', '{\"SteamFluidIds\":[\"f~IC2~ic2steam\"],\"DistilledWaterId\":null,\"EuPerLiter\":0.5,\"WaterPerSteam\":160}')",
+            "('steam', '{\"SteamFluidIds\":[\"f~IC2~ic2steam\"],\"DistilledWaterId\":null,\"EuPerLiter\":0.5,\"WaterPerSteam\":160}'), " +
+            "('environment', '{\"CleanroomItemId\":\"clean\",\"CleanroomEra\":3,\"LowGravityEra\":3}')",
             new { Version = schemaVersion.ToString() });
     }
 

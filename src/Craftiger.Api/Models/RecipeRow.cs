@@ -10,4 +10,6 @@ internal sealed record RecipeRow(
     long DurationTicks,
     long EuT,
     long Amps,
+    long Cleanroom,
+    long LowGravity,
     string? Overclock);

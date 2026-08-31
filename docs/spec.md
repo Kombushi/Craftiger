@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.41
+# GTNH Crafting Planner — Specification v1.42
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -333,8 +333,14 @@ Builder responsibilities, in order:
   already folds map amperage into it — the builder warns when a >1 A map's
   recipes diverge from the map, the tripwire for that convention changing).
   `cleanroom` and `low_gravity` carry the recipe's environment requirements
-  for rate planning; the cost engine keeps handling cleanroom through the
-  era solve and ignores both columns. `overclock` names the ladder a recipe
+  for rate planning: the factory solve admits a flagged recipe only when
+  the garage's era reaches the matching wall in `meta.environment`, and a
+  plan with running cleanroom lines hosts them in one Cleanroom line —
+  added after the solve, one machine drawing a tenth of the controller's
+  40 EU/t recipe overclocked by a hatch of the garage's tier (4 EU/t
+  through MV, quadrupling per tier above) — while a low-gravity line
+  needs a place, not a machine, and adds nothing. The cost engine keeps
+  handling cleanroom through the era solve and ignores both columns. `overclock` names the ladder a recipe
   climbs above its tier for rate planning: null for GregTech's standard one
   (each step quadruples power and halves duration), `TREE_FARM` for the
   Tree Growth Simulator's, where each step quadruples power and multiplies
@@ -443,8 +449,12 @@ Builder responsibilities, in order:
   steam, in the builder's configured order, limited to fluids the dump
   knows), `DistilledWaterId` (what turbines condense steam into; null when
   the dump lacks the fluid), `EuPerLiter` (0.5) and `WaterPerSteam` (160)
-  — so the runtime carries no modpack ids of its own — and the price
-  check's verdict (§3 step 7).
+  — so the runtime carries no modpack ids of its own — `environment` —
+  the environment walls as JSON: `CleanroomItemId` and `CleanroomEra`,
+  the Cleanroom Controller's canonical item and its solved era (falling
+  back to the configured HV floor when the dump lacks the controller),
+  and `LowGravityEra`, the configured era of the first rocket — and the
+  price check's verdict (§3 step 7).
 
 The artifact is written once and shipped read-only. Journal sidecars left by
 an interrupted run are cleared before writing, alternatives, aliases, and
@@ -1240,3 +1250,7 @@ All "does not / never" rules live here; other sections only reference this one.
     smelted from an MV-dated boss's drop tiers at MV — while an unlisted
     mob's drop seeds nothing and the same ingot only gets its recipe-tier
     fallback.
+51. A factory running a cleanroom-flagged recipe carries one hosting
+    Cleanroom line at the garage-tier draw beside its machines; a garage
+    below the cleanroom or low-gravity era wall cannot plan a flagged
+    recipe at all and the target diagnoses as unreachable.

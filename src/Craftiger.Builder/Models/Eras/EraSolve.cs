@@ -8,7 +8,8 @@ public sealed record EraSolve(
     IReadOnlyDictionary<string, int> Era,
     IReadOnlyDictionary<string, PlannerRecipe> BestRecipe,
     IReadOnlySet<string> Seeds,
-    IReadOnlyDictionary<string, int?> MachineEras)
+    IReadOnlyDictionary<string, int?> MachineEras,
+    PlannerEnvironment Environment)
 {
     private const int ExplainDepth = 12;
 

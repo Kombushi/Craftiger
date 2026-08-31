@@ -206,8 +206,17 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     [Fact]
     public void ArtifactStampsItsSchemaVersion()
     {
-        Assert.Equal(12, Repositories.PlannerRepository.SchemaVersion);
-        Assert.Equal("12", _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));
+        Assert.Equal(13, Repositories.PlannerRepository.SchemaVersion);
+        Assert.Equal("13", _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));
+    }
+
+    [Fact]
+    public void ArtifactShipsTheEnvironmentWalls()
+    {
+        // The fixture dump has no Cleanroom Controller, so the era wall falls back to the configured floor.
+        Assert.Equal(
+            "{\"CleanroomItemId\":\"\",\"CleanroomEra\":3,\"LowGravityEra\":3}",
+            _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'environment'"));
     }
 
     [Fact]

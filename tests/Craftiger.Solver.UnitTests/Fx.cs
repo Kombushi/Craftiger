@@ -112,13 +112,15 @@ internal static class Fx
         FactoryMachineData? machines = null,
         FactorySeedData? seeds = null,
         Garage? garage = null,
-        WeightSettings? weights = null)
+        WeightSettings? weights = null,
+        FactoryEnvironment? environment = null)
     {
         garage ??= Garage();
         weights ??= Weights();
         return new FactoryContext(
             graph, Data(graph, data), machines ?? FactoryMachineData.Empty, seeds ?? FactorySeedData.Empty,
             FactorySteamRules.Empty with { SteamFluidIds = ["f~IC2~ic2steam", "f~Railcraft~steam"] },
+            environment ?? FactoryEnvironment.None,
             Costs(graph, garage, weights), garage, weights);
     }
 
