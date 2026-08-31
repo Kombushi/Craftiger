@@ -34,7 +34,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
         var cropDrops = dump.Crops
             .Where(c => !c.Hidden)
             .SelectMany(c => c.Drops)
-            .Select(unified.Canonical)
+            .Select(drop => unified.Canonical(drop.ItemId))
             .ToHashSet();
         var classes = new Dictionary<string, string>();
 

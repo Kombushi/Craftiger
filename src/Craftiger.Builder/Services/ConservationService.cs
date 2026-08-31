@@ -211,7 +211,7 @@ public sealed class ConservationService(
         {
             foreach (var drop in crop.Drops)
             {
-                world.Add(unified.Canonical(drop));
+                world.Add(unified.Canonical(drop.ItemId));
             }
         }
         return world;

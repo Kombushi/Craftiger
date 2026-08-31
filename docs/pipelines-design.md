@@ -409,12 +409,13 @@ has two parts, and neither is a baked per-item flag:
 - **The artifact ships only a curated seed set** of primitives
   (`renewable_seeds`, from a checked-in builder config), decided: start from
   gtnh-flow's renewables catalog **minus lava**; **Air and Cobblestone are
-  seeds**; Water, farm-product leaves (latex, crop drops, farmables) and
-  mob-drop leaves are in; **logs are not** — wood is tree-farmed or bought,
-  never free of machines; **automated fishing and scrapbox loops are not**
-  (v1). Leaf classes are *not* trusted: of the 8 `world_fluid` leaves only
-  Water qualifies (the rest are Lava and six finite oils); `minable_block`
-  mixes Cobblestone with finite End Stone.
+  seeds**; Water is in; **farm-product and mob-drop leaves are not** —
+  crops, farmables and mob drops are farm-lined or bought, never free of
+  machines, the same ruling that already covers logs; **automated fishing
+  and scrapbox loops are not** (v1). Leaf classes are *not* trusted: of
+  the 8 `world_fluid` leaves only Water qualifies (the rest are Lava and
+  six finite oils); `minable_block` mixes Cobblestone with finite End
+  Stone.
 - **Derivation falls out of the LP**: only leaf purchases are priced, so
   zero-weighting the seeds makes every garage-legal chain from them
   (distilled water, H₂/O₂ via Electrolyzer, N₂ via Compressor→Canner→
@@ -430,17 +431,18 @@ has two parts, and neither is a baked per-item flag:
   inside the fixpoint, recipes whose only other requirement is a catalyst
   qualify, and the UI label for the concept is **∞**.
 
-Mob drops have no recipe edges (spec §9 excludes pseudo-recipe sources); they
-participate as seed-marked leaf *inflows*, not as synthesized EEC lines, and
-mob farming is **optional per factory** — a toggle includes or excludes the
-mob-drop seeds from the auto-infinite set. The single scalar "renewable
-share" is dropped as undefined (weighted share is 0-by-construction; raw
-amounts mix mB and items) — the UI reports auto-infinite and priced inflows
-as separate lists.
+Mob drops have no *priced* recipe edges (spec §9 scopes the exclusion):
+the factory tab derives them through synthesized EEC lines, and mob
+farming stays **optional per factory** — the toggle now gates the EEC
+lines instead of a seed set. The single scalar "renewable share" is
+dropped as undefined (weighted share is 0-by-construction; raw amounts
+mix mB and items) — the UI reports auto-infinite and priced inflows as
+separate lists.
 
-Shipped mechanics: the artifact's `renewable_seeds` (1,167 rows — 926 FARM,
-223 MOB, 18 WORLD) enter the solver as a `FactorySeedData` input; the
-mob-farm toggle rides the request. The fixpoint is a worklist over the
+Shipped mechanics: the artifact's `renewable_seeds` (WORLD rows only —
+Water, Air, Cobblestone and its stone variants) enter the solver as a
+`FactorySeedData` input; the mob-farm toggle rides the request and gates
+the EEC lines. The fixpoint is a worklist over the
 garage-legal recipes — a slot is covered when any alternative is
 auto-infinite, and catalyst-only recipes qualify structurally because
 catalyst rows and EU never enter the index as slots. Flows and inflows carry
@@ -481,6 +483,57 @@ hatches as the next tier (each hatch works two amps), the same amperage
 lift ignored on every multiblock, so a farm climbs exactly the garage's
 tiers; and the choice of tool is not a solver decision — catalysts neither
 price nor gate, so a lesser tool never wins.
+
+
+**Farms as machine lines.** Crop drops, farmables and mob drops cost
+machines and EU like everything else; only Water, Air and Cobblestone stay
+machine-free. Three machine families are synthesized per-row, all mechanics
+pinned in source (CropsNH `MTECropManager`, `MTEIndustrialFarm`,
+`TileEntityCropSticks`; GT5-Unofficial `MTEExtremeEntityCrusher`,
+`MobHandlerLoader`):
+
+- **Scope**: farm and EEC rows are `FACTORY`-scoped — the cost engine never
+  prices them (water at ~0 weight would collapse crafting prices), the era
+  solve never reads them (a catalyst seed gates no era, so a tier-16 crop
+  would date at LV), and the crafting tab hides them. Only the factory
+  solve consumes them; crop and mob drops keep their leaf weights and eras
+  everywhere else. EEC rows are `FACTORY_MOB`: additionally zeroed unless
+  the request's mob-farms toggle is on.
+- **CropsNH growth**, shared by both crop machines: a crop stick ticks
+  every 256 game ticks and adds `getGrowthRate` points until
+  `GROWTH_DURATION` is reached. Rate = `(6 + growthStat) ×
+  (100 + nutrients×5 − 10×cropTier)/100`, capped below by a −4%/point
+  deficit penalty; nutrients = 5 base + water/10 (≤10) + fertilizer/10
+  (≤10) + 2 sky. Baseline: seed stats 0/0, watered sticks, sky, neutral
+  biome → 17 nutrients (85 points); fertilized rows → 27 (135). Fertilizer
+  ships as a real input only on rows whose crop tier ≥ 9 (full speed to
+  tier 13; the single tier-16 crop stays unfarmable). Expected drops per
+  harvest = `DROP_CHANCE × Σ(weight/10000 × (stack + 0.01))`, encoded
+  through output chances.
+- **Crop Manager** (LV…UMV single blocks, radius `3 + 2×tier`): one row
+  per (crop, tier); a run is one maturation wave of the whole field —
+  duration `256 × ceil(GROWTH_DURATION/rate)` ticks, outputs × field size
+  × `(1 + 0.05×tier)` harvest-round bonus, water per seed per maturation.
+  Its `V/8`-per-harvest draw amortizes below 1 EU/t and ships as zero; the
+  cost is the field of machines. Rows never overclock — each tier is its
+  own exact row.
+- **Industrial Farm** (multiblock; seed-bed tiers MV…UXV): same run
+  semantics with the bed tier's field, `(1 + 0.2×tier)` rounds, water
+  `≈0.39` potency per seed-cycle, and a continuous `VP[tier]` draw. Rows
+  never overclock; the overclocked-growth-unit build is a later boost.
+- **EEC** (one row per soul-vial-capturable mob with drops): duration
+  `max(55, health/9 × 10)` ticks at a flat 1920 EU/t, powered spawner as
+  catalyst, expected drops from the dump's probability rows (infernal-only
+  drops excluded, looting 0), 120 mB xpjuice per kill. Perfect overclocks
+  halve nothing — each step divides duration by four down to the 20-tick
+  floor, further steps multiply outputs by four.
+- Fertilizer and hydration potencies are config: water 1/mB, distilled
+  2/mB, CropsNH fertilizer 100/item, bonemeal 5/item, liquid fertilizer
+  1/mB, enriched 10/mB.
+- Deliberate baselines: no Weed-EX (weeds only matter above what a field
+  holds), no fertilizer boost beyond the tier-9 gate, no analyzed seed
+  stats, no environmental or harvesting units, manager cadence (50-tick
+  work loop) amortized away.
 
 ## 5. Data
 

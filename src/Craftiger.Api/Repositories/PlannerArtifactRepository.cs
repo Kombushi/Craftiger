@@ -15,7 +15,7 @@ public sealed class PlannerArtifactRepository(
     ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 13;
+    public const int SupportedSchemaVersion = 14;
 
     public PlannerArtifact Load(string artifactsDir)
     {
@@ -178,10 +178,18 @@ public sealed class PlannerArtifactRepository(
         var output = outputs.MoveNext() ? outputs.Current : null;
 
         foreach (var recipe in recipesDb.Query<RecipeRow>(
-            "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT, amps, cleanroom, low_gravity AS LowGravity, overclock FROM recipes ORDER BY rowid",
+            "SELECT id, machine, tier, multi_tier AS MultiTier, heat, duration_ticks AS DurationTicks, eu_t AS EuT, amps, cleanroom, scope, low_gravity AS LowGravity, overclock FROM recipes ORDER BY rowid",
             buffered: false))
         {
-            builder.BeginRecipe(recipe.Id, recipe.Machine, (int)recipe.Tier, (int?)recipe.MultiTier, (int?)recipe.Heat);
+            builder.BeginRecipe(
+                recipe.Id, recipe.Machine, (int)recipe.Tier, (int?)recipe.MultiTier, (int?)recipe.Heat,
+                recipe.Scope switch
+                {
+                    null => RecipeScope.None,
+                    "FACTORY" => RecipeScope.Factory,
+                    "FACTORY_MOB" => RecipeScope.FactoryMob,
+                    var other => throw new InvalidOperationException($"recipe {recipe.Id} names an unknown scope '{other}'"),
+                });
             durations.Add(recipe.DurationTicks);
             euT.Add(recipe.EuT);
             amps.Add(recipe.Amps);
@@ -191,6 +199,8 @@ public sealed class PlannerArtifactRepository(
             {
                 null => OverclockMode.Standard,
                 "TREE_FARM" => OverclockMode.TreeFarm,
+                "FIXED" => OverclockMode.Fixed,
+                "EEC" => OverclockMode.EntityCrusher,
                 var other => throw new InvalidOperationException($"recipe {recipe.Id} names an unknown overclock ladder '{other}'"),
             });
             var flags = machines.GetValueOrDefault(recipe.Machine);

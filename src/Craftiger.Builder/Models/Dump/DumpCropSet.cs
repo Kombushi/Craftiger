@@ -1,8 +1,8 @@
 namespace Craftiger.Builder.Models.Dump;
 
-/// <summary>What grows, breaks and dies into items: crops, block drops, capturable mobs' drops, and every mob's drops by mob.</summary>
+/// <summary>What grows, breaks and dies into items: crops, block drops, capturable mobs with their drops, and every mob's drop ids.</summary>
 public sealed record DumpCropSet(
     IReadOnlyList<DumpCrop> Crops,
     IReadOnlyList<DumpBlockDrop> BlockDrops,
-    IReadOnlySet<string> MobDropItemIds,
+    IReadOnlyList<DumpMob> Mobs,
     IReadOnlyDictionary<string, IReadOnlyList<string>> MobDropsByMob);

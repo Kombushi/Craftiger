@@ -28,6 +28,7 @@ public sealed record FactoryRecipeData(
         SolverIndex index,
         IReadOnlyDictionary<string, (long DurationTicks, long EuT, long Amps)>? recipes = null,
         IEnumerable<string>? treeFarms = null,
+        IReadOnlyDictionary<string, OverclockMode>? overclocks = null,
         IEnumerable<string>? cleanroom = null,
         IEnumerable<string>? lowGravity = null)
     {
@@ -53,6 +54,13 @@ public sealed record FactoryRecipeData(
             if (index.TryGetRecipe(recipeId, out var recipe))
             {
                 overclock[recipe] = OverclockMode.TreeFarm;
+            }
+        }
+        foreach (var (recipeId, mode) in overclocks ?? new Dictionary<string, OverclockMode>())
+        {
+            if (index.TryGetRecipe(recipeId, out var recipe))
+            {
+                overclock[recipe] = mode;
             }
         }
         foreach (var recipeId in cleanroom ?? [])

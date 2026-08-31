@@ -24,8 +24,8 @@ public sealed class CropHarvestRecipeService(
             }
 
             var drops = crop.Drops
-                .Where(dump.Items.ContainsKey)
-                .Select(unified.Canonical)
+                .Where(drop => dump.Items.ContainsKey(drop.ItemId))
+                .Select(drop => unified.Canonical(drop.ItemId))
                 .Distinct()
                 .Select(id => new PlannerOutput(id, 1, 1.0))
                 .ToList();

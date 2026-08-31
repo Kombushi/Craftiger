@@ -129,6 +129,11 @@ public static partial class FixtureDump
     public const string RelicIngot = "i~fixture~relic_ingot~0";
     public const string BartOre = "i~fixture~bw.blockores.01~0";
     public const string BartIngot = "i~fixture~bart_ingot~0";
+    public const string CropManagerLv = "i~gregtech~gt.blockmachines~28001";
+    public const string IndustrialFarm = "i~gregtech~gt.blockmachines~28055";
+    public const string Eec = "i~gregtech~gt.blockmachines~14201";
+    public const string Spawner = "i~EnderIO~blockPoweredSpawner~0";
+    public const string CropFertilizer = "i~cropsnh~fertilizer~0";
 
     public static string Create(string directory)
     {
@@ -190,6 +195,9 @@ public static partial class FixtureDump
                 HAS_SINGLE_BLOCK INTEGER, IS_FUEL INTEGER, LOCALIZED_NAME TEXT, UNLOCALIZED_NAME TEXT);
             CREATE TABLE GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID TEXT, MACHINES_ITEM_ID TEXT,
                 MACHINES_MULTIBLOCK INTEGER, MACHINES_TIER INTEGER, MACHINES_STEAM INTEGER);
+            CREATE TABLE MOB(ID TEXT, ARMOUR INTEGER, HEALTH REAL, HEIGHT REAL, IMAGE_FILE_PATH TEXT,
+                IMMUNE_TO_FIRE INTEGER, INTERNAL_NAME TEXT, LEASHABLE INTEGER, LOCALIZED_NAME TEXT,
+                MOD_ID TEXT, NBT TEXT, WIDTH REAL);
             CREATE TABLE MOB_INFO(ID TEXT, ALLOWED_IN_PEACEFUL INTEGER, ALLOWED_INFERNAL INTEGER,
                 ALWAYS_INFERNAL INTEGER, SOUL_VIAL_USABLE INTEGER, MOB_ID TEXT);
             CREATE TABLE MOB_INFO_DROPS(MOB_INFO_ID TEXT, DROPS_ITEM_ID TEXT, DROPS_LOOTABLE INTEGER,

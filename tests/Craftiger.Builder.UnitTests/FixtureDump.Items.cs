@@ -23,6 +23,11 @@ public static partial class FixtureDump
         Item(db, OakSapling, "Oak Sapling", "minecraft");
         Item(db, PineLog, "Pine Wood", "minecraft");
         Item(db, TreeFarm, "Tree Growth Simulator", "gregtech");
+        Item(db, CropManagerLv, "Basic Crop Manager", "gregtech");
+        Item(db, IndustrialFarm, "Industrial Farm", "gregtech");
+        Item(db, Eec, "Extreme Entity Crusher", "gregtech");
+        Item(db, Spawner, "Powered Spawner", "EnderIO");
+        Item(db, CropFertilizer, "Fertilizer", "cropsnh");
         Item(db, Chainsaw, "Chainsaw (LV)", "gregtech", maxStack: 1);
         Item(db, BranchCutter, "Branch Cutter", "gregtech", maxStack: 1);
         Item(db, WireCutterLv, "Wire Cutter (LV)", "gregtech", maxStack: 1);

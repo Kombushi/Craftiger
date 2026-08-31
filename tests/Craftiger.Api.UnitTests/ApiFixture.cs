@@ -80,6 +80,7 @@ public sealed class ApiFixture : IDisposable
                 eu_t INTEGER NOT NULL,
                 amps INTEGER NOT NULL,
                 cleanroom INTEGER NOT NULL,
+                scope TEXT,
                 low_gravity INTEGER NOT NULL,
                 overclock TEXT);
             CREATE TABLE recipe_inputs(
@@ -125,12 +126,12 @@ public sealed class ApiFixture : IDisposable
                 ('sil', 'silver ingot'), ('sil', 'silberlötzinn'), ('rod', 'extruded rod'),
                 ('chip', 'late chip'), ('saw', 'test saw'), ('frame', 'frame box'), ('card', 'logic card');
             INSERT INTO recipes VALUES
-                ('r_wire', 'Wiremill', 1, NULL, NULL, 100, 32, 1, 0, 0, NULL),
-                ('r_ebf', 'Electric Blast Furnace', 1, NULL, 1900, 200, 120, 1, 0, 0, NULL),
-                ('r_rod', 'Extruder', 2, NULL, NULL, 100, 96, 2, 0, 0, NULL),
-                ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32, 1, 1, 0, NULL),
-                ('r_frame_hand', 'Crafting Table', 0, NULL, NULL, 0, 0, 1, 0, 0, NULL),
-                ('r_frame_asm', 'Assembler', 1, NULL, NULL, 64, 7, 1, 0, 0, NULL);
+                ('r_wire', 'Wiremill', 1, NULL, NULL, 100, 32, 1, 0, NULL, 0, NULL),
+                ('r_ebf', 'Electric Blast Furnace', 1, NULL, 1900, 200, 120, 1, 0, NULL, 0, NULL),
+                ('r_rod', 'Extruder', 2, NULL, NULL, 100, 96, 2, 0, NULL, 0, NULL),
+                ('r_chip', 'Circuit Assembly Line', 1, NULL, NULL, 100, 32, 1, 1, NULL, 0, NULL),
+                ('r_frame_hand', 'Crafting Table', 0, NULL, NULL, 0, 0, 1, 0, NULL, 0, NULL),
+                ('r_frame_asm', 'Assembler', 1, NULL, NULL, 64, 7, 1, 0, NULL, 0, NULL);
             INSERT INTO recipe_inputs VALUES
                 ('r_wire', 'ing', 1, 0, 0, 0),
                 ('r_wire', 'saw', 1, 1, 1, 1),

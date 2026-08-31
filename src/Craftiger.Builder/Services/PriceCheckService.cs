@@ -109,8 +109,10 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
     private static (Dictionary<string, double> Cost, bool Converged) Solve(
         IReadOnlyList<PlannerRecipe> recipes, Dictionary<string, double> leafWeights)
     {
+        // Only priceable rows may re-enter the queue: a scoped or consume-nothing consumer must never price.
+        var priceable = recipes.Where(recipe => !recipe.ConsumesNothing && recipe.Scope == RecipeScope.None).ToList();
         var consumers = new Dictionary<string, List<PlannerRecipe>>();
-        foreach (var recipe in recipes)
+        foreach (var recipe in priceable)
         {
             foreach (var id in recipe.Ingredients.Select(part => part.ItemId).Distinct())
             {
@@ -123,7 +125,6 @@ public sealed class PriceCheckService(IOptions<PricingConfiguration> options, IL
         }
 
         var cost = new Dictionary<string, double>(leafWeights);
-        var priceable = recipes.Where(recipe => !recipe.ConsumesNothing).ToList();
         var queue = new Queue<PlannerRecipe>(priceable);
         var queued = new HashSet<string>(priceable.Select(recipe => recipe.Id));
         var budget = priceable.Count * MaxPassesPerRecipe;

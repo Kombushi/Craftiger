@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Options;
@@ -8,17 +7,12 @@ using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
-/// <summary>Only the seeds ship, so the classification can never claim a garage-dependent fact.</summary>
+/// <summary>Only the configured world seeds ship: crops, farmables and mob drops cost farm lines instead.</summary>
 public sealed class RenewableSeedsService(IOptions<RenewableSeedsConfiguration> config, ILogger<RenewableSeedsService> logger) : IRenewableSeedsService
 {
-    /// <summary>Logs are never seeds: wood is tree-farmed or bought, never free of machines.</summary>
-    private static readonly FrozenSet<string> _farmLeafClasses = FrozenSet.ToFrozenSet<string>(["crop_drop", "farmable"]);
-
     private readonly RenewableSeedsConfiguration _config = config.Value;
 
-    public IReadOnlyList<PlannerRenewableSeed> Run(
-        Dump dump, UnifiedItems unified, IReadOnlyDictionary<string, string> leafClasses,
-        IReadOnlySet<string> itemIds, IReadOnlySet<string> conjured)
+    public IReadOnlyList<PlannerRenewableSeed> Run(Dump dump, UnifiedItems unified, IReadOnlySet<string> itemIds)
     {
         var seeds = new Dictionary<string, PlannerRenewableSeed>();
 
@@ -36,23 +30,6 @@ public sealed class RenewableSeedsService(IOptions<RenewableSeedsConfiguration> 
             if (!found)
             {
                 logger.LogWarning("world seed '{Name}' matches no reachable item", name);
-            }
-        }
-
-        // A farm leaf a machine conjures is derived, not primitive: the solver reaches it through that recipe where the machine is legal.
-        foreach (var (itemId, leafClass) in leafClasses)
-        {
-            if (_farmLeafClasses.Contains(leafClass) && !conjured.Contains(itemId))
-            {
-                seeds.TryAdd(itemId, new PlannerRenewableSeed(itemId, "FARM"));
-            }
-        }
-
-        foreach (var itemId in dump.MobDropItemIds.Select(unified.Canonical))
-        {
-            if (itemIds.Contains(itemId))
-            {
-                seeds.TryAdd(itemId, new PlannerRenewableSeed(itemId, "MOB"));
             }
         }
 

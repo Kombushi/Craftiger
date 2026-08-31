@@ -11,5 +11,6 @@ internal sealed record RecipeRow(
     long EuT,
     long Amps,
     long Cleanroom,
+    string? Scope,
     long LowGravity,
     string? Overclock);

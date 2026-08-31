@@ -15,6 +15,7 @@ public sealed class SolverIndexBuilder
     private readonly List<string> _machine = [];
     private readonly List<int> _tier = [];
     private readonly List<int> _multiTier = [];
+    private readonly List<RecipeScope> _scope = [];
     private readonly List<int> _heat = [];
     private readonly List<int> _toolSlots = [];
     private readonly List<int> _slotStart = [0];
@@ -54,7 +55,7 @@ public sealed class SolverIndexBuilder
     }
 
     /// <summary>Opens the next recipe, closing the previous one; recipes take positions in opening order.</summary>
-    public void BeginRecipe(string id, string machine, int tier, int? multiTier, int? heat)
+    public void BeginRecipe(string id, string machine, int tier, int? multiTier, int? heat, RecipeScope scope = RecipeScope.None)
     {
         CloseRecipe();
         if (!_recipeIndex.TryAdd(id, _recipeIds.Count))
@@ -69,6 +70,7 @@ public sealed class SolverIndexBuilder
         _machine.Add(shared);
         _tier.Add(tier);
         _multiTier.Add(multiTier ?? -1);
+        _scope.Add(scope);
         _heat.Add(heat ?? -1);
         _toolSlots.Add(0);
         _recipeOpen = true;
@@ -147,6 +149,7 @@ public sealed class SolverIndexBuilder
             [.. _machine],
             [.. _tier],
             [.. _multiTier],
+            [.. _scope],
             [.. _heat],
             [.. _toolSlots],
             Wrap(slotStart),

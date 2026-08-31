@@ -3,10 +3,8 @@ using Craftiger.Builder.Models.Planner;
 
 namespace Craftiger.Builder.Interfaces;
 
-/// <summary>Marks the auto-infinite primitives; derivation through recipes is the solver's job at run time, so what a recipe conjures is never a seed.</summary>
+/// <summary>Marks the auto-infinite primitives; everything grown, farmed or dropped is derived through machine lines, never free.</summary>
 public interface IRenewableSeedsService
 {
-    IReadOnlyList<PlannerRenewableSeed> Run(
-        Dump dump, UnifiedItems unified, IReadOnlyDictionary<string, string> leafClasses,
-        IReadOnlySet<string> itemIds, IReadOnlySet<string> conjured);
+    IReadOnlyList<PlannerRenewableSeed> Run(Dump dump, UnifiedItems unified, IReadOnlySet<string> itemIds);
 }

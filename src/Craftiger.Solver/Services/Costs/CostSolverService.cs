@@ -23,7 +23,7 @@ public sealed class CostSolverService(
         var queued = new bool[index.RecipeCount];
         for (var r = 0; r < index.RecipeCount; r++)
         {
-            priceable[r] = !index.ConsumesNothing(r) && legality.IsLegal(index, r, garage);
+            priceable[r] = !index.ConsumesNothing(r) && index.ScopeOf(r) == RecipeScope.None && legality.IsLegal(index, r, garage);
             if (priceable[r])
             {
                 queue.Enqueue(r);

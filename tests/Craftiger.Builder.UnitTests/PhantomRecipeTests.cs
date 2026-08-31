@@ -102,19 +102,14 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
     }
 
     [Fact]
-    public void AutoInfiniteSeedsMarkWorldFarmAndMobSources()
+    public void AutoInfiniteSeedsMarkOnlyWorldSources()
     {
+        // Crops, farmables and mob drops are farm-lined, never free: WORLD is the only seed kind left.
         Assert.Equal("WORLD", fixture.Scalar<string>(
             "SELECT s.kind FROM renewable_seeds s JOIN items i ON i.id = s.item_id " +
             "WHERE i.name_en = 'Water'"));
-        Assert.Equal("MOB", fixture.Scalar<string>(
-            "SELECT s.kind FROM renewable_seeds s JOIN items i ON i.id = s.item_id " +
-            "WHERE i.name_en = 'Fixture Mob Pearl'"));
         Assert.Equal(0, fixture.Scalar<int>(
-            "SELECT COUNT(*) FROM renewable_seeds s JOIN items i ON i.id = s.item_id " +
-            "WHERE i.name_en = 'Fixture Boss Relic'"));
-        Assert.Equal(1, fixture.Scalar<int>(
-            "SELECT EXISTS(SELECT 1 FROM renewable_seeds WHERE kind = 'FARM')"));
+            "SELECT COUNT(*) FROM renewable_seeds WHERE kind != 'WORLD'"));
     }
 
     [Fact]

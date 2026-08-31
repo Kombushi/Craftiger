@@ -14,6 +14,9 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
 
     private const double HeatDiscount = 0.95;
 
+    /// <summary>Ticks the entity crusher's duration never drops below, as seconds.</summary>
+    private const double EecFloorSeconds = 1.0;
+
     /// <summary>Steam blocks serve LV-and-below recipes only.</summary>
     private const int MaxSteamTier = 1;
 
@@ -119,7 +122,7 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
         return variants;
     }
 
-    /// <summary>The standard ladder trades quadrupled power for halved duration; a tree farm keeps its duration and multiplies its yield by the tier's gain.</summary>
+    /// <summary>The standard ladder trades quadrupled power for halved duration; a tree farm keeps its duration and multiplies its yield; fixed rows never climb; the crusher quarters duration to its floor, then quadruples outputs.</summary>
     private static void AddOverclocks(
         List<RunVariant> variants,
         OverclockMode mode,
@@ -135,17 +138,46 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
     {
         var baseSeconds = durationTicks / Ticks.PerSecond * effects.DurationFactor;
         var baseEu = durationTicks * (double)euPerTick * heatEuFactor * effects.EuFactor * effects.DurationFactor;
-        var treeFarm = mode == OverclockMode.TreeFarm;
+        if (mode == OverclockMode.Fixed)
+        {
+            maxSteps = 0;
+        }
         foreach (var overclock in Overclock.Ladder(maxSteps, perfectSteps, drawsPower: euPerTick > 0))
         {
-            variants.Add(treeFarm
-                ? new RunVariant(
+            variants.Add(mode switch
+            {
+                OverclockMode.TreeFarm => new RunVariant(
                     recipe, machineItemId, overclock.Steps, effects.Parallels,
                     baseSeconds, baseEu * overclock.PowerMultiplier, effects.Estimated,
-                    OutputFactor: TreeFarmYield.Gain(requiredTier, requiredTier + overclock.Steps))
-                : new RunVariant(
+                    OutputFactor: TreeFarmYield.Gain(requiredTier, requiredTier + overclock.Steps)),
+                OverclockMode.EntityCrusher => CrusherVariant(
+                    recipe, machineItemId, overclock.Steps, baseSeconds, baseEu, effects),
+                _ => new RunVariant(
                     recipe, machineItemId, overclock.Steps, effects.Parallels,
-                    baseSeconds / overclock.DurationDivisor, baseEu * overclock.EuMultiplier, effects.Estimated));
+                    baseSeconds / overclock.DurationDivisor, baseEu * overclock.EuMultiplier, effects.Estimated),
+            });
         }
+    }
+
+    /// <summary>Each crusher step quarters the duration; a step that would break the one-second floor quadruples outputs instead.</summary>
+    private static RunVariant CrusherVariant(
+        int recipe, string? machineItemId, int steps, double baseSeconds, double baseEu, BlockEffects effects)
+    {
+        var seconds = baseSeconds;
+        var outputFactor = 1.0;
+        for (var step = 0; step < steps; step++)
+        {
+            if (seconds / 4 >= EecFloorSeconds)
+            {
+                seconds /= 4;
+            }
+            else
+            {
+                outputFactor *= 4;
+            }
+        }
+        return new RunVariant(
+            recipe, machineItemId, steps, effects.Parallels, seconds,
+            baseEu * Math.Pow(4, steps), effects.Estimated, OutputFactor: outputFactor);
     }
 }

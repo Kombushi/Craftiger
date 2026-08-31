@@ -81,6 +81,8 @@ public static partial class FixtureDump
         Item(db, "i~fixture~pearl_block", "Fixture Pearl Block", "fixture");
         Group(db, "g_mob_pearl", ("i~fixture~mob_pearl", 1));
         Recipe(db, "r_pearl_grind", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_mob_pearl", 0)], outputs: [("i~fixture~pearl_block", 1, 1.0)], voltage: 4, duration: 100);
+        db.Execute("INSERT INTO MOB VALUES ('mob~1', 0, 20.0, 1.8, '', 0, 'fixture.crawler', 0, 'Crawler', 'fixture', NULL, 0.6)");
+        db.Execute("INSERT INTO MOB VALUES ('mob~2', 4, 300.0, 3.0, '', 1, 'fixture.boss', 0, 'Boss', 'fixture', NULL, 1.0)");
         db.Execute("INSERT INTO MOB_INFO VALUES ('mi~1', 1, 0, 0, 1, 'mob~1')");
         db.Execute("INSERT INTO MOB_INFO_DROPS VALUES ('mi~1', 'i~fixture~mob_pearl', 1, 0, 0.5, 1, 'NORMAL')");
         db.Execute("INSERT INTO MOB_INFO VALUES ('mi~2', 0, 0, 0, 0, 'mob~2')");

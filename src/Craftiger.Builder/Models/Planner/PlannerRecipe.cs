@@ -26,6 +26,9 @@ public sealed record PlannerRecipe(
 
     public OverclockMode Overclock { get; init; } = OverclockMode.Standard;
 
+    /// <summary>Which engines read the recipe; anything but None is invisible to pricing, eras and the crafting tab.</summary>
+    public RecipeScope Scope { get; init; } = RecipeScope.None;
+
     /// <summary>Whether the recipe consumes no input at all: a catalyst-only run that conjures its outputs.</summary>
     public bool ConsumesNothing => Inputs.Count == 0 && Choices.Count == 0;
 

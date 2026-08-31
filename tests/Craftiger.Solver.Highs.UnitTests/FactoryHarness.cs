@@ -36,6 +36,7 @@ internal static class FactoryHarness
         (string ItemId, long Amount)[][]? slots = null,
         int tier = 0,
         string machine = "Crafting Table",
+        RecipeScope scope = RecipeScope.None,
         params (string ItemId, long Amount, double Chance)[] outputs)
     {
         var slotList = new List<SolverSlot>();
@@ -49,7 +50,8 @@ internal static class FactoryHarness
         }
         return new SolverRecipe(
             id, machine, tier, null, null, slotList,
-            outputs.Select(o => new SolverOutput(o.ItemId, o.Amount, o.Chance)).ToList());
+            outputs.Select(o => new SolverOutput(o.ItemId, o.Amount, o.Chance)).ToList(),
+            Scope: scope);
     }
 
     public static FactoryPlan Solve(
@@ -60,6 +62,7 @@ internal static class FactoryHarness
         int garageTier = 0,
         FactorySeedData? seeds = null,
         IEnumerable<string>? treeFarms = null,
+        IReadOnlyDictionary<string, OverclockMode>? overclocks = null,
         IEnumerable<string>? cleanroom = null,
         IEnumerable<string>? lowGravity = null,
         FactoryEnvironment? environment = null)
@@ -84,7 +87,7 @@ internal static class FactoryHarness
         var weights = new WeightSettings(4, new Dictionary<string, double>());
         var context = new FactoryContext(
             graph,
-            FactoryRecipeData.Build(graph.Index, data, treeFarms, cleanroom, lowGravity),
+            FactoryRecipeData.Build(graph.Index, data, treeFarms, overclocks, cleanroom, lowGravity),
             machines ?? FactoryMachineData.Empty,
             seeds ?? FactorySeedData.Empty,
             new FactorySteamRules(["f~IC2~ic2steam", "f~Railcraft~steam"], "f~IC2~ic2distilledwater", 0.5, 160),

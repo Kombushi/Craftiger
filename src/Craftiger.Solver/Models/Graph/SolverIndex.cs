@@ -14,6 +14,7 @@ public sealed record SolverIndex
         ImmutableArray<string> machine,
         ImmutableArray<int> tier,
         ImmutableArray<int> multiTier,
+        ImmutableArray<RecipeScope> scope,
         ImmutableArray<int> heat,
         ImmutableArray<int> toolSlots,
         ImmutableArray<int> slotStart,
@@ -39,6 +40,7 @@ public sealed record SolverIndex
         Machine = machine;
         Tier = tier;
         MultiTier = multiTier;
+        Scope = scope;
         Heat = heat;
         ToolSlots = toolSlots;
         SlotStart = slotStart;
@@ -78,6 +80,9 @@ public sealed record SolverIndex
 
     /// <summary>The tier the map's multiblock needs, or -1 where owning one lowers nothing.</summary>
     public ImmutableArray<int> MultiTier { get; }
+
+    /// <summary>Which engines read each recipe; anything but None never prices.</summary>
+    public ImmutableArray<RecipeScope> Scope { get; }
 
     /// <summary>The heat a coil-gated recipe needs, or -1.</summary>
     public ImmutableArray<int> Heat { get; }
@@ -143,6 +148,8 @@ public sealed record SolverIndex
 
     /// <summary>Whether the recipe consumes nothing at all — catalysts and EU never enter as slots — and so conjures its outputs.</summary>
     public bool ConsumesNothing(int recipe) => SlotCount(recipe) == 0;
+
+    public RecipeScope ScopeOf(int recipe) => Scope[recipe];
 
     public int AlternativeCount(int recipe, int slot)
     {
@@ -219,7 +226,7 @@ public sealed record SolverIndex
         var builder = new SolverIndexBuilder(leaves);
         foreach (var recipe in recipes)
         {
-            builder.BeginRecipe(recipe.Id, recipe.Machine, recipe.Tier, recipe.MultiTier, recipe.Heat);
+            builder.BeginRecipe(recipe.Id, recipe.Machine, recipe.Tier, recipe.MultiTier, recipe.Heat, recipe.Scope);
             for (var tool = 0; tool < recipe.ToolSlots; tool++)
             {
                 builder.AddToolSlot();

@@ -9,4 +9,5 @@ public sealed record SolverRecipe(
     int? Heat,
     IReadOnlyList<SolverSlot> Slots,
     IReadOnlyList<SolverOutput> Outputs,
-    int ToolSlots = 0);
+    int ToolSlots = 0,
+    RecipeScope Scope = RecipeScope.None);

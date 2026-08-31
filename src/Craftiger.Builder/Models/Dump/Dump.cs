@@ -65,7 +65,7 @@ public sealed record Dump
     public required IReadOnlyList<DumpTurbineRotor> TurbineRotors { get; init; }
 
     /// <summary>Distinct drops of soul-vial-capturable mobs: what an auto mob farm yields.</summary>
-    public required IReadOnlySet<string> MobDropItemIds { get; init; }
+    public required IReadOnlyList<DumpMob> Mobs { get; init; }
 
     /// <summary>Every mob's drop item ids by mob id, capturable or not.</summary>
     public required IReadOnlyDictionary<string, IReadOnlyList<string>> MobDropsByMob { get; init; }

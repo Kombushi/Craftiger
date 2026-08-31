@@ -22,6 +22,8 @@ public sealed class BuilderPipeline(
     IUndergroundFluidRecipeService undergroundFluid,
     ISteamSynthesisService steamSynthesis,
     ICropHarvestRecipeService cropHarvest,
+    ICropFarmRecipeService cropFarms,
+    IMobLineRecipeService mobLines,
     ILeafTaggingService leafTagging,
     IWorldgenErasService worldgenEras,
     IFuelExtractionService fuelExtraction,
@@ -83,11 +85,22 @@ public sealed class BuilderPipeline(
         itemIds.UnionWith(CollectItemIds(steam.Recipes));
         fuelData = fuelData with { Fuels = [.. fuelData.Fuels, .. steam.Fuels] };
 
+        var farms = Stage("farm crops", () => cropFarms.Run(dump, unified));
+        var mobs = Stage("crush mobs", () => mobLines.Run(dump, unified));
+        recipes.AddRange(farms.Recipes);
+        recipes.AddRange(mobs.Recipes);
+        solverRecipes.AddRange(farms.Recipes);
+        solverRecipes.AddRange(mobs.Recipes);
+        itemIds.UnionWith(CollectItemIds(farms.Recipes));
+        itemIds.UnionWith(CollectItemIds(mobs.Recipes));
+
         var eraSolve = Stage("solve eras", () => eraSolveService.Run(recipes, leafClasses, unified, dump, worldgen));
         logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);
 
         var machineProps = Stage(
-            "collect machine props", () => machinePropsService.Run(dump, unified, eraSolve.Era, steam.Machines));
+            "collect machine props",
+            () => machinePropsService.Run(
+                dump, unified, eraSolve.Era, [.. steam.Machines, .. farms.Machines, .. mobs.Machines]));
         itemIds.UnionWith(machineProps.MachineItems.Select(m => m.ItemId));
         itemIds.UnionWith(machineProps.Props.Select(p => p.ItemId));
         itemIds.UnionWith(machineProps.Rotors.Select(r => r.ItemId));
@@ -99,7 +112,7 @@ public sealed class BuilderPipeline(
 
         var seeds = Stage(
             "mark auto-infinite seeds",
-            () => renewableSeeds.Run(dump, unified, leafClasses, itemIds, CollectConjuredIds(solverRecipes)));
+            () => renewableSeeds.Run(dump, unified, itemIds));
         logger.LogInformation("  {Seeds:N0} auto-infinite seeds", seeds.Count);
 
         if (_options.ExplainItem is { } query)
@@ -198,10 +211,6 @@ public sealed class BuilderPipeline(
         }
         return ids;
     }
-
-    /// <summary>What some recipe makes from no consumed input at all.</summary>
-    private static HashSet<string> CollectConjuredIds(IReadOnlyList<PlannerRecipe> recipes) =>
-        CollectProducedIds(recipes.Where(recipe => recipe.ConsumesNothing).ToList());
 
     private static HashSet<string> CollectItemIds(IReadOnlyList<PlannerRecipe> recipes)
     {

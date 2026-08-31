@@ -25,9 +25,10 @@ public sealed class EraSolveService(
         Dump dump,
         WorldgenEras worldgen)
     {
+        var unscoped = recipes.Where(recipe => recipe.Scope == RecipeScope.None).ToList();
         var table = seeds.Run(leafClasses, unified, dump, worldgen);
-        propagation.Run(recipes, table, unified, dump);
-        var tiers = leafTiers.Run(recipes, leafClasses, unified, dump.OrePrefixes, table);
+        propagation.Run(unscoped, table, unified, dump);
+        var tiers = leafTiers.Run(unscoped, leafClasses, unified, dump.OrePrefixes, table);
         return table.ToSolve(tiers, availability.Run(recipes, table), Environment(dump, unified, table));
     }
 

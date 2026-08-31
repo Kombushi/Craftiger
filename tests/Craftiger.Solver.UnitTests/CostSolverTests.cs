@@ -1,4 +1,5 @@
 using Craftiger.Solver.Models.Costs;
+using Craftiger.Solver.Models.Graph;
 namespace Craftiger.Solver.UnitTests;
 
 public sealed class CostSolverTests
@@ -158,6 +159,22 @@ public sealed class CostSolverTests
 
         Assert.Equal(1, Cost(table, "log"));
         Assert.False(table.IsPriced("leaves"));
+    }
+
+    [Fact]
+    public void AFactoryScopedRecipeNeverPrices()
+    {
+        // A crop farm turns water into berries for the factory tab only; the berry keeps its leaf weight in the cost engine.
+        var graph = Fx.Graph(
+            [Fx.Leaf("water", weight: 0.001), Fx.Leaf("berry", weight: 2)],
+            Fx.Recipe(
+                "farm", machine: "Crop Manager", tier: 1, scope: RecipeScope.Factory,
+                inputs: [("water", 100)], outputs: [("berry", 8, 1.0)]));
+
+        var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
+
+        Assert.Equal(2, Cost(table, "berry"));
+        Assert.True(table.BestRecipe("berry") < 0);
     }
 
     [Fact]

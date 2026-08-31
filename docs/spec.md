@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.42
+# GTNH Crafting Planner — Specification v1.43
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -340,12 +340,19 @@ Builder responsibilities, in order:
   40 EU/t recipe overclocked by a hatch of the garage's tier (4 EU/t
   through MV, quadrupling per tier above) — while a low-gravity line
   needs a place, not a machine, and adds nothing. The cost engine keeps
-  handling cleanroom through the era solve and ignores both columns. `overclock` names the ladder a recipe
+  handling cleanroom through the era solve and ignores both columns.
+  `overclock` names the ladder a recipe
   climbs above its tier for rate planning: null for GregTech's standard one
   (each step quadruples power and halves duration), `TREE_FARM` for the
   Tree Growth Simulator's, where each step quadruples power and multiplies
   every output by the tier's yield instead — 2t² − 2t + 5 at tier t, over
-  the value at the recipe's own tier — at unchanged duration
+  the value at the recipe's own tier — at unchanged duration, `FIXED` for
+  per-tier farm rows that never climb, and `EEC` for the Extreme Entity
+  Crusher's, quartering duration to a one-second floor and quadrupling
+  outputs past it. `scope` names who reads a row: null rows feed every
+  engine; `FACTORY` rows — the synthesized Crop Manager, Industrial Farm
+  and Extreme Entity Crusher lines — exist for rate planning only, and
+  `FACTORY_MOB` rows additionally wait for the request's mob-farms toggle
 - `recipe_inputs(recipe_id, item_id, amount, slot, catalyst, tool)` — amount
   in units, or mB for fluids; rows sharing a `slot` are alternatives the
   recipe accepts any one of; `catalyst = 1` rows are the tool, mold, and
@@ -421,14 +428,10 @@ Builder responsibilities, in order:
   EU/t of fuel value otherwise
 - `renewable_seeds(item_id, kind)` — the auto-infinite primitives: items
   obtainable automatically and forever, from which run-time derivation
-  through garage-legal chains starts. `WORLD` rows come from a curated name
-  list (water, air, cobblestone — never lava), `FARM` rows are the crop
-  drops and farmables except what some shipped recipe makes from no
-  consumed input at all — a sapling a Tree Growth Simulator grows is
-  derived, and the solver reaches it through that recipe wherever the
-  machine is legal — and never logs: wood is tree-farmed or bought at its
-  weight, never free of machines; `MOB` rows are the distinct drops of
-  soul-vial-capturable mobs, includable per factory
+  through garage-legal chains starts. Only `WORLD` rows ship, from a
+  curated name list (water, air, cobblestone — never lava): crops,
+  farmables and mob drops are derived through factory-scoped farm lines
+  or bought at their weights, never free of machines
 - `machine_eras(machine, era, multiblock)` — per map, the era solve's era of
   its cheapest serving machine block, floored by any configured gate; null
   where no block ever becomes craftable, 0 for maps served without machine
@@ -969,10 +972,17 @@ All "does not / never" rules live here; other sections only reference this one.
   tiers.
 - **Byproduct credit** — sibling outputs never reduce a recipe's cost;
   crediting them collapses all prices toward zero through recycling loops.
-- **Pseudo-recipe sources** — bee breeding, mob drops, dungeon/chest loot,
-  and GT informational tabs (material lists); the builder drops them
+- **Factory-scoped rows** — recipes marked with a `scope` never price (a
+  water-fed farm would collapse crafting prices), never date eras (a
+  catalyst seed gates no era), and never appear in the crafting tab; only
+  the factory solve reads them, and `FACTORY_MOB` rows only with the
+  mob-farms toggle on.
+- **Pseudo-recipe sources** — bee breeding, dungeon/chest loot, and GT
+  informational tabs (material lists); the builder drops them
   (§3 step 3) because they conjure matter from nothing and poison
-  prices — an ore-from-drill recipe forms an amplifying cycle that spirals
+  prices. Mob drops get no *priced* edges either: their Extreme Entity
+  Crusher rows are factory-scoped, so the cost engine keeps buying mob
+  drops at their weights — an ore-from-drill recipe forms an amplifying cycle that spirals
   every cost to zero. Fuel tabs need no list at all: a map whose backend
   burns fuels for EU carries the dump's fuel flag, which covers every
   generator from the Gas Turbine to all five Naquadah reactor tiers. Mining maps that output ore blocks from real equipment
@@ -1254,3 +1264,13 @@ All "does not / never" rules live here; other sections only reference this one.
     Cleanroom line at the garage-tier draw beside its machines; a garage
     below the cleanroom or low-gravity era wall cannot plan a flagged
     recipe at all and the target diagnoses as unreachable.
+52. A CropsNH crop ships one factory-scoped row per Crop Manager tier and
+    per Industrial Farm seed-bed tier — field-sized amounts, water per
+    maturation, fertilizer only from crop tier 9 — and no engine but the
+    factory solve ever reads them.
+53. A soul-vial-capturable mob ships one `FACTORY_MOB` crusher row at
+    1920 EU/t whose duration follows its health; the mob-farms toggle
+    gates the row, and an uncapturable mob ships nothing.
+54. Only WORLD seeds ship: a crop drop or farmable prices at its leaf
+    weight wherever no farm line is legal, and turns auto-infinite where
+    one is.
