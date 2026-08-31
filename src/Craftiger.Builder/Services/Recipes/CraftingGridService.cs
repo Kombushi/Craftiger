@@ -8,8 +8,7 @@ public sealed class CraftingGridService : ICraftingGridService
 {
     private const int GridCells = 9;
 
-    public IReadOnlyList<PlannerGridCell>? GridOf(
-        IReadOnlyList<GridCellRef> cellRefs, IReadOnlyDictionary<string, long> inputs, int choiceCount)
+    public IReadOnlyList<PlannerGridCell>? GridOf(IReadOnlyList<GridCellRef> cellRefs, IReadOnlyDictionary<string, long> inputs, int choiceCount)
     {
         var slotOfInput = new Dictionary<string, int>();
         foreach (var key in inputs.Keys)

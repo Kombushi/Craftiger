@@ -39,7 +39,7 @@ public sealed class BlockBreakRecipeService(
                 Choices: [],
                 Outputs: [new PlannerOutput(dropId, drop.Quantity, 1.0)],
                 Machines: [],
-                InputSlotAlternatives: [new[] { blockId }],
+                InputSlotAlternatives: [[blockId]],
                 RequiresCleanroom: false,
                 RequiresLowGravity: false));
         }

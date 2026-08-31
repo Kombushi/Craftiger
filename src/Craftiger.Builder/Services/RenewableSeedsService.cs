@@ -9,9 +9,7 @@ using Microsoft.Extensions.Options;
 namespace Craftiger.Builder.Services;
 
 /// <summary>Only the seeds ship, so the classification can never claim a garage-dependent fact.</summary>
-public sealed class RenewableSeedsService(
-    IOptions<RenewableSeedsConfiguration> config,
-    ILogger<RenewableSeedsService> logger) : IRenewableSeedsService
+public sealed class RenewableSeedsService(IOptions<RenewableSeedsConfiguration> config, ILogger<RenewableSeedsService> logger) : IRenewableSeedsService
 {
     /// <summary>Logs are never seeds: wood is tree-farmed or bought, never free of machines.</summary>
     private static readonly FrozenSet<string> _farmLeafClasses = FrozenSet.ToFrozenSet<string>(["crop_drop", "farmable"]);

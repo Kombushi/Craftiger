@@ -25,8 +25,7 @@ public sealed class RecipeMachineListService : IRecipeMachineListService
             var machines = map.Machines
                 .Where(m => dump.Items.ContainsKey(m.ItemId))
                 .GroupBy(m => unified.Canonical(m.ItemId))
-                .Select(g => new RecipeMachine(
-                    g.Key, g.Any(m => m.Multiblock), g.Min(m => m.Tier), g.Any(m => m.Steam)))
+                .Select(g => new RecipeMachine(g.Key, g.Any(m => m.Multiblock), g.Min(m => m.Tier), g.Any(m => m.Steam)))
                 .ToList();
             if (machines.Count > 0)
             {

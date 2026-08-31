@@ -45,33 +45,6 @@ public sealed class MachinePropsService(
         }
 
         var props = new Dictionary<string, PlannerMachineProps>();
-        PlannerMachineProps Row(string rawItemId)
-        {
-            var itemId = unified.Canonical(rawItemId);
-            if (!props.TryGetValue(itemId, out var row))
-            {
-                row = props[itemId] = new PlannerMachineProps(
-                    itemId, era.TryGetValue(itemId, out var itemEra) ? itemEra : null,
-                    null, null, null, null, null, null, null);
-            }
-            return row;
-        }
-
-        // An id absent from the dump is another pack's item; one that exists but serves no map is a config error.
-        bool Overlaid(string itemId)
-        {
-            if (!dump.Items.ContainsKey(itemId))
-            {
-                logger.LogWarning("machine overlay names {ItemId}, unknown to this dump; skipped", itemId);
-                return false;
-            }
-            if (!machineItems.Values.Any(m => m.ItemId == itemId))
-            {
-                throw new InvalidOperationException(
-                    $"machine overlay names {itemId}, which the dump lists as no machine block");
-            }
-            return true;
-        }
 
         foreach (var generator in dump.Generators)
         {
@@ -164,7 +137,33 @@ public sealed class MachinePropsService(
             "  {Props:N0} machine props, {Bonuses:N0} bonuses, {Rotors:N0} rotors, "
             + "{Deprecated:N0} deprecated blocks dropped",
             props.Count, bonuses.Count, rotors.Count, deprecated);
-        return new MachinePropsData(
-            [.. machineItems.Values], [.. props.Values], [.. bonuses], rotors, rotorStats);
+
+        return new MachinePropsData([.. machineItems.Values], [.. props.Values], [.. bonuses], rotors, rotorStats);
+
+        PlannerMachineProps Row(string rawItemId)
+        {
+            var itemId = unified.Canonical(rawItemId);
+            if (!props.TryGetValue(itemId, out var row))
+            {
+                row = props[itemId] = new PlannerMachineProps(
+                    itemId, era.TryGetValue(itemId, out var itemEra) ? itemEra : null,
+                    null, null, null, null, null, null, null);
+            }
+            return row;
+        }
+
+        bool Overlaid(string itemId)
+        {
+            if (!dump.Items.ContainsKey(itemId))
+            {
+                logger.LogWarning("machine overlay names {ItemId}, unknown to this dump; skipped", itemId);
+                return false;
+            }
+            if (machineItems.Values.All(m => m.ItemId != itemId))
+            {
+                throw new InvalidOperationException($"machine overlay names {itemId}, which the dump lists as no machine block");
+            }
+            return true;
+        }
     }
 }

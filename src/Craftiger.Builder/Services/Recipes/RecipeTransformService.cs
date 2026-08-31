@@ -29,8 +29,7 @@ public sealed partial class RecipeTransformService(
         var result = new List<PlannerRecipe>();
         var tools = new ToolIndex(dump.Items, dump.ItemContainers);
         var machinesByTypeId = machineLists.Run(dump, unified);
-        var ungatedTypeIds = new HashSet<string>(
-            dump.Recipes.Where(r => r.Category == "minecraft").Select(r => r.RecipeTypeId));
+        var ungatedTypeIds = new HashSet<string>(dump.Recipes.Where(r => r.Category == "minecraft").Select(r => r.RecipeTypeId));
 
         foreach (var recipe in dump.Recipes)
         {
@@ -39,9 +38,9 @@ public sealed partial class RecipeTransformService(
             {
                 continue;
             }
+
             // Fuel maps burn their inputs for EU; their tabs are recipes only to NEI. Tree farm rows are synthesized with their catalysts.
-            if (dump.RecipeMapByTypeId.GetValueOrDefault(recipe.RecipeTypeId) is { } map
-                && (map.IsFuel || map.UnlocalizedName == _treeFarm.Map))
+            if (dump.RecipeMapByTypeId.GetValueOrDefault(recipe.RecipeTypeId) is { } map && (map.IsFuel || map.UnlocalizedName == _treeFarm.Map))
             {
                 continue;
             }
@@ -51,16 +50,14 @@ public sealed partial class RecipeTransformService(
             }
 
             var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
-            var tier = gt is null || gt.Voltage is not > 0
-                ? 0
-                : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage.Value);
+            var tier = gt?.Voltage is not > 0 ? 0 : TierLadder.LabelTier(gt.TierLabel) ?? TierLadder.VoltageTier(gt.Voltage.Value);
 
             var inputs = new Dictionary<string, long>();
             var choices = new List<PlannerChoice>();
             var catalysts = new List<PlannerCatalystSlot>();
             var slots = new List<IReadOnlyList<string>>();
             // A shaped crafting type keys its inputs by grid cell; each cell remembers what it became.
-            var cellRefs = recipe.Category == "minecraft" && !recipe.Shapeless ? new List<GridCellRef>() : null;
+            var cellRefs = recipe is { Category: "minecraft", Shapeless: false } ? new List<GridCellRef>() : null;
             foreach (var (cell, groupId) in dump.ItemInputsOf(recipe.Id))
             {
                 var slot = slotResolver.Resolve(dump, unified, tools, groupId);
@@ -74,7 +71,7 @@ public sealed partial class RecipeTransformService(
                 {
                     cellRefs?.Add(new GridCellRef((int)cell, null, null, catalysts.Count));
                     catalysts.Add(new PlannerCatalystSlot(
-                        alternatives.Select(member => new PlannerCatalyst(member.ItemId, member.Amount, member.Tool)).ToList()));
+                        [.. alternatives.Select(member => new PlannerCatalyst(member.ItemId, member.Amount, member.Tool))]));
                     continue;
                 }
 
@@ -82,8 +79,8 @@ public sealed partial class RecipeTransformService(
                 {
                     // A real choice of ingredient ships every option at its own amount for the solver to pick from.
                     cellRefs?.Add(new GridCellRef((int)cell, null, choices.Count, null));
-                    choices.Add(new PlannerChoice(alternatives.Select(member => (member.ItemId, member.Amount)).ToList()));
-                    slots.Add(alternatives.Select(member => member.ItemId).ToList());
+                    choices.Add(new PlannerChoice([.. alternatives.Select(member => (member.ItemId, member.Amount))]));
+                    slots.Add([.. alternatives.Select(member => member.ItemId)]);
                     continue;
                 }
 
@@ -108,7 +105,7 @@ public sealed partial class RecipeTransformService(
                 }
                 else
                 {
-                    slots.Add(alternatives.Select(member => member.ItemId).ToList());
+                    slots.Add([.. alternatives.Select(member => member.ItemId)]);
                 }
             }
             foreach (var fluid in dump.FluidInputsOf(recipe.Id))
@@ -123,9 +120,8 @@ public sealed partial class RecipeTransformService(
                 }
                 if (members.Count > 1)
                 {
-                    choices.Add(new PlannerChoice(
-                        members.Select(member => (member.FluidId, member.Amount)).ToList()));
-                    slots.Add(members.Select(member => member.FluidId).ToList());
+                    choices.Add(new PlannerChoice([.. members.Select(member => (member.FluidId, member.Amount))]));
+                    slots.Add([.. members.Select(member => member.FluidId)]);
                     continue;
                 }
                 inputs[members[0].FluidId] = inputs.GetValueOrDefault(members[0].FluidId) + members[0].Amount;
@@ -195,7 +191,7 @@ public sealed partial class RecipeTransformService(
     private string NormalizeMachine(string type)
     {
         var stripped = TierSuffix().Replace(type, "");
-        return _config.MachineRenames.TryGetValue(stripped, out var renamed) ? renamed : stripped;
+        return _config.MachineRenames.GetValueOrDefault(stripped, stripped);
     }
 
     private bool IsRecycling(string category) =>
@@ -205,6 +201,5 @@ public sealed partial class RecipeTransformService(
     private static bool IsMaterialShape(string id, Dump dump, UnifiedItems unified) =>
         dump.IsFluid(id) || unified.OredictsOf(id).Any(dump.OrePrefixes.IsMaterialShape);
 
-    private bool IsExcluded(string machine) =>
-        _excludedMachines.Contains(machine);
+    private bool IsExcluded(string machine) => _excludedMachines.Contains(machine);
 }
