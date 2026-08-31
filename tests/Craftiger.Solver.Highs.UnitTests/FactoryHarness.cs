@@ -102,12 +102,14 @@ internal static class FactoryHarness
         (string ItemId, double Rate)[] targets,
         FactoryObjective[]? priority = null,
         Dictionary<string, string>? pins = null,
-        bool mobFarms = false) =>
+        bool mobFarms = false,
+        bool bredSeeds = false) =>
         new(
             targets.Select(t => new FactoryTarget(FactoryTargetKind.Produce, t.ItemId, t.Rate)).ToList(),
             priority ?? [],
             pins ?? new Dictionary<string, string>(),
-            mobFarms);
+            mobFarms,
+            bredSeeds);
 
     public static FactoryRequest Energy(double euT, int? generatorTier = null, FactoryObjective[]? priority = null) =>
         new([new FactoryTarget(FactoryTargetKind.Energy, null, euT, generatorTier)], priority ?? [], new Dictionary<string, string>());

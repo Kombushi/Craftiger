@@ -31,4 +31,14 @@ public sealed record FarmsConfiguration
     public required long XpJuicePerKill { get; init; }
 
     public required IReadOnlyList<FarmFertilizer> Fertilizers { get; init; }
+
+    /// <summary>The liquid the Industrial Farm feeds its sticks, with its potency per mB.</summary>
+    public required string LiquidFertilizerFluidId { get; init; }
+
+    public required int LiquidFertilizerPotency { get; init; }
+
+    /// <summary>The enriched liquid a fertilizer-unit build demands instead.</summary>
+    public required string EnrichedFertilizerFluidId { get; init; }
+
+    public required int EnrichedFertilizerPotency { get; init; }
 }

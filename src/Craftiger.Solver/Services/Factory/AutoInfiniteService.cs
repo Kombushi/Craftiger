@@ -8,7 +8,7 @@ namespace Craftiger.Solver.Services.Factory;
 public sealed class AutoInfiniteService(IGarageLegalityService legality) : IAutoInfiniteService
 {
     /// <summary>A worklist over the garage-legal recipes; catalysts and EU count as free because the index carries neither as a slot, so a zero-slot recipe qualifies outright.</summary>
-    public AutoInfiniteItems Reach(FactoryContext context, IReadOnlySet<int> seedItems, bool mobFarms)
+    public AutoInfiniteItems Reach(FactoryContext context, IReadOnlySet<int> seedItems, FactoryRequest request)
     {
         var index = context.Index;
         var infinite = new bool[index.ItemCount];
@@ -36,7 +36,7 @@ public sealed class AutoInfiniteService(IGarageLegalityService legality) : IAuto
         for (var recipe = 0; recipe < index.RecipeCount; recipe++)
         {
             if (!legality.IsLegal(index, recipe, context.Garage)
-                || (index.ScopeOf(recipe) == RecipeScope.FactoryMob && !mobFarms))
+                || !request.Admits(index.ScopeOf(recipe)))
             {
                 remaining[recipe] = -1;
                 continue;

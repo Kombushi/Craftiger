@@ -40,7 +40,7 @@ public sealed class FactorySolverService(
             .Concat(generators.SelectMany(line => line.Inputs.Select(flow => flow.Item)))
             .Concat(steamItems)
             .Distinct();
-        var candidates = candidateWalk.Walk(context, walkTargets, targets.Consume.Keys, request.Pins, request.MobFarms);
+        var candidates = candidateWalk.Walk(context, walkTargets, targets.Consume.Keys, request);
         if (candidates.Pruned)
         {
             warnings.Add(FactoryWarning.RoutesPruned());
@@ -79,7 +79,7 @@ public sealed class FactorySolverService(
             return FactoryPlan.Empty(status, warnings);
         }
 
-        var infinite = autoInfinite.Reach(context, seedItems, request.MobFarms);
+        var infinite = autoInfinite.Reach(context, seedItems, request);
         return interpreter.Interpret(context, model, targets, result.ColumnValues, warnings, infinite);
     }
 }

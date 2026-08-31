@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.44
+# GTNH Crafting Planner — Specification v1.45
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -351,8 +351,22 @@ Builder responsibilities, in order:
   Crusher's, quartering duration to a one-second floor and quadrupling
   outputs past it. `scope` names who reads a row: null rows feed every
   engine; `FACTORY` rows — the synthesized Crop Manager, Industrial Farm
-  and Extreme Entity Crusher lines — exist for rate planning only, and
-  `FACTORY_MOB` rows additionally wait for the request's mob-farms toggle
+  and Extreme Entity Crusher lines — exist for rate planning only,
+  `FACTORY_MOB` rows additionally wait for the request's mob-farms toggle,
+  and `FACTORY_BRED` rows for its bred-seeds toggle. Crop rows bake fresh
+  1/1 seed stats — growth adds to the base speed of 6, gain multiplies
+  drop rounds by 1.03 per point and adds (gain + 1)/100 of a bonus drop
+  per round — and every row carries a `FACTORY_BRED` twin at the 31/31
+  breeding cap. Below the tier-9 fertilizer wall a fertilized twin (`~f`)
+  competes against plain sticks; the Crop Manager spends the item
+  fertilizers of its choice slot, the Industrial Farm drinks liquid
+  fertilizer at its configured potency. Industrial Farm rows additionally
+  ship per upgrade build — one slot per structure slice (bed tier − 1):
+  the all-accelerator build (`~gau`, +100 % speed and +125 % base power
+  per unit), the harvest build (`~hrv`, fertilizer unit at ×1.5 speed and
+  +0.5 rounds on enriched liquid, up to two harvesting units at +20 %
+  rounds each, accelerators on the rest), and from ZPM the overclocked
+  build (`~oc`), the one farm row on the standard ladder
 - `recipe_inputs(recipe_id, item_id, amount, slot, catalyst, tool)` — amount
   in units, or mB for fluids; rows sharing a `slot` are alternatives the
   recipe accepts any one of; `catalyst = 1` rows are the tool, mold, and
@@ -993,8 +1007,10 @@ All "does not / never" rules live here; other sections only reference this one.
 - **Factory-scoped rows** — recipes marked with a `scope` never price (a
   water-fed farm would collapse crafting prices), never date eras (a
   catalyst seed gates no era), and never appear in the crafting tab; only
-  the factory solve reads them, and `FACTORY_MOB` rows only with the
-  mob-farms toggle on.
+  the factory solve reads them, `FACTORY_MOB` rows only with the
+  mob-farms toggle on, and `FACTORY_BRED` rows only with the bred-seeds
+  toggle on — bred rows dominate their fresh twins at no extra input, so
+  admitting them freely would decide the assumption for the user.
 - **Pseudo-recipe sources** — bee breeding, dungeon/chest loot, and GT
   informational tabs (material lists); the builder drops them
   (§3 step 3) because they conjure matter from nothing and poison
@@ -1302,3 +1318,14 @@ All "does not / never" rules live here; other sections only reference this one.
     multiplies output alone, an excited liquid output and fuel together,
     over the flat upkeep — returns its spent fluid, and skips every
     combination whose full output no buildable dynamo hatch covers.
+57. Crop rows bake fresh 1/1 stats — a tier-1 crop rates 12 unfertilized —
+    and below the tier-9 wall a fertilized twin grows faster for the
+    fertilizer the machine spends: choice-slot items on a manager, liquid
+    potency on a farm.
+58. Industrial Farm builds bake their units: the all-accelerator build
+    divides duration by one plus the slot count at its multiplied power,
+    the harvest build always drinks enriched liquid fertilizer, and only
+    the overclocked build climbs the standard ladder.
+59. A bred row waits for the bred-seeds toggle and rates a 31/31 seed —
+    64 growth points against a fresh seed's 12 on a tier-1 crop — and a
+    factory-scoped row never lists among an item's crafting recipes.

@@ -189,6 +189,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 
         Assert.Equal(2, detail!.Cost);
         Assert.Equal("r_wire", detail.BestRecipeId);
+        // The factory-scoped wire row on the same map never lists here.
         var recipe = Assert.Single(detail.Recipes);
         Assert.Equal("r_wire", recipe.RecipeId);
         Assert.Equal("Wiremill", recipe.Machine);

@@ -5,6 +5,7 @@ using Craftiger.Solver.Interfaces.Bom;
 using Craftiger.Solver.Interfaces.Costs;
 using Craftiger.Solver.Interfaces.Graph;
 using Craftiger.Solver.Models.Bom;
+using Craftiger.Solver.Models.Graph;
 using Dapper;
 using Microsoft.Data.Sqlite;
 
@@ -91,7 +92,8 @@ public sealed class PlannerQueryService(
             for (var p = index.ProducerStart[position]; p < index.ProducerStart[position + 1]; p++)
             {
                 var recipe = index.ProducerRecipe[p];
-                if (legality.IsLegal(index, recipe, entry.Garage))
+                // Factory-scoped rows belong to rate planning alone; the crafting tab never lists them.
+                if (index.ScopeOf(recipe) == RecipeScope.None && legality.IsLegal(index, recipe, entry.Garage))
                 {
                     recipes.Add(ToDto(entry, recipe, itemId));
                 }

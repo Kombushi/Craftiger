@@ -188,6 +188,7 @@ public sealed class PlannerArtifactRepository(
                     null => RecipeScope.None,
                     "FACTORY" => RecipeScope.Factory,
                     "FACTORY_MOB" => RecipeScope.FactoryMob,
+                    "FACTORY_BRED" => RecipeScope.FactoryBred,
                     var other => throw new InvalidOperationException($"recipe {recipe.Id} names an unknown scope '{other}'"),
                 });
             durations.Add(recipe.DurationTicks);

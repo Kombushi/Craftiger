@@ -6,6 +6,5 @@ namespace Craftiger.Solver.Interfaces.Factory;
 public interface ICandidateWalkService
 {
     CandidateSet Walk(
-        FactoryContext context, IEnumerable<int> targets, IEnumerable<int> consumed, IReadOnlyDictionary<string, string> pins,
-        bool mobFarms);
+        FactoryContext context, IEnumerable<int> targets, IEnumerable<int> consumed, FactoryRequest request);
 }

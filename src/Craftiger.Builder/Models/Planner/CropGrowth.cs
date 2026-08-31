@@ -1,6 +1,6 @@
 namespace Craftiger.Builder.Models.Planner;
 
-/// <summary>CropsNH growth at the model's baseline: stat-0 seeds on watered, sky-lit sticks in a neutral biome, verified against TileEntityCropSticks.</summary>
+/// <summary>CropsNH growth at the model's baselines: fresh 1/1 seeds or bred 31/31 seeds on watered, sky-lit sticks in a neutral biome, verified against TileEntityCropSticks.</summary>
 public static class CropGrowth
 {
     /// <summary>Game ticks between crop stick growth cycles.</summary>
@@ -15,22 +15,35 @@ public static class CropGrowth
     /// <summary>Crops of this tier and above cannot grow unfertilized.</summary>
     public const int FertilizerTier = 9;
 
-    /// <summary>Growth points per cycle for a stat-0 seed, zero when the crop would sicken.</summary>
-    public static int Rate(int cropTier, bool fertilized)
+    /// <summary>A fresh seed's stats; the clamp floor.</summary>
+    public const int MinStat = 1;
+
+    /// <summary>The breeding cap on every stat.</summary>
+    public const int MaxStat = 31;
+
+    /// <summary>Growth points per cycle, zero when the crop would sicken.</summary>
+    public static int Rate(int cropTier, bool fertilized, int growth)
     {
         var nutrients = (fertilized ? FertilizedNutrients : BaselineNutrients) * 5;
         var need = cropTier * 10;
+        var baseSpeed = 6 + growth;
         return nutrients >= need
-            ? 6 * (100 + nutrients - need) / 100
-            : Math.Max(6 * (100 - (need - nutrients) * 4) / 100, 0);
+            ? baseSpeed * (100 + nutrients - need) / 100
+            : Math.Max(baseSpeed * (100 - (need - nutrients) * 4) / 100, 0);
     }
 
     /// <summary>Game ticks from planting to harvest, zero when the crop cannot grow.</summary>
-    public static long MaturationTicks(long growthDuration, int cropTier, bool fertilized)
+    public static long MaturationTicks(long growthDuration, int cropTier, bool fertilized, int growth)
     {
-        var rate = Rate(cropTier, fertilized);
+        var rate = Rate(cropTier, fertilized, growth);
         return rate <= 0 ? 0 : TicksPerCycle * ((growthDuration + rate - 1) / rate);
     }
+
+    /// <summary>The average drop-round multiplier the gain stat applies.</summary>
+    public static double GainRounds(int gain) => Math.Pow(1.03, gain);
+
+    /// <summary>The average per-round bonus drop share at the gain stat.</summary>
+    public static double GainStackBonus(int gain) => (gain + 1) / 100.0;
 
     /// <summary>Crop sticks a field machine of the tier serves: the manager's square of radius 3 + 2t.</summary>
     public static int FieldSize(int machineTier)

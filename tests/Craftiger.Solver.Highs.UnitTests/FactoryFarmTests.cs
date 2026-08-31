@@ -55,6 +55,49 @@ public class FactoryFarmTests
     }
 
     [Fact]
+    public void ABredRowWaitsForItsOwnToggle()
+    {
+        var graph = SolverGraph.Build(
+            [Leaf("water", weight: 0.001), Leaf("berry", weight: 2)],
+            [
+                Recipe("farm~cm1", tier: 1, machine: "Crop Manager", scope: RecipeScope.Factory, inputs: [("water", 10)], outputs: ("berry", 8, 1.0)),
+                Recipe("farm~cm1~b", tier: 1, machine: "Crop Manager", scope: RecipeScope.FactoryBred, inputs: [("water", 10)], outputs: ("berry", 40, 1.0)),
+            ]);
+        var data = new Dictionary<string, (long, long, long)> { ["farm~cm1"] = (200, 0, 1), ["farm~cm1~b"] = (200, 0, 1) };
+        var overclocks = new Dictionary<string, OverclockMode> { ["farm~cm1"] = OverclockMode.Fixed, ["farm~cm1~b"] = OverclockMode.Fixed };
+
+        var off = Solve(graph, Produce([("berry", 1)]), data, garageTier: 5, overclocks: overclocks);
+        var on = Solve(graph, Produce([("berry", 1)], bredSeeds: true), data, garageTier: 5, overclocks: overclocks);
+
+        Assert.Equal("farm~cm1", Dominant(off).RecipeId);
+        // Bred seeds cost nothing per run, so once admitted the richer row simply wins.
+        Assert.Equal("farm~cm1~b", Dominant(on).RecipeId);
+    }
+
+    [Fact]
+    public void AnOverclockedBuildClimbsTheStandardLadder()
+    {
+        // The ~oc row keeps the standard ladder: two steps above its tier it halves duration twice at sixteen-fold power.
+        var graph = SolverGraph.Build(
+            [Leaf("water", weight: 0.001), Leaf("berry", weight: 2)],
+            [Recipe("farm~if3~oc", tier: 3, machine: "Industrial Farm", scope: RecipeScope.Factory, inputs: [("water", 10)], outputs: ("berry", 8, 1.0))]);
+        var plan = Solve(
+            graph,
+            Produce([("berry", 1)], priority: [FactoryObjective.Resource, FactoryObjective.Machines, FactoryObjective.Energy]),
+            new Dictionary<string, (long, long, long)> { ["farm~if3~oc"] = (200, 480, 1) },
+            garageTier: 5);
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        // The corridor's losing-step sliver shifts totals below a tenth of a percent.
+        var line = Dominant(plan);
+        Assert.Equal(2, line.OcSteps);
+        Assert.Equal(1.0 / 8, line.RunsPerSecond, 1.0 / 8 * 2e-3);
+        // Ten seconds base run at two halvings holds a quarter of the machines a fixed row would.
+        Assert.Equal(1.0 / 8 * 2.5, plan.BusyMachines, 1.0 / 8 * 2.5 * 2e-3);
+        Assert.Equal(1.0 / 8 * 200 * 480 * 4 / 20, plan.DrawEuT, 1.0 / 8 * 200 * 480 * 4 / 20 * 2e-3);
+    }
+
+    [Fact]
     public void AFixedRowNeverOverclocks()
     {
         // A crop row is exact for its tier: even chasing machines, no step is taken.

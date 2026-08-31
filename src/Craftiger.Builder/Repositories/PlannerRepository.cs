@@ -179,6 +179,7 @@ public sealed class PlannerRepository : IPlannerRepository
                 {
                     RecipeScope.Factory => "FACTORY",
                     RecipeScope.FactoryMob => "FACTORY_MOB",
+                    RecipeScope.FactoryBred => "FACTORY_BRED",
                     _ => null,
                 },
                 LowGravity = r.RequiresLowGravity ? 1 : 0,

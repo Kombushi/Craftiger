@@ -530,23 +530,42 @@ pinned in source (CropsNH `MTECropManager`, `MTEIndustrialFarm`,
   `GROWTH_DURATION` is reached. Rate = `(6 + growthStat) ×
   (100 + nutrients×5 − 10×cropTier)/100`, capped below by a −4%/point
   deficit penalty; nutrients = 5 base + water/10 (≤10) + fertilizer/10
-  (≤10) + 2 sky. Baseline: seed stats 0/0, watered sticks, sky, neutral
-  biome → 17 nutrients (85 points); fertilized rows → 27 (135). Fertilizer
-  ships as a real input only on rows whose crop tier ≥ 9 (full speed to
-  tier 13; the single tier-16 crop stays unfarmable). Expected drops per
-  harvest = `DROP_CHANCE × Σ(weight/10000 × (stack + 0.01))`, encoded
-  through output chances.
+  (≤10) + 2 sky. A fresh unanalyzed seed carries stats 1/1/1 (the clamp
+  floor in `SeedStats`), so the baseline base speed is 7; watered sticks,
+  sky, neutral biome → 17 nutrients (85 points); fertilized rows → 27
+  (135). Fertilizer is mandatory from crop tier 9 (full speed to tier 13;
+  the single tier-16 crop stays unfarmable) and below that wall ships as
+  a fertilized twin row (`~f`) competing on speed against plain sticks.
+  Expected drops per harvest =
+  `DROP_CHANCE × 1.03^gain × Σ(weight/10000 × (stack + (gain+1)/100))`,
+  encoded through output chances. Every crop row also ships a
+  `FACTORY_BRED` twin (`~b`) at the 31/31 breeding cap behind the
+  per-factory bred-seeds toggle — bred rows dominate fresh ones at no
+  extra input, so a toggle, not the LP, must own the assumption.
 - **Crop Manager** (LV…UMV single blocks, radius `3 + 2×tier`): one row
   per (crop, tier); a run is one maturation wave of the whole field —
   duration `256 × ceil(GROWTH_DURATION/rate)` ticks, outputs × field size
   × `(1 + 0.05×tier)` harvest-round bonus, water per seed per maturation.
   Its `V/8`-per-harvest draw amortizes below 1 EU/t and ships as zero; the
   cost is the field of machines. Rows never overclock — each tier is its
-  own exact row.
+  own exact row. Fertilized rows spend the item fertilizers of the
+  choice slot.
 - **Industrial Farm** (multiblock; seed-bed tiers MV…UXV): same run
   semantics with the bed tier's field, `(1 + 0.2×tier)` rounds, water
-  `≈0.39` potency per seed-cycle, and a continuous `VP[tier]` draw. Rows
-  never overclock; the overclocked-growth-unit build is a later boost.
+  `≈0.39` potency per seed-cycle, and a continuous `VP[tier]` draw; its
+  fertilizer is the CropsNH liquid (1 potency/mB), never items. Beyond
+  the bare build, one row ships per upgrade build over the structure's
+  `bed tier − 1` unit slots (`MTEIndustrialFarm` and the CropsNH unit
+  blocks): the all-accelerator build (`~gau`, each unit +100 % speed and
+  +125 % base power), the harvest build (`~hrv`, one fertilizer unit at
+  ×1.5 speed, +0.5 rounds, +50 % power on enriched liquid at
+  10 potency/mB, up to two advanced harvesting units at +20 % rounds and
+  +50 % power each, accelerators on the remaining slots), and from ZPM
+  the overclocked build (`~oc`, exclusive with plain accelerators),
+  whose row alone rides the standard ladder — the in-game overclock
+  doubles output and per-cycle consumables for quadrupled energy, which
+  per maturation is exactly duration ÷2 at EU ×4. Multi-amp exotic-hatch
+  overclocks past the garage tier stay unmodeled.
 - **EEC** (one row per soul-vial-capturable mob with drops): duration
   `max(55, health/9 × 10)` ticks at a flat 1920 EU/t, powered spawner as
   catalyst, expected drops from the dump's probability rows (infernal-only
@@ -557,9 +576,13 @@ pinned in source (CropsNH `MTECropManager`, `MTEIndustrialFarm`,
   2/mB, CropsNH fertilizer 100/item, bonemeal 5/item, liquid fertilizer
   1/mB, enriched 10/mB.
 - Deliberate baselines: no Weed-EX (weeds only matter above what a field
-  holds), no fertilizer boost beyond the tier-9 gate, no analyzed seed
-  stats, no environmental or harvesting units, manager cadence (50-tick
-  work loop) amortized away.
+  holds), manager cadence (50-tick work loop) amortized away. Deferred
+  with cause: environmental enhancement units need per-crop liked-biome
+  data the dump lacks (an exporter extension, alongside the farmables
+  tables); EEC looting needs an `ItemSword`-class weapon no recipe in the
+  graph can produce — GT's looting chainsaws and butchery knives fail the
+  slot's class check — so the crusher stays at looting 0 until an
+  external-assumptions framework exists.
 
 ## 5. Data
 

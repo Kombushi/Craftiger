@@ -14,12 +14,11 @@ public sealed class CandidateWalkService(IGarageLegalityService legality, IOptio
 
     /// <summary>The downstream cone of every consume target, then the garage-legal upstream closure of the targets, fuels and cone co-inputs through every slot alternative and through leaves; recipes outside the cost band are pruned before the walk recurses into them, pinned ones always survive.</summary>
     public CandidateSet Walk(
-        FactoryContext context, IEnumerable<int> targets, IEnumerable<int> consumed, IReadOnlyDictionary<string, string> pins,
-        bool mobFarms)
+        FactoryContext context, IEnumerable<int> targets, IEnumerable<int> consumed, FactoryRequest request)
     {
         var index = context.Index;
         var pinned = new HashSet<int>();
-        foreach (var recipeId in pins.Values)
+        foreach (var recipeId in request.Pins.Values)
         {
             if (index.TryGetRecipe(recipeId, out var pin))
             {
@@ -34,7 +33,7 @@ public sealed class CandidateWalkService(IGarageLegalityService legality, IOptio
         {
             if (candidates.Contains(recipe) || rejected.Contains(recipe)
                 || !legality.IsLegal(index, recipe, context.Garage)
-                || (index.ScopeOf(recipe) == RecipeScope.FactoryMob && !mobFarms)
+                || !request.Admits(index.ScopeOf(recipe))
                 || !context.Environment.Admits(context.Recipes, recipe, context.Garage))
             {
                 return false;

@@ -34,6 +34,8 @@ public static partial class FixtureDump
         Item(db, CherryLeaves, "Cherry Leaves", "etfuturum");
         Item(db, FixturePipe, "Fixture Pipe", "IC2");
         Fluid(db, Water, "water", "Water");
+        Fluid(db, "f~cropsnh~cropsnh.fertilizer", "cropsnh.fertilizer", "Fertilizer");
+        Fluid(db, "f~cropsnh~cropsnh.enrichedfertilizer", "cropsnh.enrichedfertilizer", "Enriched Fertilizer");
         Fluid(db, Ic2Steam, "ic2steam", "Steam");
         Fluid(db, Lava, "lava", "Lava");
         Fluid(db, Hydrogen, "hydrogen", "Hydrogen");
