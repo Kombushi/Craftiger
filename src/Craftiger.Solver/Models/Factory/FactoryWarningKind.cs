@@ -21,6 +21,15 @@ public enum FactoryWarningKind
     [JsonStringEnumMemberName("pin_conflict")]
     PinConflict,
 
+    [JsonStringEnumMemberName("step_unknown")]
+    StepUnknown,
+
+    [JsonStringEnumMemberName("step_illegal")]
+    StepIllegal,
+
+    [JsonStringEnumMemberName("step_variant_unknown")]
+    StepVariantUnknown,
+
     [JsonStringEnumMemberName("routes_pruned")]
     RoutesPruned,
 

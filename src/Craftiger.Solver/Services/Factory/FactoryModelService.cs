@@ -33,7 +33,18 @@ public sealed class FactoryModelService(
     {
         var index = context.Index;
         var weights = leafWeights.Resolve(context.Graph, context.Weights);
-        var (pinnedAway, pinItems) = PinnedAway(index, request.Pins, candidates, warnings);
+        // A pipeline ignores pins: the steps are the pins, and a stale pin zeroing one of them would disable it silently.
+        var (pinnedAway, pinItems) = request.IsPipeline
+            ? (new HashSet<int>(), new List<string>())
+            : PinnedAway(index, request.Pins, candidates, warnings);
+        var stepOf = new Dictionary<int, FactoryStep>();
+        foreach (var step in request.Steps ?? [])
+        {
+            if (index.TryGetRecipe(step.Id, out var stepRecipe))
+            {
+                stepOf[stepRecipe] = step;
+            }
+        }
         var assembly = new FactoryModelAssembly(targets);
 
         foreach (var target in targets.ProducedItems)
@@ -59,7 +70,9 @@ public sealed class FactoryModelService(
 
         foreach (var recipe in candidates.Candidates)
         {
-            AddRecipe(context, assembly, recipe, euRow, pinnedAway.Contains(recipe));
+            AddRecipe(
+                context, assembly, recipe, euRow, pinnedAway.Contains(recipe),
+                stepOf.GetValueOrDefault(recipe), warnings);
         }
 
         foreach (var line in generators)
@@ -95,12 +108,47 @@ public sealed class FactoryModelService(
             assembly.AddColumn(new LpColumn(0, rate, [new LpEntry(row, 1)]), new SupplyColumn(item));
         }
 
-        // Purchase variables close every leaf's balance; consuming internal flow offsets them.
-        foreach (var (item, row) in assembly.ItemRows)
+        // Purchase variables close every leaf's balance; consuming internal flow offsets them. A
+        // pipeline instead supplies whatever no step makes — at its standing price — so a
+        // half-built chain still solves and shows its open inputs, but never conjures a target.
+        if (request.IsPipeline)
         {
-            if (index.IsLeaf(item))
+            var made = new HashSet<int>(targets.ProducedItems);
+            foreach (var recipe in candidates.Candidates)
             {
-                assembly.AddColumn(new LpColumn(0, double.PositiveInfinity, [new LpEntry(row, 1)]), new BuyColumn(item));
+                for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
+                {
+                    made.Add(index.OutputItem[o]);
+                }
+            }
+            foreach (var line in generators)
+            {
+                if (line.CondensateItem is { } condensate)
+                {
+                    made.Add(condensate);
+                }
+                foreach (var flow in line.Outputs)
+                {
+                    made.Add(flow.Item);
+                }
+            }
+            foreach (var (item, row) in assembly.ItemRows)
+            {
+                if (!made.Contains(item))
+                {
+                    assembly.AddColumn(new LpColumn(0, double.PositiveInfinity, [new LpEntry(row, 1)]), new BuyColumn(item));
+                }
+            }
+            weights = StandingPrices(context, weights, assembly);
+        }
+        else
+        {
+            foreach (var (item, row) in assembly.ItemRows)
+            {
+                if (index.IsLeaf(item))
+                {
+                    assembly.AddColumn(new LpColumn(0, double.PositiveInfinity, [new LpEntry(row, 1)]), new BuyColumn(item));
+                }
             }
         }
 
@@ -110,8 +158,10 @@ public sealed class FactoryModelService(
             [.. bandRows.Select(band => band.Row)], pinItems);
     }
 
-    /// <summary>One run column per variant sharing the recipe's balance, plus one link row and split columns per choice slot so the splits sum to the recipe's total runs.</summary>
-    private void AddRecipe(FactoryContext context, FactoryModelAssembly assembly, int recipe, int? euRow, bool pinnedAway)
+    /// <summary>One run column per variant sharing the recipe's balance — a step's pin narrows the variants — plus one link row and split columns per choice slot so the splits sum to the recipe's total runs.</summary>
+    private void AddRecipe(
+        FactoryContext context, FactoryModelAssembly assembly, int recipe, int? euRow, bool pinnedAway,
+        FactoryStep? step, ICollection<FactoryWarning> warnings)
     {
         var index = context.Index;
         var balance = new ItemBalance();
@@ -138,7 +188,21 @@ public sealed class FactoryModelService(
 
         var upper = pinnedAway ? 0 : double.PositiveInfinity;
         var entries = balance.Entries();
-        foreach (var variant in runVariants.Variants(context, recipe))
+        IReadOnlyList<RunVariant> variants = runVariants.Variants(context, recipe);
+        if (step is { } pin && pin.PinsVariant)
+        {
+            var admitted = variants.Where(pin.Admits).ToList();
+            if (admitted.Count > 0)
+            {
+                variants = admitted;
+            }
+            else
+            {
+                // A pin no buildable variant satisfies falls back to the free choice, visibly.
+                warnings.Add(FactoryWarning.StepVariantUnknown(index.RecipeIds[recipe]));
+            }
+        }
+        foreach (var variant in variants)
         {
             var variantEntries = entries;
             if ((euRow is not null && variant.DrawsEu) || variant.DrawsSteam || variant.ScalesOutputs)
@@ -178,6 +242,21 @@ public sealed class FactoryModelService(
                 assembly.AddColumn(new LpColumn(0, double.PositiveInfinity, split.Entries()), new SplitColumn(recipe, item, amount));
             }
         }
+    }
+
+    /// <summary>Every item a pipeline may buy, at the cost table's price — the leaf weight only where no garage-legal chain undercuts it, and the chain's own price where one does.</summary>
+    private static IReadOnlyDictionary<string, double> StandingPrices(
+        FactoryContext context, IReadOnlyDictionary<string, double> weights, FactoryModelAssembly assembly)
+    {
+        var charges = new Dictionary<string, double>(weights);
+        foreach (var (item, _) in assembly.ItemRows)
+        {
+            if (context.Costs.TryCost(item, out var cost))
+            {
+                charges[context.Index.ItemIds[item]] = cost;
+            }
+        }
+        return charges;
     }
 
     /// <summary>Recipes a pin forces to zero — every other candidate deterministically producing the pinned item — with the pin items that removed at least one route; a pin outside the closure is inactive.</summary>

@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.47
+# GTNH Crafting Planner — Specification v1.48
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -1013,7 +1013,25 @@ Screens:
   `warnings`. The `factoryId` is a content hash of everything that shapes
   the plan — garage, `b`, weights, targets, priority order, **pins**, and
   the mob-farms and bred-seeds toggles (§5: the cost-solve key excludes
-  pins; this one cannot). Entries run single-flight per id and live in the
+  pins; this one cannot). An optional `steps` list — `[{id, machineItemId,
+  ocSteps}]`, each id a recipe or a generator line id from an earlier
+  plan's lines — turns the solve into a **pipeline**: the candidate set is
+  exactly the steps, with no walk, no cost-band or generator pruning, and
+  no scope gate (an explicit step is its own consent; the toggles keep
+  gating only the mob-drop seed set), though never past garage or
+  environment legality — an illegal step warns `step_illegal` and drops
+  out, an id naming nothing warns `step_unknown`. Whatever no step makes
+  is supplied from outside at its **standing price** — the cost table's
+  price for it, seeds still free — so a half-built pipeline solves and
+  shows its open inputs; a produce target is never supplied, and one no
+  step makes reads `unreachable_target`. A step's `machineItemId` and
+  `ocSteps` narrow the recipe's run variants to the pinned block and
+  overclock; a pin no buildable variant satisfies warns
+  `step_variant_unknown` and falls back to the free choice. A pipeline
+  ignores `pins` — the steps are the pins — and its `factoryId` hashes the
+  steps in their place. An inflow's auto-infinite mark means the purchase
+  itself was free, never that the item is merely derivable from
+  renewables. Entries run single-flight per id and live in the
   same two cache tiers under `craftiger:{schema}:{pack}:{build_id}:factory:
   {factoryId}`, the value a versioned Brotli-compressed plan naming the
   build it was solved on — recomputed, never served, on any mismatch. A
@@ -1082,7 +1100,14 @@ All "does not / never" rules live here; other sections only reference this one.
   the factory solve reads them, `FACTORY_MOB` rows only with the
   mob-farms toggle on, and `FACTORY_BRED` rows only with the bred-seeds
   toggle on — bred rows dominate their fresh twins at no extra input, so
-  admitting them freely would decide the assumption for the user.
+  admitting them freely would decide the assumption for the user. A
+  pipeline step names any scoped row directly: the explicit choice is the
+  consent the toggle would otherwise give.
+- **Pipelines never expand** — a pipeline solve (§8 `steps`) never reads
+  pins, never adds a recipe beyond its steps, and never crafts a missing
+  input implicitly: what no step makes is supplied at its standing price,
+  visibly, and a produce target is never supplied at all — a pipeline
+  that cannot make its target is infeasible, not quietly outsourced.
 - **Pseudo-recipe sources** — bee breeding, dungeon/chest loot, and GT
   informational tabs (material lists); the builder drops them
   (§3 step 3) because they conjure matter from nothing and poison
@@ -1416,3 +1441,15 @@ All "does not / never" rules live here; other sections only reference this one.
 64. The machine closure stops at leaf-class items unless `deep=true` walks
     through them: a recipe-producible leaf lists its machines only on the
     deep walk.
+65. A pipeline runs only its steps: a step forces a route the free solve
+    would never pick, and an unknown step id warns without stopping the
+    rest.
+66. A missing pipeline input is supplied at its standing price — a
+    non-leaf intermediate at what its chain would cost — while a produce
+    target no step makes is `unreachable_target`, never supplied.
+67. A step's pin holds the overclock, an impossible pin falls back with
+    `step_variant_unknown`, and a generator step selects its line past
+    the catalog's pruning.
+68. Steps hash into the `factoryId` in place of the pins a pipeline
+    ignores: adding a pin changes nothing, changing a step's overclock
+    changes the id.

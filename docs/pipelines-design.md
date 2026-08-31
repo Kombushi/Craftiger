@@ -905,6 +905,42 @@ guard.
   picker plus per-line tight/loose and variant pins need request plumbing
   through the solver stack.
 
+### 6.5 Pipelines: the manual Planner
+
+The automatic solve's priorities can be rationally absurd — machines-first
+buys any material-class item at its leaf weight (zero machines, zero
+energy) rather than crafting it, so "make molten PTFE" became "buy PTFE
+chips and melt them". The answer is not another buy heuristic but a mode
+where the user picks the chain: a **pipeline** is a factory solve whose
+candidate set is exactly a hand-picked step list (spec §8 `steps`, §9,
+checks 65–68).
+
+- A step is a recipe id or a generator line id, optionally pinned to a
+  machine block and overclock level — the per-line variant-pin plumbing
+  the rotor/engine-mode pins were waiting for.
+- No walk, no cost-band or generator pruning, no scope gate; garage and
+  environment legality still hold. Pins are ignored — steps are the pins —
+  and replace them in the factoryId.
+- Whatever no step makes is supplied at its **standing price** (the cost
+  table's price; seeds free), so a half-built pipeline always solves and
+  shows its open inputs; adding the producing step converts an inflow into
+  its own feedstocks at the same total cost. A produce target is never
+  supplied.
+- Hand-picked models are tiny (dozens of columns), so a pipeline solves in
+  milliseconds — the Planner tab can re-solve on every edit.
+- Verified on the real artifact: molten PTFE 19.2 mB/s, machines-first,
+  one LCR polymerization step → one line, monomer inflows at standing
+  prices, no PTFE items anywhere, 0.27 s cold.
+
+The **Planner web tab** (`#/planner`, next slice) builds on this: a step
+list with a recipe picker, target rows reused from the Factory tab, live
+re-solve, the shared flow graph, and unplanned inflows that click into
+"add a step for this / leave it supplied". The automatic tab's
+buy-anything behavior stays as designed for now — the machines-first
+outsourcing question is answered by pipelines rather than by a new buy
+heuristic; restricting automatic buys to standing-price leaves remains an
+open option if it still grates.
+
 ## 7. The three examples, mapped
 
 1. **32 PE/min at HV** — produce target `32/60 s⁻¹`; with resource-first

@@ -82,6 +82,7 @@ internal static class FactoryHarness
             new AutoInfiniteService(legality),
             new FactoryDiagnosisService(lp, options),
             new FactoryPlanInterpreter(options),
+            legality,
             lp);
         var garage = new Garage(garageTier, new Dictionary<string, int?>(), new HashSet<string>(), new Dictionary<string, int>());
         var weights = new WeightSettings(4, new Dictionary<string, double>());
@@ -103,16 +104,21 @@ internal static class FactoryHarness
         FactoryObjective[]? priority = null,
         Dictionary<string, string>? pins = null,
         bool mobFarms = false,
-        bool bredSeeds = false) =>
+        bool bredSeeds = false,
+        FactoryStep[]? steps = null) =>
         new(
             targets.Select(t => new FactoryTarget(FactoryTargetKind.Produce, t.ItemId, t.Rate)).ToList(),
             priority ?? [],
             pins ?? new Dictionary<string, string>(),
             mobFarms,
-            bredSeeds);
+            bredSeeds,
+            Steps: steps);
 
-    public static FactoryRequest Energy(double euT, int? generatorTier = null, FactoryObjective[]? priority = null) =>
-        new([new FactoryTarget(FactoryTargetKind.Energy, null, euT, generatorTier)], priority ?? [], new Dictionary<string, string>());
+    public static FactoryRequest Energy(
+        double euT, int? generatorTier = null, FactoryObjective[]? priority = null, FactoryStep[]? steps = null) =>
+        new(
+            [new FactoryTarget(FactoryTargetKind.Energy, null, euT, generatorTier)], priority ?? [],
+            new Dictionary<string, string>(), Steps: steps);
 
     public static FactoryRequest Consume(string itemId, double rate) =>
         new([new FactoryTarget(FactoryTargetKind.Consume, itemId, rate)], [], new Dictionary<string, string>());

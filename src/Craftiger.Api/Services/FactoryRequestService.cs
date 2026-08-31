@@ -40,16 +40,35 @@ public sealed class FactoryRequestService(
                 kind, kind == FactoryTargetKind.Energy ? null : target.ItemId, target.Rate, target.GeneratorTier));
         }
 
+        List<FactoryStep>? steps = null;
+        if (request.Steps is { Count: > 0 })
+        {
+            steps = new List<FactoryStep>(request.Steps.Count);
+            foreach (var step in request.Steps)
+            {
+                if (string.IsNullOrWhiteSpace(step.Id))
+                {
+                    throw new ValidationException("a pipeline step must name a recipe or generator line");
+                }
+                if (step.OcSteps is < 0)
+                {
+                    throw new ValidationException($"the overclock of step '{step.Id}' cannot be negative");
+                }
+                steps.Add(new FactoryStep(step.Id, step.MachineItemId, step.OcSteps));
+            }
+        }
+
         return new FactoryRequest(
             targets,
             (request.Priority ?? []).Select(ObjectiveOf).ToList(),
             request.Pins ?? new Dictionary<string, string>(),
             request.MobFarms,
             request.BredSeeds,
-            options.Value.FactoryTimeLimitSeconds);
+            options.Value.FactoryTimeLimitSeconds,
+            steps);
     }
 
-    /// <summary>Everything that shapes the plan hashes into the id — pins and the scope toggles included; priority keeps its order because the layers run in it.</summary>
+    /// <summary>Everything that shapes the plan hashes into the id — pins and the scope toggles included; priority keeps its order because the layers run in it. A pipeline hashes its steps in place of the pins the solve ignores.</summary>
     public string FactoryIdOf(FactorySolveRequest request)
     {
         var canonical = CacheKeys.Settings(new SolveRequest(request.Garage, request.B, request.Weights));
@@ -57,7 +76,15 @@ public sealed class FactoryRequestService(
             $"{target.Kind?.ToLowerInvariant()}:{target.ItemId}:" +
             $"{target.Rate.ToString("R", CultureInfo.InvariantCulture)}:{target.GeneratorTier?.ToString() ?? "any"}"));
         canonical.Append(";priority=").AppendJoin(',', (request.Priority ?? []).Select(name => name.ToLowerInvariant()));
-        CacheKeys.Append(canonical, "pins", (request.Pins ?? []).Select(pin => $"{pin.Key}={pin.Value}"));
+        if (request.Steps is { Count: > 0 })
+        {
+            CacheKeys.Append(canonical, "steps", request.Steps.Select(step =>
+                $"{step.Id}@{step.MachineItemId ?? "auto"}@{step.OcSteps?.ToString() ?? "auto"}"));
+        }
+        else
+        {
+            CacheKeys.Append(canonical, "pins", (request.Pins ?? []).Select(pin => $"{pin.Key}={pin.Value}"));
+        }
         canonical.Append(";mob=").Append(request.MobFarms).Append(";bred=").Append(request.BredSeeds);
         return CacheKeys.Hash(canonical);
     }

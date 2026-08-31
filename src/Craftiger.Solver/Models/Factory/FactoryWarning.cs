@@ -13,6 +13,12 @@ public sealed record FactoryWarning(FactoryWarningKind Kind, string ItemId = "")
 
     public static FactoryWarning PinConflict(string itemId) => new(FactoryWarningKind.PinConflict, itemId);
 
+    public static FactoryWarning StepUnknown(string stepId) => new(FactoryWarningKind.StepUnknown, stepId);
+
+    public static FactoryWarning StepIllegal(string stepId) => new(FactoryWarningKind.StepIllegal, stepId);
+
+    public static FactoryWarning StepVariantUnknown(string recipeId) => new(FactoryWarningKind.StepVariantUnknown, recipeId);
+
     public static FactoryWarning RoutesPruned() => new(FactoryWarningKind.RoutesPruned);
 
     public static FactoryWarning NoGenerator() => new(FactoryWarningKind.NoGenerator);

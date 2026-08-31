@@ -11,8 +11,8 @@ public sealed class GeneratorCatalogService(IOptions<FactorySolverOptions> optio
 
     private readonly FactorySolverOptions _options = options.Value;
 
-    /// <summary>Every (buildable generator block, priced fuel) pair in map, block, fuel order; turbines spin each frontier rotor at both fits; pairs far off the cheapest weight per net EU/t are pruned per band.</summary>
-    public IReadOnlyList<GeneratorLine> Eligible(FactoryContext context, IReadOnlyList<EnergyBand> bands)
+    /// <summary>Every (buildable generator block, priced fuel) pair in map, block, fuel order; turbines spin each frontier rotor at both fits; pairs far off the cheapest weight per net EU/t are pruned per band — except for a pipeline, whose hand-picked line must survive.</summary>
+    public IReadOnlyList<GeneratorLine> Eligible(FactoryContext context, IReadOnlyList<EnergyBand> bands, bool prune = true)
     {
         var index = context.Index;
         var lines = new List<GeneratorLine>();
@@ -66,7 +66,7 @@ public sealed class GeneratorCatalogService(IOptions<FactorySolverOptions> optio
                 lines.Add(new GeneratorLine(fuel.Map, block.ItemId, tier, fuelItem, burn.UnitsPerSecond, netEuT));
             }
         }
-        return Prune(lines, context, bands);
+        return prune ? Prune(lines, context, bands) : lines;
     }
 
     /// <summary>Base and boosted burns through the engine's single dynamo hatch, which voids beyond its capacity; each consumable must price for its variant to run.</summary>

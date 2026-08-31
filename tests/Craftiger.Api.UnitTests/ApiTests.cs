@@ -422,6 +422,64 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task APipelineRunsItsStepsAndSuppliesTheRest()
+    {
+        var plan = await FactorySolveAsync(new
+        {
+            garage = _hvGarage,
+            b = 4,
+            targets = new[] { new { kind = "produce", itemId = "frame", rate = 1.0 } },
+            steps = new[] { new { id = "r_frame_asm" } },
+        });
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        // The corridor may split one step over variants; every line is still the step's recipe.
+        Assert.All(plan.Lines, line => Assert.Equal("r_frame_asm", line.RecipeId));
+        // The one real input is the renewable ingot, entering free; the card is a catalyst.
+        var ing = Assert.Single(plan.Inflows);
+        Assert.Equal("ing", ing.ItemId);
+        Assert.Equal(0, ing.Weight);
+        Assert.True(ing.AutoInfinite);
+    }
+
+    [Fact]
+    public async Task StepsHashIntoTheFactoryIdInPlaceOfPins()
+    {
+        object Body(Dictionary<string, string>? pins, object[]? steps) => new
+        {
+            garage = _hvGarage,
+            b = 4,
+            targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.0 } },
+            pins,
+            steps,
+        };
+        object[] viaWiremill = [new { id = "r_wire" }];
+
+        var piped = (await FactorySolveAsync(Body(null, viaWiremill))).FactoryId;
+        var pinnedToo = (await FactorySolveAsync(Body(new Dictionary<string, string> { ["wire"] = "r_farm_wire" }, viaWiremill))).FactoryId;
+        var stepless = (await FactorySolveAsync(Body(null, null))).FactoryId;
+        var overclocked = (await FactorySolveAsync(Body(null, [new { id = "r_wire", ocSteps = 1 }]))).FactoryId;
+
+        Assert.Equal(piped, pinnedToo);
+        Assert.NotEqual(piped, stepless);
+        Assert.NotEqual(piped, overclocked);
+    }
+
+    [Fact]
+    public async Task ABlankStepIsRefused()
+    {
+        var response = await Client.PostAsJsonAsync("/api/factory/solve", new
+        {
+            garage = _hvGarage,
+            b = 4,
+            targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.0 } },
+            steps = new[] { new { id = " " } },
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task AnEnergyTargetWithoutGeneratorsDiagnoses()
     {
         var plan = await FactorySolveAsync(new

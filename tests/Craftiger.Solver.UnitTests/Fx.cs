@@ -99,6 +99,7 @@ internal static class Fx
             new AutoInfiniteService(legality),
             new FactoryDiagnosisService(lp, options),
             new FactoryPlanInterpreter(options),
+            legality,
             lp);
     }
 

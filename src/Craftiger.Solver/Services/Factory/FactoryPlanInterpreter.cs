@@ -222,8 +222,9 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
             }
             if (buy > _options.RateEpsilon)
             {
+                // The inflow's badge means the purchase itself was free — a derived-infinite item still charges.
                 inflows.Add(new FactoryInflow(
-                    index.ItemIds[item], buy, model.ChargedWeight(index, item), infinite.Contains(item)));
+                    index.ItemIds[item], buy, model.ChargedWeight(index, item), model.SeedItems.Contains(item)));
             }
         }
 
