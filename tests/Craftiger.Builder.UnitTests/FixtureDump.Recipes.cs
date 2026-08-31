@@ -42,7 +42,9 @@ public static partial class FixtureDump
             [(DeadTurbine, true, null, false), (LiveTurbine, true, null, false), (XlTurbine, true, null, false)],
             isFuel: true);
         RecipeMap(db, "gtpp.recipe.RTGgenerators", "RTG", [], isFuel: true);
-        RecipeMap(db, "gg.recipe.naquadah_reactor", "Large Naquadah Reactor", [], isFuel: true);
+        RecipeMap(db, "gg.recipe.naquadah_reactor", "Large Naquadah Reactor",
+            [(LargeNaquadahReactor, true, null, false), (LargeCombustionEngine, true, null, false)],
+            isFuel: true);
         RecipeMap(db, "gt.recipe.semifluidboilerfuels", "Semifluid Boiler", [], isFuel: true);
         // A steam machine relaxes its map's LV recipes; the flag decides, never the name.
         RecipeMap(db, "gt.recipe.fixturegrinder", "Bronze Grinder", [(SteamGrinder, false, 1, true)]);

@@ -334,12 +334,25 @@ builder synthesizes **generator pseudo-recipes** per (generator item, fuel):
 - **RTGs and naquadah reactors**: RTG pellets burn at a fixed EU/t (the
   recipe's VOLTAGE column) for a fixed lifetime — the special value is the
   burn time in years (Po Pellet: 1 → 365 Minecraft days at 480 EU/t) — so a
-  pellet is a consumed input at `1/lifetime` per running RTG. The
-  GoodGenerator Large Naquadah Reactor runs at its NEI base output (EU/t
-  over the recipe's burn time) in v1; its coolant mode (efficiency
-  105–500 %) and excited-liquid mode (2–64× power and fuel) are exposed as
-  user-configurable machine variants, constants pinned from source at
-  implementation.
+  pellet is a consumed input at `1/lifetime` per running RTG.
+
+  Shipped mechanics (Large Naquadah Reactor, `MTELargeNaquadahReactor` and
+  the pack's GoodGenerator config): each timed fuel's special value **is**
+  the EU/t (MkI: 975,000 over 60 ticks per mB), and every burn returns
+  1 mB of the re-refinable depleted fluid. One line ships per
+  coolant-excited combination: a coolant multiplies output alone (IC2
+  105 %, Super 150 %, Cryotheum 275 % at 1,000 L/s; Tachyon Rich Temporal
+  Fluid 500 % at 20 L/s), an excited liquid multiplies output and fuel
+  together (Caesium ×2, Uranium-235 ×3 at 180 L/s; Naquadah ×4, Atomic
+  Separation Catalyst ×16, Spatially Enlarged Fluid ×64 at 20 L/s), and
+  2,400 L/s of Liquid Air is drained regardless. The rates and factors ride
+  the artifact's `generator_modes` table from the builder overlay, sourced
+  from the pack's own `GoodGenerator.cfg`. The reactor stops rather than
+  voids on an undersized dynamo and takes multi-amp hatches, so a
+  combination whose full output no buildable hatch covers ships no line.
+  An unpriced mode fluid does not kill a line: Liquid Air never prices
+  (Air is a weightless seed) yet the LP produces it from the free chain.
+  The MkI–VI fuels surface automatically once their chains price.
 - **Dynamo hatches are capacity constraints, not losses** (verified in GT5U:
   EU is injected 1:1; output beyond total hatch V×A is voided; large
   turbines take one hatch, ≤ 4A): per-generator-line EU/t is capped by the
@@ -396,9 +409,22 @@ builder synthesizes **generator pseudo-recipes** per (generator item, fuel):
   legality — a steam-era garage still cannot reach LV recipes through them
   (spec §2's garage-legal definition would have to change); revisit with
   the steam-era garage work.
-- Combustion engines' boosted modes (extra oxygen, higher output and
-  efficiency) are separate, user-configurable machine variants; warm-up
+- Combustion engines' boosted modes are separate competing lines; warm-up
   ramps are transients and ignored — steady state runs at final efficiency.
+
+  Shipped mechanics (`MTELargeCombustionEngine` / `MTEExtremeCombustionEngine`):
+  nominal output 2,048 / 10,900 EU/t on `machine_props.generator_eu_t`;
+  fuel per tick is `floor(nominal / fuelValue)` — integer division, so some
+  fuels burn above 100 % efficiency — with 1 L of lubricant per 72 ticks.
+  A fuel richer than the nominal output refuses to run unboosted. Boosting
+  (Oxygen / Liquid Oxygen at 2 L/t) triples output for
+  `floor(2·nominal / fuelValue)` plus, on fuels richer than the nominal,
+  a random top-up modeled at its expectation
+  (`frac(3·nominal / floor(1.5·fuelValue))` — HOG burns 1.6384 L/t), and
+  doubles the lubricant. Engines emit through one classic dynamo hatch with
+  ordinary voiding. The Universal Chemical Fuel Engine is deferred: its
+  promoter-ratio efficiency curve (`1.5·exp(−c·fuel/promoter)`) is not
+  LP-expressible and gets its own design pass.
 
 ### 4.6 Auto-infinite resources ("renewables")
 
@@ -894,8 +920,9 @@ To pin during implementation (facts to evidence, not decisions):
 - TGS power-to-output multiplier formula — **pinned** from GT5-Unofficial
   5.09.54.20 `MTETreeFarm`: `2·tier² − 2·tier + 5`, draw `VP[tier]`, 100
   ticks (§4.6).
-- Naquadah reactor coolant/excited mode constants — from GoodGenerator
-  source.
+- Naquadah reactor coolant/excited mode constants — **pinned** from the
+  pack's own `GoodGenerator.cfg` (rates, efficiencies, magnifications and
+  the 2,400 L/s Liquid Air upkeep), shipped via `generator_modes` (§4.5).
 - The v1 "most-used" lists: structure-part picker families and curated
   overlay multis (grown on demand).
 - The plasma-cell volume discrepancy (user: 1000 L; one dump survey read

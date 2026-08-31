@@ -97,7 +97,8 @@ public sealed class ApiFixture : IDisposable
             CREATE TABLE item_parents(item_id TEXT PRIMARY KEY, parent_item_id TEXT NOT NULL, divisor REAL NOT NULL);
             CREATE TABLE item_weights(item_id TEXT PRIMARY KEY, weight REAL NOT NULL);
             CREATE TABLE machine_eras(machine TEXT PRIMARY KEY, era INTEGER, multiblock INTEGER NOT NULL);
-            CREATE TABLE fuels(map TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, eu_per_unit REAL, eu_t REAL, duration_ticks INTEGER);
+            CREATE TABLE fuels(map TEXT NOT NULL, item_id TEXT NOT NULL, amount INTEGER NOT NULL, eu_per_unit REAL, eu_t REAL, duration_ticks INTEGER, return_item_id TEXT, return_amount INTEGER NOT NULL DEFAULT 0);
+            CREATE TABLE generator_modes(item_id TEXT NOT NULL, kind TEXT NOT NULL, fluid_id TEXT NOT NULL, per_second REAL NOT NULL, factor REAL NOT NULL);
             CREATE TABLE machine_items(map TEXT NOT NULL, item_id TEXT NOT NULL, tier INTEGER, multiblock INTEGER NOT NULL, steam INTEGER NOT NULL, era INTEGER);
             CREATE TABLE machine_props(item_id TEXT PRIMARY KEY, era INTEGER, generator_efficiency REAL, generator_eu_t INTEGER, generator_amps INTEGER, dynamo_eu_t INTEGER, dynamo_amps INTEGER, max_parallel INTEGER, boiler_eu_t INTEGER, rotor_fuel TEXT);
             CREATE TABLE machine_bonuses(item_id TEXT NOT NULL, kind TEXT NOT NULL, bonus REAL NOT NULL, multiplicative INTEGER NOT NULL, tier_axis TEXT);

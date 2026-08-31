@@ -44,9 +44,24 @@ public sealed class FactoryArtifactReader : IFactoryArtifactReader
                 }).ToList());
         var coils = JsonSerializer.Deserialize<List<CoilMeta>>(meta.GetValueOrDefault("coils") ?? "[]") ?? [];
         var fuels = db.Query<FuelRow>(
-                "SELECT map, item_id AS ItemId, amount, eu_per_unit AS EuPerUnit, eu_t AS EuT, duration_ticks AS DurationTicks FROM fuels")
-            .Select(row => new FactoryFuel(row.Map, row.ItemId, row.Amount, row.EuPerUnit, row.EuT, row.DurationTicks))
+                """
+                SELECT map, item_id AS ItemId, amount, eu_per_unit AS EuPerUnit, eu_t AS EuT,
+                    duration_ticks AS DurationTicks, return_item_id AS ReturnItemId, return_amount AS ReturnAmount
+                FROM fuels
+                """)
+            .Select(row => new FactoryFuel(
+                row.Map, row.ItemId, row.Amount, row.EuPerUnit, row.EuT, row.DurationTicks,
+                row.ReturnItemId, row.ReturnAmount))
             .ToList();
+        var generatorModes = db.Query<GeneratorModeRow>(
+                "SELECT item_id AS ItemId, kind, fluid_id AS FluidId, per_second AS PerSecond, factor FROM generator_modes")
+            .GroupBy(row => row.ItemId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<GeneratorMode>)group
+                    .Select(row => new GeneratorMode(
+                        Enum.Parse<GeneratorModeKind>(row.Kind, ignoreCase: true), row.FluidId, row.PerSecond, row.Factor))
+                    .ToList());
         var rotors = db.Query<RotorStatsRow>(
                 """
                 SELECT item_id AS ItemId, fuel, efficiency, loose_efficiency AS LooseEfficiency,
@@ -63,7 +78,8 @@ public sealed class FactoryArtifactReader : IFactoryArtifactReader
             .Select(row => new FactoryDynamo(row.ItemId, (int?)row.Era, row.DynamoEuT!.Value, row.DynamoAmps ?? 1))
             .ToList();
         var machines = new FactoryMachineData(
-            blocksByMap, coils.Select(coil => new FactoryCoil(coil.Tier, coil.MaxHeat)).ToList(), fuels, rotors, dynamos);
+            blocksByMap, coils.Select(coil => new FactoryCoil(coil.Tier, coil.MaxHeat)).ToList(), fuels, rotors, dynamos,
+            generatorModes);
 
         var seeds = new FactorySeedData(
             db.Query<SeedRow>("SELECT item_id AS ItemId, kind FROM renewable_seeds")

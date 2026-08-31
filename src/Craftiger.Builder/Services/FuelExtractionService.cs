@@ -171,16 +171,19 @@ public sealed partial class FuelExtractionService(
         var gt = dump.GtByRecipeId.GetValueOrDefault(recipe.Id);
         if (gt?.SpecialValue is null or <= 0 || gt.Duration <= 0)
         {
-            logger.LogWarning("timed fuel {Recipe} lacks total EU or duration; skipped", recipe.Id);
+            logger.LogWarning("timed fuel {Recipe} lacks EU/t or duration; skipped", recipe.Id);
             return;
         }
+        // The special value is the EU/t itself; the spent fluid returned per burn rides along.
+        var spent = dump.FluidOutputsOf(recipe.Id).FirstOrDefault();
         foreach (var input in dump.FluidInputsOf(recipe.Id))
         {
             foreach (var (fluidId, amount) in input.Members)
             {
                 Put(fuels, new PlannerFuel(
                     map.Name, fluidId, amount,
-                    null, gt.SpecialValue.Value / (double)gt.Duration, gt.Duration));
+                    null, gt.SpecialValue.Value, gt.Duration,
+                    spent?.FluidId, spent?.Amount ?? 0));
             }
         }
     }

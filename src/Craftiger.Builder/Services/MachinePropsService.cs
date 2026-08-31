@@ -117,6 +117,43 @@ public sealed class MachinePropsService(
             bonuses.Add(new PlannerMachineBonus(itemId, "EU_DISCOUNT", 62.5, false, null));
         }
 
+        var modes = new List<PlannerGeneratorMode>();
+        void AddMode(string itemId, string kind, string fluidId, double perSecond, double factor)
+        {
+            if (!dump.IsFluid(fluidId))
+            {
+                logger.LogWarning("machine overlay names fluid {FluidId}, unknown to this dump; mode skipped", fluidId);
+                return;
+            }
+            modes.Add(new PlannerGeneratorMode(itemId, kind, fluidId, perSecond, factor));
+        }
+        foreach (var engine in _overlay.Engines.OrderBy(e => e.ItemId, StringComparer.Ordinal))
+        {
+            if (!Overlaid(engine.ItemId))
+            {
+                continue;
+            }
+            props[engine.ItemId] = Row(engine.ItemId) with { GeneratorEuT = engine.NominalEuT };
+            AddMode(engine.ItemId, "BOOSTER", engine.BoosterFluidId, engine.BoosterPerSecond, engine.BoostFactor);
+            AddMode(engine.ItemId, "LUBRICANT", engine.LubricantFluidId, engine.LubricantPerSecond, 1);
+        }
+        foreach (var reactor in _overlay.Reactors.OrderBy(r => r.ItemId, StringComparer.Ordinal))
+        {
+            if (!Overlaid(reactor.ItemId))
+            {
+                continue;
+            }
+            AddMode(reactor.ItemId, "UPKEEP", reactor.UpkeepFluidId, reactor.UpkeepPerSecond, 1);
+            foreach (var coolant in reactor.Coolants)
+            {
+                AddMode(reactor.ItemId, "COOLANT", coolant.FluidId, coolant.PerSecond, coolant.Factor);
+            }
+            foreach (var excited in reactor.ExcitedLiquids)
+            {
+                AddMode(reactor.ItemId, "EXCITED", excited.FluidId, excited.PerSecond, excited.Factor);
+            }
+        }
+
         var rotors = new List<PlannerTurbineRotor>();
         var rotorStats = new List<PlannerRotorFuelStats>();
         foreach (var rotor in dump.TurbineRotors)
@@ -134,11 +171,11 @@ public sealed class MachinePropsService(
         }
 
         logger.LogInformation(
-            "  {Props:N0} machine props, {Bonuses:N0} bonuses, {Rotors:N0} rotors, "
+            "  {Props:N0} machine props, {Bonuses:N0} bonuses, {Rotors:N0} rotors, {Modes:N0} generator modes, "
             + "{Deprecated:N0} deprecated blocks dropped",
-            props.Count, bonuses.Count, rotors.Count, deprecated);
+            props.Count, bonuses.Count, rotors.Count, modes.Count, deprecated);
 
-        return new MachinePropsData([.. machineItems.Values], [.. props.Values], [.. bonuses], rotors, rotorStats);
+        return new MachinePropsData([.. machineItems.Values], [.. props.Values], [.. bonuses], rotors, rotorStats, modes);
 
         PlannerMachineProps Row(string rawItemId)
         {

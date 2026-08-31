@@ -15,7 +15,7 @@ public sealed class PlannerArtifactRepository(
     ILogger<PlannerArtifactRepository> logger) : IPlannerArtifactRepository
 {
     /// <summary>The artifact contract this build reads; anything else is refused loudly.</summary>
-    public const int SupportedSchemaVersion = 14;
+    public const int SupportedSchemaVersion = 15;
 
     public PlannerArtifact Load(string artifactsDir)
     {

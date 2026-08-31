@@ -71,6 +71,14 @@ public sealed class FactoryModelService(
             {
                 balance.Add(assembly.RowOf(condensate), line.CondensatePerSecond);
             }
+            foreach (var flow in line.Inputs)
+            {
+                balance.Add(assembly.RowOf(flow.Item), -flow.PerSecond);
+            }
+            foreach (var flow in line.Outputs)
+            {
+                balance.Add(assembly.RowOf(flow.Item), flow.PerSecond);
+            }
             foreach (var (tier, row) in bandRows)
             {
                 if (line.Tier >= tier)

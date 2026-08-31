@@ -8,7 +8,7 @@ namespace Craftiger.Builder.Repositories;
 public sealed class PlannerRepository : IPlannerRepository
 {
     /// <summary>Version of the artifact contract, bumped on any schema change so a reader can refuse what it does not know.</summary>
-    public const int SchemaVersion = 14;
+    public const int SchemaVersion = 15;
 
     public void Write(string path, PlannerData data)
     {
@@ -81,7 +81,15 @@ public sealed class PlannerRepository : IPlannerRepository
                 eu_per_unit REAL,
                 eu_t REAL,
                 duration_ticks INTEGER,
+                return_item_id TEXT,
+                return_amount INTEGER NOT NULL,
                 UNIQUE(map, item_id));
+            CREATE TABLE generator_modes(
+                item_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                fluid_id TEXT NOT NULL,
+                per_second REAL NOT NULL,
+                factor REAL NOT NULL);
             CREATE TABLE boiler_fuels(
                 item_id TEXT NOT NULL,
                 boiler TEXT NOT NULL,
@@ -230,8 +238,13 @@ public sealed class PlannerRepository : IPlannerRepository
             }), tx);
 
         db.Execute(
-            "INSERT INTO fuels VALUES (@Map, @ItemId, @Amount, @EuPerUnit, @EuT, @DurationTicks)",
+            "INSERT INTO fuels VALUES (@Map, @ItemId, @Amount, @EuPerUnit, @EuT, @DurationTicks, "
+            + "@ReturnItemId, @ReturnAmount)",
             data.Fuels.Fuels, tx);
+
+        db.Execute(
+            "INSERT INTO generator_modes VALUES (@ItemId, @Kind, @FluidId, @PerSecond, @Factor)",
+            data.MachineProps.GeneratorModes, tx);
 
         db.Execute("INSERT INTO boiler_fuels VALUES (@ItemId, @Boiler, @BurnSeconds)",
             data.Fuels.BoilerFuels, tx);

@@ -32,7 +32,25 @@ public static partial class FixtureDump
         Recipe(db, "r_fuel_rtg", "rt~gregtech~gtpp.recipe.RTGgenerators~ULV", inputs: [("g_rtg_pellet", 0)], outputs: [], voltage: 480, specialValue: 1);
         Fluid(db, "f~fixture_naq_fuel", "fixture_naq_fuel", "Fixture Naquadah Fuel");
         FluidStack(db, "g_naq_fuel", 1, "f~fixture_naq_fuel");
+        Fluid(db, "f~fixture_naq_depleted", "fixture_naq_depleted", "Fixture Depleted Fuel");
         Recipe(db, "r_fuel_timed", "rt~gregtech~gg.recipe.naquadah_reactor~ULV", inputs: [], outputs: [], label: "ULV", specialValue: 1600000, duration: 160, fluidInputs: [("g_naq_fuel", 0)]);
+        FluidOutput(db, "r_fuel_timed", 1, "f~fixture_naq_depleted");
+
+        // The boosted-generator blocks and their overlay mode fluids, under the ids the shipped settings name.
+        Item(db, LargeNaquadahReactor, "Large Naquadah Reactor", "gregtech");
+        Item(db, LargeCombustionEngine, "Large Combustion Engine", "gregtech");
+        Fluid(db, "f~gregtech~oxygen", "oxygen", "Oxygen");
+        Fluid(db, "f~gregtech~lubricant", "lubricant", "Lubricant");
+        Fluid(db, "f~gregtech~liquidair", "liquidair", "Liquid Air");
+        Fluid(db, "f~IC2~ic2coolant", "ic2coolant", "IC2 Coolant");
+        Fluid(db, "f~gregtech~supercoolant", "supercoolant", "Super Coolant");
+        Fluid(db, "f~miscutils~cryotheum", "cryotheum", "Gelid Cryotheum");
+        Fluid(db, "f~gregtech~temporalfluid", "temporalfluid", "Tachyon Rich Temporal Fluid");
+        Fluid(db, "f~gregtech~molten.caesium", "molten.caesium", "Molten Caesium");
+        Fluid(db, "f~gregtech~molten.uranium235", "molten.uranium235", "Molten Uranium 235");
+        Fluid(db, "f~gregtech~molten.naquadah", "molten.naquadah", "Molten Naquadah");
+        Fluid(db, "f~bartworks~molten.atomic separation catalyst", "molten.asc", "Molten Atomic Separation Catalyst");
+        Fluid(db, "f~gregtech~spatialfluid", "spatialfluid", "Spatially Enlarged Fluid");
 
         // Machine stat tables: a generator, a dynamo, a boiler, the EBF's bonuses, one rotor.
         Item(db, "i~fixture~gas_turbine", "Fixture Gas Turbine", "fixture");

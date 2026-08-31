@@ -39,6 +39,19 @@ public sealed class GeneratorCatalogService(IOptions<FactorySolverOptions> optio
                     {
                         AddTurbineLines(lines, context, frontiers, fuel, fuelItem, block, rotorClass, perUnit);
                     }
+                    else if (context.Costs.IsPriced(fuelItem)
+                        && context.Machines.ModesOf(block.ItemId) is { Count: > 0 } modes)
+                    {
+                        if (CombustionEngine.Of(block, modes) is { } engine
+                            && fuel.EuPerUnit is { } engineFuelValue && engineFuelValue > 0)
+                        {
+                            AddEngineLines(lines, context, fuel, fuelItem, block, engine, engineFuelValue);
+                        }
+                        else if (NaquadahReactor.Of(modes) is { } reactor && fuel.IsTimed)
+                        {
+                            AddReactorLines(lines, context, fuel, fuelItem, block, reactor);
+                        }
+                    }
                     continue;
                 }
                 if (block.Tier is not { } tier || fuel.Burn(block) is not { } burn)
@@ -54,6 +67,78 @@ public sealed class GeneratorCatalogService(IOptions<FactorySolverOptions> optio
             }
         }
         return Prune(lines, context, bands);
+    }
+
+    /// <summary>Base and boosted burns through the engine's single dynamo hatch, which voids beyond its capacity; each consumable must price for its variant to run.</summary>
+    private static void AddEngineLines(
+        List<GeneratorLine> lines,
+        FactoryContext context,
+        FactoryFuel fuel,
+        int fuelItem,
+        FactoryMachineBlock block,
+        CombustionEngine engine,
+        double fuelValue)
+    {
+        foreach (var (burn, variant) in new[] { (engine.Base(fuelValue), (string?)null), (engine.Boosted(fuelValue), "boost") })
+        {
+            if (burn is null || context.Machines.BestHatch(context.Garage, block, burn.RawEuT) is not { } hatch
+                || hatch.NetEuT <= 0)
+            {
+                continue;
+            }
+            var extras = new List<GeneratorFlow>();
+            if (!TryAddFlow(context, extras, engine.Lubricant.FluidId, burn.LubricantPerSecond)
+                || (burn.BoosterPerSecond > 0 && !TryAddFlow(context, extras, engine.Booster.FluidId, burn.BoosterPerSecond)))
+            {
+                continue;
+            }
+            lines.Add(new GeneratorLine(
+                fuel.Map, block.ItemId, hatch.Tier, fuelItem, burn.FuelPerSecond, hatch.NetEuT,
+                Variant: variant, ExtraInputs: extras));
+        }
+    }
+
+    /// <summary>Every coolant-excited combination whose full output a garage-legal hatch can cover — the reactor stops rather than voids — with the spent fuel returned.</summary>
+    private static void AddReactorLines(
+        List<GeneratorLine> lines,
+        FactoryContext context,
+        FactoryFuel fuel,
+        int fuelItem,
+        FactoryMachineBlock block,
+        NaquadahReactor reactor)
+    {
+        var returned = fuel.ReturnItemId is { } returnId && context.Index.TryGetItem(returnId, out var item)
+            ? (int?)item
+            : null;
+        foreach (var run in reactor.Runs(fuel))
+        {
+            if (context.Machines.CoveringHatch(context.Garage, run.RawEuT) is not { } hatch || hatch.NetEuT <= 0)
+            {
+                continue;
+            }
+            var extras = new List<GeneratorFlow>();
+            if (run.Consumes.Any(consume => !TryAddFlow(context, extras, consume.FluidId, consume.PerSecond)))
+            {
+                continue;
+            }
+            var outputs = returned is { } spent && run.ReturnPerSecond > 0
+                ? new[] { new GeneratorFlow(spent, run.ReturnPerSecond) }
+                : null;
+            lines.Add(new GeneratorLine(
+                fuel.Map, block.ItemId, hatch.Tier, fuelItem, run.FuelPerSecond, hatch.NetEuT,
+                Variant: run.Variant, ExtraInputs: extras, ExtraOutputs: outputs));
+        }
+    }
+
+    /// <summary>Resolves one extra consumable; only a fluid unknown to the graph kills the variant — an unpriced one may still be producible from seeds, and the LP zeroes the line otherwise.</summary>
+    private static bool TryAddFlow(FactoryContext context, List<GeneratorFlow> extras, string fluidId, double perSecond)
+    {
+        if (!context.Index.TryGetItem(fluidId, out var item))
+        {
+            return false;
+        }
+        extras.Add(new GeneratorFlow(item, perSecond));
+        return true;
     }
 
     /// <summary>One line per frontier rotor and fit at that rotor's optimal flow — off-optimal is strictly worse — with the block's parallel factor folded in.</summary>

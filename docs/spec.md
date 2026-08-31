@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.43
+# GTNH Crafting Planner — Specification v1.44
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -378,14 +378,17 @@ Builder responsibilities, in order:
 - `item_weights(item_id, weight)` — weights overriding the item's leaf class,
   where one class covers items worth different amounts (§4)
 - `fuels(map, item_id, amount, eu_per_unit NULL, eu_t NULL, duration_ticks
-  NULL)` — what each fuel-flagged recipe map burns, normalized to 100 %
+  NULL, return_item_id NULL, return_amount)` — what each fuel-flagged
+  recipe map burns, normalized to 100 %
   generator efficiency. Standard rows carry `eu_per_unit`: EU per mB for
   fluids (a cell resolves to its contained fluid, whatever the cell's
   volume) and EU per item for bare solids, which burn as 1000 mB worth —
   both are GT5-Unofficial's own generator math. Lifetime rows carry `eu_t`
   over `duration_ticks` per `amount` consumed instead: RTG pellets (the
   dump's special value is burn years, 365 Minecraft days each) and
-  GoodGenerator naquadah fuels (total EU split over the burn). Each fuel
+  GoodGenerator naquadah fuels, whose special value is the EU/t itself and
+  whose recipe returns `return_amount` of the spent fluid `return_item_id`
+  per `amount` burned. Each fuel
   map's reading is a checked-in builder classification — Standard, Rtg,
   Timed, Boiler, Excluded (real recipes wearing the fuel flag), or Empty
   (must stay so) — and an unclassified map fails the build. The steam
@@ -420,6 +423,21 @@ Builder responsibilities, in order:
   a multiblock's typed parallel/speed/EU bonus lines; `bonus` is the
   displayed number (220 for "220 % Speed"), `tier_axis` the scaling axis
   (`VOLTAGE`, `COIL`, …) of per-tier kinds
+- `generator_modes(item_id, kind, fluid_id, per_second, factor)` — the
+  consumable modes of the boosted generator multiblocks, from the builder's
+  curated overlay. A combustion engine (its nominal EU/t rides
+  `machine_props.generator_eu_t`) carries a `BOOSTER` row (the gas that
+  multiplies output by `factor` at `per_second` liters) and a `LUBRICANT`
+  row (drain unboosted; boosting doubles it); a reactor carries an `UPKEEP`
+  row (flat drain), `COOLANT` rows (each multiplies output alone by
+  `factor`) and `EXCITED` rows (each multiplies output and fuel together).
+  Engine burn mechanics are GregTech code constants and live in the solver:
+  fuel per tick is the nominal output over the fuel value in integer
+  division, boosted burns double that plus a weighted expected top-up on
+  fuels richer than the nominal output, which refuse to run unboosted;
+  engines emit through one classic dynamo hatch with voiding, while a
+  reactor stops rather than voids, so a mode combination no buildable hatch
+  covers ships no line
 - `turbine_rotors(item_id, size, material, durability, base_efficiency,
   overflow_tier)` and `rotor_fuel_stats(item_id, fuel, efficiency,
   loose_efficiency, optimal_flow, loose_optimal_flow, optimal_eut,
@@ -1237,7 +1255,8 @@ All "does not / never" rules live here; other sections only reference this one.
     at 360 EU/mB, a cell's special value reads per mB no matter the cell's
     volume, a bare solid burns as 1000 mB worth, an RTG pellet carries its
     EU/t over a year's ticks per burn-year unit, and a GoodGenerator
-    naquadah fuel splits its total EU over its burn ticks.
+    naquadah fuel carries its special value as EU/t over its burn ticks
+    with the spent fluid it returns.
 46. Large-boiler burn times parse per generation from the dump's burn-time
     text, and a "Not allowed" generation ships no row.
 47. Machine props merge per machine block: a generator block ships its
@@ -1274,3 +1293,12 @@ All "does not / never" rules live here; other sections only reference this one.
 54. Only WORLD seeds ship: a crop drop or farmable prices at its leaf
     weight wherever no farm line is legal, and turns auto-infinite where
     one is.
+55. A combustion engine burns by integer division — 512-EU diesel draws
+    3 L/t unboosted for the nominal output — and its boosted line triples
+    output for the booster gas, doubled fuel with the weighted top-up on
+    over-rich fuels, and doubled lubricant; a fuel richer than the nominal
+    output ships only the boosted line.
+56. A reactor line ships per coolant-excited combination — coolant
+    multiplies output alone, an excited liquid output and fuel together,
+    over the flat upkeep — returns its spent fluid, and skips every
+    combination whose full output no buildable dynamo hatch covers.

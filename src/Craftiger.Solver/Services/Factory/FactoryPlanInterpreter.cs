@@ -85,6 +85,14 @@ public sealed class FactoryPlanInterpreter(IOptions<FactorySolverOptions> option
                     {
                         Accumulate(produced, condensate, line.CondensatePerSecond * value);
                     }
+                    foreach (var flow in line.Inputs)
+                    {
+                        Accumulate(consumed, flow.Item, flow.PerSecond * value);
+                    }
+                    foreach (var flow in line.Outputs)
+                    {
+                        Accumulate(produced, flow.Item, flow.PerSecond * value);
+                    }
                     exportEuT += line.NetEuT * value;
                     busyMachines += value;
                     lines.Add(new FactoryLine(

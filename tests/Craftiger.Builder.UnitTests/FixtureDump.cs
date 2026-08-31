@@ -64,6 +64,8 @@ public static partial class FixtureDump
     public const string DeadTurbine = "i~gregtech~gt.blockmachines~7001";
     public const string LiveTurbine = "i~gregtech~gt.blockmachines~7002";
     public const string XlTurbine = "i~gregtech~gt.blockmachines~15522";
+    public const string LargeCombustionEngine = "i~gregtech~gt.blockmachines~15533";
+    public const string LargeNaquadahReactor = "i~gregtech~gt.blockmachines~15537";
     public const string DualOreOw = "i~gregtech~gt.blockores~555";
     public const string DualOreMars = "i~gregtech~gt.blockores3~555";
     public const string DualDust = "i~gregtech~gt.metaitem.01~2555";

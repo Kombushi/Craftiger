@@ -115,8 +115,18 @@ internal static class FactoryHarness
     public static FactoryRequest Consume(string itemId, double rate) =>
         new([new FactoryTarget(FactoryTargetKind.Consume, itemId, rate)], [], new Dictionary<string, string>());
 
-    public static FactoryMachineData Generators(string map, FactoryMachineBlock block, FactoryFuel fuel) =>
-        new(new Dictionary<string, IReadOnlyList<FactoryMachineBlock>> { [map] = [block] }, [], [fuel], [], []);
+    public static FactoryMachineData Generators(
+        string map,
+        FactoryMachineBlock block,
+        FactoryFuel fuel,
+        FactoryDynamo[]? dynamos = null,
+        GeneratorMode[]? modes = null) =>
+        new(
+            new Dictionary<string, IReadOnlyList<FactoryMachineBlock>> { [map] = [block] },
+            [], [fuel], [], dynamos ?? [],
+            modes is null
+                ? null
+                : new Dictionary<string, IReadOnlyList<GeneratorMode>> { [block.ItemId] = modes });
 
     public static FactoryMachineData Turbines(
         FactoryMachineBlock block,

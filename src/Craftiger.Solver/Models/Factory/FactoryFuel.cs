@@ -1,13 +1,15 @@
 namespace Craftiger.Solver.Models.Factory;
 
-/// <summary>One burnable fuel on a generator map: standard fuels carry EU per unit before efficiency, timed fuels a fixed EU/t over a lifetime per Amount consumed.</summary>
+/// <summary>One burnable fuel on a generator map: standard fuels carry EU per unit before efficiency, timed fuels a fixed EU/t over a lifetime per Amount consumed, possibly returning a spent fluid.</summary>
 public sealed record FactoryFuel(
     string Map,
     string ItemId,
     long Amount,
     double? EuPerUnit,
     double? EuT,
-    long? DurationTicks)
+    long? DurationTicks,
+    string? ReturnItemId = null,
+    long ReturnAmount = 0)
 {
     public bool IsTimed => EuT is not null && DurationTicks is > 0;
 

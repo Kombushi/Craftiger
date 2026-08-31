@@ -5,4 +5,5 @@ public sealed record MachinePropsData(
     IReadOnlyList<PlannerMachineProps> Props,
     IReadOnlyList<PlannerMachineBonus> Bonuses,
     IReadOnlyList<PlannerTurbineRotor> Rotors,
-    IReadOnlyList<PlannerRotorFuelStats> RotorStats);
+    IReadOnlyList<PlannerRotorFuelStats> RotorStats,
+    IReadOnlyList<PlannerGeneratorMode> GeneratorModes);

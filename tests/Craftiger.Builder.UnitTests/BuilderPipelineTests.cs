@@ -206,8 +206,8 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     [Fact]
     public void ArtifactStampsItsSchemaVersion()
     {
-        Assert.Equal(14, Repositories.PlannerRepository.SchemaVersion);
-        Assert.Equal("14", _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));
+        Assert.Equal(15, Repositories.PlannerRepository.SchemaVersion);
+        Assert.Equal("15", _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'schema_version'"));
     }
 
     [Fact]

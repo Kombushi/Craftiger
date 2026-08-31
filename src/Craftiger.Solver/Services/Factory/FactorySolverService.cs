@@ -37,6 +37,7 @@ public sealed class FactorySolverService(
         var steamItems = context.Machines.HasBuildableSteamBlock(context.Garage) ? context.SteamItems() : [];
         var walkTargets = targets.Produce.Keys
             .Concat(generators.Select(line => line.FuelItem))
+            .Concat(generators.SelectMany(line => line.Inputs.Select(flow => flow.Item)))
             .Concat(steamItems)
             .Distinct();
         var candidates = candidateWalk.Walk(context, walkTargets, targets.Consume.Keys, request.Pins, request.MobFarms);

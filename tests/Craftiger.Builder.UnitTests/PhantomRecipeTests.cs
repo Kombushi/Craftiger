@@ -52,14 +52,35 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
     }
 
     [Fact]
-    public void ATimedFuelSplitsTotalEuOverItsBurn()
+    public void ATimedFuelBurnsAtItsSpecialValueAndReturnsItsSpentFluid()
     {
-        Assert.Equal(10000.0, fixture.Scalar<double>(
+        Assert.Equal(1600000.0, fixture.Scalar<double>(
             "SELECT f.eu_t FROM fuels f JOIN items i ON i.id = f.item_id " +
             "WHERE i.name_en = 'Fixture Naquadah Fuel'"));
         Assert.Equal(160, fixture.Scalar<int>(
             "SELECT f.duration_ticks FROM fuels f JOIN items i ON i.id = f.item_id " +
             "WHERE i.name_en = 'Fixture Naquadah Fuel'"));
+        Assert.Equal("f~fixture_naq_depleted", fixture.Scalar<string>(
+            "SELECT f.return_item_id FROM fuels f JOIN items i ON i.id = f.item_id " +
+            "WHERE i.name_en = 'Fixture Naquadah Fuel'"));
+        Assert.Equal(1, fixture.Scalar<int>(
+            "SELECT f.return_amount FROM fuels f JOIN items i ON i.id = f.item_id " +
+            "WHERE i.name_en = 'Fixture Naquadah Fuel'"));
+    }
+
+    [Fact]
+    public void GeneratorModesShipTheOverlayTables()
+    {
+        Assert.Equal(10, fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM generator_modes WHERE item_id = 'i~gregtech~gt.blockmachines~15537'"));
+        Assert.Equal(64.0, fixture.Scalar<double>(
+            "SELECT factor FROM generator_modes WHERE kind = 'EXCITED' AND fluid_id = 'f~gregtech~spatialfluid'"));
+        Assert.Equal(2400.0, fixture.Scalar<double>(
+            "SELECT per_second FROM generator_modes WHERE kind = 'UPKEEP' AND item_id = 'i~gregtech~gt.blockmachines~15537'"));
+        Assert.Equal(2048, fixture.Scalar<int>(
+            "SELECT generator_eu_t FROM machine_props WHERE item_id = 'i~gregtech~gt.blockmachines~15533'"));
+        Assert.Equal(3.0, fixture.Scalar<double>(
+            "SELECT factor FROM generator_modes WHERE kind = 'BOOSTER' AND item_id = 'i~gregtech~gt.blockmachines~15533'"));
     }
 
     [Fact]
