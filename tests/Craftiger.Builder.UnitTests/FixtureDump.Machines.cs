@@ -71,6 +71,14 @@ public static partial class FixtureDump
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 8, 'PARALLEL', 0, '8 Parallels', NULL)");
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 2, 'PARALLEL_PER_TIER', 1, '2x Parallels per Heating Coil Tier', 'COIL')");
 
+        // Machine classes: the tree farm map is found through its controller's class, and the
+        // tool table names the accepted tools per mode with only the best multiplier surviving.
+        Machine(db, TreeFarm, "gregtech.common.tileentities.machines.multi.MTETreeFarm", multiblock: true);
+        TreeFarmTool(db, Saw, "LOG", 1);
+        TreeFarmTool(db, Chainsaw, "LOG", 4);
+        TreeFarmTool(db, BranchCutter, "SAPLING", 1);
+        TreeFarmTool(db, WireCutterLv, "LEAVES", 4);
+
         Item(db, "i~fixture~rotor", "Fixture Rotor", "fixture", maxDamage: 12800);
         db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR VALUES ('gtrot~170~Fixture', 0.85, 'Fixture', 12800, 2, 'SMALL', 'i~fixture~rotor')");
         db.Execute("INSERT INTO GREG_TECH_TURBINE_ROTOR_FUEL_STATS VALUES ('gtrot~170~Fixture', 0.85, 'STEAM', 0.468, 386.1, 1650, 212.5, 500)");

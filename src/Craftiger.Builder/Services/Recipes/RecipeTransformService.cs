@@ -10,14 +10,12 @@ namespace Craftiger.Builder.Services.Recipes;
 
 public sealed partial class RecipeTransformService(
     IOptions<RecipesConfiguration> options,
-    IOptions<TreeFarmConfiguration> treeFarm,
     IRecipeMachineListService machineLists,
     IRecipeSlotResolver slotResolver,
     IRecipeVariantService variants,
     ICraftingGridService grids) : IRecipeTransformService
 {
     private readonly RecipesConfiguration _config = options.Value;
-    private readonly TreeFarmConfiguration _treeFarm = treeFarm.Value;
     private readonly FrozenSet<string> _excludedMachines = options.Value.ExcludedMachines.ToFrozenSet();
     private readonly FrozenSet<string> _eraOnlyMachines = options.Value.EraOnlyMachines.ToFrozenSet();
 
@@ -31,6 +29,7 @@ public sealed partial class RecipeTransformService(
         var machinesByTypeId = machineLists.Run(dump, unified);
         var ungatedTypeIds = new HashSet<string>(dump.Recipes.Where(r => r.Category == "minecraft").Select(r => r.RecipeTypeId));
         var slotTiersByMap = new Dictionary<string, IReadOnlyList<int>?>();
+        var treeFarmMap = dump.MapServedBy(MachineClasses.TreeFarm)?.UnlocalizedName;
 
         foreach (var recipe in dump.Recipes)
         {
@@ -42,7 +41,7 @@ public sealed partial class RecipeTransformService(
 
             // Fuel maps burn their inputs for EU; their tabs are recipes only to NEI. Tree farm rows are synthesized with their catalysts.
             var map = dump.RecipeMapByTypeId.GetValueOrDefault(recipe.RecipeTypeId);
-            if (map is not null && (map.IsFuel || map.UnlocalizedName == _treeFarm.Map))
+            if (map is not null && (map.IsFuel || map.UnlocalizedName == treeFarmMap))
             {
                 continue;
             }

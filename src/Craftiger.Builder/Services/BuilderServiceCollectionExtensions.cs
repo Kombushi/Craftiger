@@ -37,7 +37,6 @@ public static class BuilderServiceCollectionExtensions
             .Configure<MachineOverlayConfiguration>(
                 configuration.GetSection(nameof(MachineOverlayConfiguration)))
             .Configure<SteamConfiguration>(configuration.GetSection(nameof(SteamConfiguration)))
-            .Configure<TreeFarmConfiguration>(configuration.GetSection(nameof(TreeFarmConfiguration)))
             .Configure<FarmsConfiguration>(configuration.GetSection(nameof(FarmsConfiguration)))
             .AddSingleton<IDumpItemReader, DumpItemReader>()
             .AddSingleton<IDumpOredictReader, DumpOredictReader>()

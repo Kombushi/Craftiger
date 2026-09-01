@@ -45,6 +45,23 @@ public sealed record Dump
     /// <summary>GregTech recipe map per recipe type; non-GregTech types have none.</summary>
     public required IReadOnlyDictionary<string, DumpRecipeMap> RecipeMapByTypeId { get; init; }
 
+    /// <summary>Every registered machine with its Java class, recipe-map-serving or not.</summary>
+    public required IReadOnlyList<DumpMachine> Machines { get; init; }
+
+    /// <summary>The map a machine of the given class serves; null when no such machine or map exists.</summary>
+    public DumpRecipeMap? MapServedBy(string classSuffix)
+    {
+        var items = Machines
+            .Where(machine => machine.MachineClass.EndsWith(classSuffix, StringComparison.Ordinal))
+            .Select(machine => machine.ItemId)
+            .ToHashSet();
+        return items.Count == 0
+            ? null
+            : RecipeMapByTypeId.Values
+                .Distinct()
+                .FirstOrDefault(map => map.Machines.Any(machine => items.Contains(machine.ItemId)));
+    }
+
     public required IReadOnlyList<DumpBlockDrop> BlockDrops { get; init; }
 
     public required IReadOnlyList<DumpCrop> Crops { get; init; }
@@ -63,6 +80,8 @@ public sealed record Dump
     public required IReadOnlyList<DumpMultiblockMachine> MultiblockMachines { get; init; }
 
     public required IReadOnlyList<DumpTurbineRotor> TurbineRotors { get; init; }
+
+    public required IReadOnlyList<DumpTreeFarmTool> TreeFarmTools { get; init; }
 
     /// <summary>Distinct drops of soul-vial-capturable mobs: what an auto mob farm yields.</summary>
     public required IReadOnlyList<DumpMob> Mobs { get; init; }

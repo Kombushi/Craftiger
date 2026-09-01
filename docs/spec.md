@@ -167,8 +167,8 @@ Builder responsibilities, in order:
    tools in the bus, none consumed — so the builder synthesizes them: the
    map's controller-slot item becomes the sapling catalyst, each output
    class (log, sapling, leaves, fruit — the dump's output slots, in that
-   order) gets a catalyst slot holding the best-multiplying tools of a
-   curated table, and the amounts ship at LV with that tool's multiplier
+   order) gets a catalyst slot holding the best-multiplying tools of the
+   dump's probed tool table, and the amounts ship at LV with that tool's multiplier
    applied, on a five-second run drawing LV's practical 30 EU/t; the
    recipe's `overclock` names the tree farm's own ladder (§9).
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
@@ -1139,10 +1139,11 @@ All "does not / never" rules live here; other sections only reference this one.
   where a run costs machine time and EU, while its logs keep pricing at
   their farm-leaf weight. A pin may still choose it for a BOM, which then
   makes the logs for nothing. Its tool multipliers are GT5-Unofficial's
-  own: logs by Saw ×1, Buzzsaw ×2, Chainsaw ×4; saplings by Branch Cutter
-  ×1, Forestry Grafter ×4; leaves by Shears ×1, Wire Cutter ×2, electric
-  Wire Cutter ×4; fruit by Knife ×1 — every tool the controller accepts sits
-  in the builder's table, and the shipped catalyst slot holds only the
+  own: the exporter probes every item through the controller's tool check,
+  so the dump lists exactly what the machine accepts per mode (logs by Saw
+  ×1 up to Chainsaw ×4; saplings by Branch Cutter ×1, grafters ×4; leaves
+  by shears ×1 up to electric Wire Cutter ×4; fruit by Knife ×1), and the
+  shipped catalyst slot holds only the
   best. Electric tools recharge externally and wearing ones survive the
   run, so none is consumed. The hatch tier's yield — 2t² − 2t + 5 — is
   what the controller computes from one energy hatch; that two ordinary

@@ -1,31 +1,29 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Interfaces.Recipes;
 using Craftiger.Builder.Models.Dump;
-using Craftiger.Builder.Models.Options;
 using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
 /// <summary>The dump's tree rows carry the mode multipliers already; the sapling sits in the controller and the tools in the bus, none consumed, and every mode with a tool harvests in the same fixed-length run.</summary>
 public sealed class TreeFarmRecipeService(
-    IOptions<TreeFarmConfiguration> options,
     IRecipeMachineListService machineLists,
     ILogger<TreeFarmRecipeService> logger) : ITreeFarmRecipeService
 {
-    private readonly TreeFarmConfiguration _config = options.Value;
-
     public List<PlannerRecipe> Run(Dump dump, UnifiedItems unified)
     {
         var recipes = new List<PlannerRecipe>();
-        var typeIds = dump.RecipeMapByTypeId
-            .Where(pair => pair.Value.UnlocalizedName == _config.Map)
-            .Select(pair => pair.Key)
-            .ToHashSet();
+        var map = dump.MapServedBy(MachineClasses.TreeFarm);
+        var typeIds = map is null
+            ? []
+            : dump.RecipeMapByTypeId
+                .Where(pair => pair.Value.UnlocalizedName == map.UnlocalizedName)
+                .Select(pair => pair.Key)
+                .ToHashSet();
         if (typeIds.Count == 0)
         {
-            logger.LogWarning("tree farm map {Map} is unknown to this dump; no tree farm recipes", _config.Map);
+            logger.LogWarning("this dump grows no tree farm machine; no tree farm recipes");
             return recipes;
         }
         var machinesByTypeId = machineLists.Run(dump, unified);
@@ -86,32 +84,21 @@ public sealed class TreeFarmRecipeService(
         return recipes;
     }
 
-    /// <summary>Per mode, the tools sharing the best multiplier the dump knows, as one catalyst slot of wearing tools; a tool the dump lacks is another pack's.</summary>
-    private Dictionary<TreeFarmMode, (PlannerCatalystSlot Slot, int Multiplier)> BestTools(Dump dump, UnifiedItems unified)
+    /// <summary>Per mode, the tools sharing the best multiplier, as one catalyst slot of wearing tools; lesser tools never price and stay out.</summary>
+    private static Dictionary<TreeFarmMode, (PlannerCatalystSlot Slot, int Multiplier)> BestTools(Dump dump, UnifiedItems unified)
     {
         var best = new Dictionary<TreeFarmMode, (PlannerCatalystSlot, int)>();
-        var unknown = 0;
-        foreach (var (mode, tools) in _config.Tools)
+        foreach (var tools in dump.TreeFarmTools.GroupBy(tool => tool.Mode))
         {
-            var known = tools.Where(tool => dump.Items.ContainsKey(tool.ItemId)).ToList();
-            unknown += tools.Count - known.Count;
-            if (known.Count == 0)
-            {
-                continue;
-            }
-            var multiplier = known.Max(tool => tool.Multiplier);
-            var alternatives = known
+            var multiplier = tools.Max(tool => tool.Multiplier);
+            var alternatives = tools
                 .Where(tool => tool.Multiplier == multiplier)
                 .Select(tool => unified.Canonical(tool.ItemId))
                 .Distinct()
                 .Order(StringComparer.Ordinal)
                 .Select(itemId => new PlannerCatalyst(itemId, 1, Tool: true))
                 .ToList();
-            best[mode] = (new PlannerCatalystSlot(alternatives), multiplier);
-        }
-        if (unknown > 0)
-        {
-            logger.LogWarning("{Count} tree farm tools are unknown to this dump; skipped", unknown);
+            best[tools.Key] = (new PlannerCatalystSlot(alternatives), multiplier);
         }
         return best;
     }

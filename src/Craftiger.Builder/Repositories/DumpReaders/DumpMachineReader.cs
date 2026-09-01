@@ -1,5 +1,6 @@
 using Craftiger.Builder.Interfaces.DumpReaders;
 using Craftiger.Builder.Models.Dump;
+using Craftiger.Builder.Models.Planner;
 using Dapper;
 using Microsoft.Data.Sqlite;
 
@@ -10,11 +11,13 @@ public sealed class DumpMachineReader : IDumpMachineReader
     public DumpMachineSet Read(SqliteConnection db) =>
         new(
             ReadRecipeMaps(db),
+            ReadMachines(db),
             ReadGenerators(db),
             ReadDynamos(db),
             ReadBoilers(db),
             ReadMultiblockMachines(db),
-            ReadTurbineRotors(db));
+            ReadTurbineRotors(db),
+            ReadTreeFarmTools(db));
 
     /// <summary>A GregTech recipe type is named rt~gregtech~(recipe map)~(voltage).</summary>
     private static IReadOnlyDictionary<string, DumpRecipeMap> ReadRecipeMaps(SqliteConnection db)
@@ -51,6 +54,35 @@ public sealed class DumpMachineReader : IDumpMachineReader
             }
         }
         return recipeMapByTypeId;
+    }
+
+    private static List<DumpMachine> ReadMachines(SqliteConnection db)
+    {
+        DumpQueries.RequireMachineData(db, "GREG_TECH_MACHINE");
+        return [.. db.Query<(string ItemId, string MachineClass, int? Tier, long Multiblock, long Steam)>("""
+            SELECT ITEM_ID, MACHINE_CLASS, TIER, MULTIBLOCK, STEAM FROM GREG_TECH_MACHINE
+            """).Select(r => new DumpMachine(
+            r.ItemId, r.MachineClass, r.Tier, r.Multiblock != 0, r.Steam != 0))];
+    }
+
+    private static List<DumpTreeFarmTool> ReadTreeFarmTools(SqliteConnection db)
+    {
+        DumpQueries.RequireMachineData(db, "GREG_TECH_TREE_FARM_TOOL");
+        // NBT-variant NEI stacks repeat a tool; the best multiplier per item and mode wins.
+        var best = new Dictionary<(string ItemId, TreeFarmMode Mode), int>();
+        foreach (var r in db.Query<(string ItemId, string Mode, long Multiplier)>("""
+            SELECT ITEM_ID, MODE, MULTIPLIER FROM GREG_TECH_TREE_FARM_TOOL
+            """))
+        {
+            if (!Enum.TryParse<TreeFarmMode>(r.Mode, ignoreCase: true, out var mode))
+            {
+                continue;
+            }
+
+            var key = (r.ItemId, mode);
+            best[key] = Math.Max(best.GetValueOrDefault(key), (int)r.Multiplier);
+        }
+        return [.. best.Select(pair => new DumpTreeFarmTool(pair.Key.ItemId, pair.Key.Mode, pair.Value))];
     }
 
     private static List<DumpGenerator> ReadGenerators(SqliteConnection db)
