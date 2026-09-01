@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.51
+# GTNH Crafting Planner — Specification v1.52
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
