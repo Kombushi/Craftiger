@@ -3,29 +3,42 @@ import { planStatusNotes } from '../factoryContext'
 import { fmtEuT, fmtRate } from '../format'
 import { usePlanner } from '../plannerContext'
 import { nodeId, snap, tidyPositions } from '../plannerGrid'
+import { useStore } from '../storeContext'
 import type { PlannerNode, PlannerStep, RateUnit } from '../types'
 import { usePersistent } from '../usePersistent'
 import { AddNodeMenu, type AddNodeChoice, type AddNodeItem } from './AddNodeMenu'
+import { CanvasMenu } from './CanvasMenu'
 import { FactoryWarnings } from './FactoryWarnings'
 import { GaragePanel } from './GaragePanel'
 import { GeneratorPickerModal } from './GeneratorPickerModal'
+import { ItemSearchModal } from './ItemSearchModal'
 import { PlannerCanvas } from './PlannerCanvas'
 import { PlannerPalette } from './PlannerPalette'
 import { RecipePickerModal } from './RecipePickerModal'
 import { SidebarLayout } from './SidebarLayout'
 
 type Picker =
+  | { kind: 'create'; screen: { x: number; y: number }; grid: { x: number; y: number } }
+  | { kind: 'item'; choice: AddNodeChoice; grid: { x: number; y: number } }
   | { kind: 'menu'; item: AddNodeItem; allow: AddNodeChoice[]; fromGhost: boolean }
   | { kind: 'recipe'; itemId: string; position: { x: number; y: number } | null }
   | { kind: 'generator' }
   | null
 
-/** The manual pipeline grid: user-placed nodes, a live balance, ghosts that click into new nodes. */
+const searchTitles: Record<AddNodeChoice, string> = {
+  input: 'Place an Input — what do you have on hand?',
+  output: 'Place an Output — what must the pipeline make?',
+  step: 'Add a producing step — what should it make?',
+}
+
+/** The manual pipeline grid: right-click places nodes, the balance is live, ghosts click into new nodes. */
 export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
   const planner = usePlanner()
+  const { garage, meta } = useStore()
   const [unit, setUnit] = usePersistent<RateUnit>('gtnhp.rateUnit', 'second')
   const [picker, setPicker] = useState<Picker>(null)
   const { plan, status, nodes } = planner
+  const hasEnergy = nodes.some((node) => node.kind === 'energy')
   const stepNames = Object.fromEntries(
     nodes.flatMap((node) => (node.kind === 'step' ? [[node.id, node.label]] : [])),
   )
@@ -54,6 +67,12 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
     }
     const first = consumers.reduce((best, node) => (node.x < best.x ? node : best))
     return { x: snap(Math.max(0, first.x - 460)), y: snap(first.y) }
+  }
+
+  const addEnergy = (position: { x: number; y: number }) => {
+    const tier = Math.max(1, garage.defaultTier)
+    planner.addNode({ kind: 'energy', amps: 1, tier, euT: meta?.tierVoltages[tier] ?? 32, ...position })
+    setPicker(null)
   }
 
   const place = (choice: AddNodeChoice, item: AddNodeItem, position: { x: number; y: number } | null) => {
@@ -107,7 +126,7 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
 
   const hint =
     nodes.length === 0
-      ? 'An empty grid — search an item on the left to place its node.'
+      ? 'An empty grid — right-click the canvas to place a node.'
       : !anchored
         ? 'Nothing anchors the balance yet — place an Output, an Energy node, or rate an Input.'
         : !feeding
@@ -124,12 +143,7 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
         hidden={sidebarHidden}
         sidebar={
           <>
-            <PlannerPalette
-              onPlace={(item) =>
-                setPicker({ kind: 'menu', item, allow: ['output', 'input', 'step'], fromGhost: false })
-              }
-              onPickGenerator={() => setPicker({ kind: 'generator' })}
-            />
+            <PlannerPalette onPickGenerator={() => setPicker({ kind: 'generator' })} />
             <GaragePanel
               targetIds={nodes.flatMap((node) =>
                 node.kind === 'output' || (node.kind === 'input' && node.amount !== null) ? [node.itemId] : [],
@@ -187,9 +201,35 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
           ) : null}
         </section>
         <section className="results-section results-chain">
-          <PlannerCanvas unit={unit} onGhostIn={ghostIn} onGhostOut={ghostOut} />
+          <PlannerCanvas
+            unit={unit}
+            onGhostIn={ghostIn}
+            onGhostOut={ghostOut}
+            onCreate={(screen, grid) => setPicker({ kind: 'create', screen, grid })}
+          />
         </section>
       </SidebarLayout>
+      {picker?.kind === 'create' ? (
+        <CanvasMenu
+          at={picker.screen}
+          hasEnergy={hasEnergy}
+          onPick={(choice) =>
+            choice === 'energy'
+              ? addEnergy(picker.grid)
+              : setPicker({ kind: 'item', choice, grid: picker.grid })
+          }
+          onClose={() => setPicker(null)}
+        />
+      ) : null}
+      {picker?.kind === 'item' ? (
+        <ItemSearchModal
+          title={searchTitles[picker.choice]}
+          onPick={(item) =>
+            place(picker.choice, { itemId: item.itemId, name: item.name, atlasIdx: item.atlasIdx }, picker.grid)
+          }
+          onClose={() => setPicker(null)}
+        />
+      ) : null}
       {picker?.kind === 'menu' ? (
         <AddNodeMenu
           item={picker.item}

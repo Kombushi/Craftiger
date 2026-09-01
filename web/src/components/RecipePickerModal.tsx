@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import * as api from '../api'
 import { fmtCost, fmtDuration } from '../format'
 import { useStore } from '../storeContext'
-import type { ItemDetail, PlannerStep } from '../types'
+import type { ItemDetail, PlannerStep, RecipeDto } from '../types'
 import { Slot } from './Slot'
 
 interface Props {
@@ -18,7 +18,10 @@ const scopeChips: Record<string, string> = {
   factory_bred: 'BRED',
 }
 
-/** Picks one producer of an item as a pipeline step — the full catalog, farm rows included. */
+const chancePct = (chance: number) => `${+(chance * 100).toFixed(1)}%`
+
+/** Picks one producer of an item as a pipeline step — the full catalog, farm rows included,
+ * each row a mini recipe card: the machine block, its inputs, and every output with its chance. */
 export function RecipePickerModal({ itemId, onPick, onClose }: Props) {
   const { garage, b, weights } = useStore()
   const [detail, setDetail] = useState<ItemDetail | null>(null)
@@ -61,51 +64,102 @@ export function RecipePickerModal({ itemId, onPick, onClose }: Props) {
         ) : null}
         {detail !== null ? (
           <ul className="picker-list">
-            {detail.recipes.map((recipe) => {
-              const outputs = recipe.outputs
-                .map((output) => {
-                  const name = detail.items[output.itemId]?.name ?? output.itemId
-                  return `${output.amount}× ${name}`
-                })
-                .join(', ')
-              const chip = recipe.scope != null ? scopeChips[recipe.scope] : undefined
-              return (
-                <li key={recipe.recipeId}>
-                  <button
-                    type="button"
-                    className="picker-row"
-                    onClick={() =>
-                      onPick({
-                        id: recipe.recipeId,
-                        label: detail.name,
-                        atlasIdx: detail.atlasIdx,
-                        machine: recipe.machine,
-                        machineItemId: null,
-                        ocSteps: null,
-                        scope: recipe.scope ?? null,
-                      })
-                    }
-                  >
-                    <Slot atlasIdx={detail.atlasIdx} size="sm" />
-                    <span className="picker-main">
-                      <span className="picker-title">
-                        {recipe.machine}
-                        {chip !== undefined ? <span className="tag tag-chip mono"> {chip}</span> : null}
-                      </span>
-                      <span className="picker-sub mono">
-                        {fmtDuration(recipe.durationTicks)} · {recipe.euT.toLocaleString('en-US')} EU/t
-                        {' → '}
-                        {outputs}
-                      </span>
-                    </span>
-                    <span className="mono picker-cost">{fmtCost(recipe.candidateCost)}</span>
-                  </button>
-                </li>
-              )
-            })}
+            {detail.recipes.map((recipe) => (
+              <li key={recipe.recipeId}>
+                <RecipeRow
+                  detail={detail}
+                  recipe={recipe}
+                  onPick={() =>
+                    onPick({
+                      id: recipe.recipeId,
+                      label: detail.name,
+                      atlasIdx: detail.atlasIdx,
+                      machine: recipe.machine,
+                      machineItemId: null,
+                      ocSteps: null,
+                      scope: recipe.scope ?? null,
+                    })
+                  }
+                />
+              </li>
+            ))}
           </ul>
         ) : null}
       </div>
     </div>
+  )
+}
+
+function RecipeRow({ detail, recipe, onPick }: { detail: ItemDetail; recipe: RecipeDto; onPick: () => void }) {
+  const { meta } = useStore()
+  const machineItem = recipe.machineItemId != null ? detail.items[recipe.machineItemId] : undefined
+  const chip = recipe.scope != null ? scopeChips[recipe.scope] : undefined
+
+  const inputSlot = (slot: { itemId: string; amount: number }[], key: string, catalyst: boolean) => {
+    const first = slot[0]
+    const item = detail.items[first.itemId]
+    return (
+      <Slot
+        key={key}
+        size="sm"
+        atlasIdx={item?.atlasIdx ?? -1}
+        badge={first.amount > 1 ? String(first.amount) : undefined}
+        tooltip={{
+          name: item?.name ?? first.itemId,
+          lines: [
+            `${first.amount}× per run`,
+            ...(slot.length > 1 ? [`one of ${slot.length} alternatives`] : []),
+            ...(catalyst ? ['catalyst — never consumed'] : []),
+          ],
+        }}
+      />
+    )
+  }
+
+  return (
+    <button type="button" className="picker-row picker-recipe" onClick={onPick}>
+      <Slot
+        size="sm"
+        atlasIdx={machineItem?.atlasIdx ?? -1}
+        tooltip={{ name: machineItem?.name ?? recipe.machine }}
+      />
+      <span className="picker-main">
+        <span className="picker-title">
+          {recipe.machine}
+          {meta !== null ? <span className="tag tag-chip mono">{meta.tierNames[recipe.tier] ?? recipe.tier}</span> : null}
+          {chip !== undefined ? <span className="tag tag-chip mono">{chip}</span> : null}
+        </span>
+        <span className="picker-sub mono">
+          {fmtDuration(recipe.durationTicks)} · {recipe.euT.toLocaleString('en-US')} EU/t
+        </span>
+      </span>
+      <span className="picker-io">
+        {recipe.slots.map((slot, index) => inputSlot(slot, `in-${index}`, false))}
+        {recipe.catalysts.map((slot, index) => inputSlot(slot, `cat-${index}`, true))}
+        <span className="card-arrow-inline">▶</span>
+        {recipe.outputs.map((output, index) => {
+          const item = detail.items[output.itemId]
+          return (
+            <span key={`out-${index}`} className="picker-out">
+              <Slot
+                size="sm"
+                atlasIdx={item?.atlasIdx ?? -1}
+                badge={output.amount > 1 ? String(output.amount) : undefined}
+                highlight
+                tooltip={{
+                  name: item?.name ?? output.itemId,
+                  lines: [
+                    `${output.amount}× per run`,
+                    ...(output.chance < 1 ? [`${chancePct(output.chance)} chance`] : []),
+                  ],
+                }}
+              />
+              {output.chance < 1 ? <span className="picker-chance mono">{chancePct(output.chance)}</span> : null}
+            </span>
+          )
+        })}
+      </span>
+      <span className="mono picker-cost">{fmtCost(recipe.candidateCost)}</span>
+    </button>
   )
 }

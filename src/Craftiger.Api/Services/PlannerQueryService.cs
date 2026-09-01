@@ -5,6 +5,7 @@ using Craftiger.Solver.Interfaces.Bom;
 using Craftiger.Solver.Interfaces.Costs;
 using Craftiger.Solver.Interfaces.Graph;
 using Craftiger.Solver.Models.Bom;
+using Craftiger.Solver.Models.Factory;
 using Craftiger.Solver.Models.Graph;
 using Dapper;
 using Microsoft.Data.Sqlite;
@@ -110,6 +111,10 @@ public sealed class PlannerQueryService(
             ids.UnionWith(recipe.Slots.SelectMany(slot => slot).Select(alternative => alternative.ItemId));
             ids.UnionWith(recipe.Catalysts.SelectMany(slot => slot).Select(alternative => alternative.ItemId));
             ids.UnionWith(recipe.Outputs.Select(output => output.ItemId));
+            if (recipe.MachineItemId is { } machineItem)
+            {
+                ids.Add(machineItem);
+            }
         }
 
         return new ItemDetailResponse(
@@ -238,7 +243,30 @@ public sealed class PlannerQueryService(
             catalysts,
             Outputs(recipe),
             data.Grid(recipe),
-            ScopeLabel(index.ScopeOf(recipe)));
+            ScopeLabel(index.ScopeOf(recipe)),
+            MachineItemFor(recipe));
+    }
+
+    /// <summary>The cheapest block that runs the recipe — the lowest single-block tier at or above it, a multiblock controller failing that — for the picker's machine icon.</summary>
+    private string? MachineItemFor(int recipe)
+    {
+        var index = artifact.Graph.Index;
+        var blocks = artifact.Factory.Machines.BlocksOf(index.Machine[recipe]);
+        if (blocks is null || blocks.Count == 0)
+        {
+            return null;
+        }
+        var tier = index.Tier[recipe];
+        FactoryMachineBlock? best = null;
+        foreach (var block in blocks)
+        {
+            if ((block.Tier ?? tier) >= tier
+                && (best is null || (block.Tier ?? int.MaxValue) < (best.Tier ?? int.MaxValue)))
+            {
+                best = block;
+            }
+        }
+        return (best ?? blocks[0]).ItemId;
     }
 
     private static string? ScopeLabel(RecipeScope scope) => scope switch

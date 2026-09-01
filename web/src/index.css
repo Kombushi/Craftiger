@@ -1669,3 +1669,82 @@ a:focus-visible {
 .card-ghost:hover {
   border-color: var(--accent);
 }
+
+/* ---- canvas context menu ---- */
+
+.overlay-clear {
+  background: transparent;
+}
+
+.grid-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.context-menu {
+  position: fixed;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  min-width: 220px;
+  background: var(--panel);
+  border: 2px solid;
+  border-color: var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi);
+}
+
+.context-menu button {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 10px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.context-menu button:hover:not(:disabled) {
+  background: var(--panel-strip);
+  color: var(--accent);
+}
+
+.context-menu button:disabled {
+  color: var(--dim);
+  cursor: default;
+}
+
+.context-hint {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+/* ---- producer picker recipe rows ---- */
+
+.picker-io {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: wrap;
+  max-width: 46%;
+}
+
+.picker-out {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.picker-chance {
+  font-size: 9px;
+  color: var(--dim);
+}
+
+.picker-title .tag {
+  margin-left: 6px;
+}

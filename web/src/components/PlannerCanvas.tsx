@@ -23,55 +23,78 @@ interface Props {
   onGhostIn: (itemId: string) => void
   /** A ghost surplus was clicked — offer to adopt it as an Output. */
   onGhostOut: (itemId: string) => void
+  /** A right-click on the canvas: the screen point for the menu, the snapped node-space point for the node. */
+  onCreate: (screen: { x: number; y: number }, grid: { x: number; y: number }) => void
 }
 
 /** The Planner grid canvas: user-placed node cards, solver-drawn edges, ghosts on the frontier. */
-export function PlannerCanvas({ unit, onGhostIn, onGhostOut }: Props) {
+export function PlannerCanvas({ unit, onGhostIn, onGhostOut, onCreate }: Props) {
   const planner = usePlanner()
   const { nodes, plan } = planner
   const grid = useMemo(() => buildGrid(nodes, plan), [nodes, plan])
   const [hovered, setHovered] = useState<string | null>(null)
 
   return (
-    <GraphViewport width={grid.width} height={grid.height}>
-      <svg
-        className="chain-edges"
-        width={grid.width}
-        height={grid.height}
-        viewBox={`0 0 ${Math.max(1, grid.width)} ${Math.max(1, grid.height)}`}
-      >
-        {grid.edges.map((edge, index) => (
-          <path
-            key={index}
-            className={`edge${hovered === edge.itemId ? ' edge-active' : ''}`}
-            d={edgePath(edge, 'horizontal')}
-          />
-        ))}
-      </svg>
-      {grid.cards.map((card) => {
-        switch (card.kind) {
-          case 'line':
-            return <StepCard key={card.id} card={card} plan={plan} unit={unit} onHover={setHovered} />
-          case 'input':
-            return <InputCard key={card.id} card={card} plan={plan} unit={unit} />
-          case 'output':
-            return <OutputCard key={card.id} card={card} plan={plan} unit={unit} />
-          case 'energy':
-            return <EnergyCard key={card.id} card={card} plan={plan} />
-          default:
-            return (
-              <GhostCard
-                key={card.id}
-                card={card}
-                plan={plan}
-                unit={unit}
-                onHover={setHovered}
-                onClick={card.kind === 'ghost-in' ? onGhostIn : onGhostOut}
-              />
-            )
+    <div
+      className="grid-wrap"
+      onContextMenu={(event) => {
+        event.preventDefault()
+        const canvas = event.currentTarget.querySelector('.chain-canvas')
+        if (!(canvas instanceof HTMLElement)) {
+          return
         }
-      })}
-    </GraphViewport>
+        const rect = canvas.getBoundingClientRect()
+        const match = /matrix\(([^,]+),/.exec(getComputedStyle(canvas).transform)
+        const k = match ? Number(match[1]) : 1
+        onCreate(
+          { x: event.clientX, y: event.clientY },
+          {
+            x: snap((event.clientX - rect.left) / k - grid.offsetX),
+            y: snap((event.clientY - rect.top) / k - grid.offsetY),
+          },
+        )
+      }}
+    >
+      <GraphViewport width={grid.width} height={grid.height}>
+        <svg
+          className="chain-edges"
+          width={grid.width}
+          height={grid.height}
+          viewBox={`0 0 ${Math.max(1, grid.width)} ${Math.max(1, grid.height)}`}
+        >
+          {grid.edges.map((edge, index) => (
+            <path
+              key={index}
+              className={`edge${hovered === edge.itemId ? ' edge-active' : ''}`}
+              d={edgePath(edge, 'horizontal')}
+            />
+          ))}
+        </svg>
+        {grid.cards.map((card) => {
+          switch (card.kind) {
+            case 'line':
+              return <StepCard key={card.id} card={card} plan={plan} unit={unit} onHover={setHovered} />
+            case 'input':
+              return <InputCard key={card.id} card={card} plan={plan} unit={unit} />
+            case 'output':
+              return <OutputCard key={card.id} card={card} plan={plan} unit={unit} />
+            case 'energy':
+              return <EnergyCard key={card.id} card={card} plan={plan} />
+            default:
+              return (
+                <GhostCard
+                  key={card.id}
+                  card={card}
+                  plan={plan}
+                  unit={unit}
+                  onHover={setHovered}
+                  onClick={card.kind === 'ghost-in' ? onGhostIn : onGhostOut}
+                />
+              )
+          }
+        })}
+      </GraphViewport>
+    </div>
   )
 }
 

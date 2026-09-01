@@ -146,6 +146,8 @@ export interface RecipeDto {
   grid: (number | null)[] | null
   /** A factory-only row's scope ('factory', 'factory_mob', 'factory_bred'); null is a crafting recipe. */
   scope?: string | null
+  /** The cheapest block that runs the row, for its icon. */
+  machineItemId?: string | null
 }
 
 export interface ItemDetail {

@@ -997,10 +997,14 @@ Layout is manual with a safety net (ruled): nodes drag with snap-to-grid,
 positions persist client-side (`gtnhp.planner` v2, migrating the v1
 step/target lists on first load), new nodes spawn near whatever spawned
 them, and a **Tidy** button re-runs the layered SCC layout. The sidebar
-shrinks to a palette — one item search (place as Output, as Input, or
-pick a producing step), energy/generator buttons, the Factory-plan
-import — plus the garage panel; solved totals sit in a strip above the
-canvas, and the ghosts *are* the shopping list. No graph library:
+shrinks to a stub — the generator adder and the Factory-plan import —
+plus the garage panel; creation lives on the canvas itself: right-click
+opens the create menu (Input, Output, producing step, Energy — no
+standing search box, the menu opens an item search dialog) and the node
+lands at the clicked spot. Solved totals sit in a strip above the
+canvas, and the ghosts *are* the shopping list. The producer picker
+renders each row as a mini recipe card — machine block icon, tier,
+inputs, and every output with its chance. No graph library:
 `GraphViewport` already pans and zooms absolutely-positioned cards, so
 card drag is the only new interaction machinery.
 

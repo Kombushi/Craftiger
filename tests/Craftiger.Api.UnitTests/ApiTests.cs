@@ -526,7 +526,9 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 
         Assert.Equal(2, detail.Recipes.Count);
         Assert.Equal("factory", detail.Recipes.Single(recipe => recipe.RecipeId == "r_farm_wire").Scope);
-        Assert.Null(detail.Recipes.Single(recipe => recipe.RecipeId == "r_wire").Scope);
+        var wire = detail.Recipes.Single(recipe => recipe.RecipeId == "r_wire");
+        Assert.Null(wire.Scope);
+        Assert.Equal("wiremill-lv", wire.MachineItemId);
     }
 
     [Fact]

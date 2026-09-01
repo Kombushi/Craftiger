@@ -1,29 +1,18 @@
 import { useFactory } from '../factoryContext'
 import { usePlanner } from '../plannerContext'
-import { useStore } from '../storeContext'
 import type { PlannerNode } from '../types'
-import type { AddNodeItem } from './AddNodeMenu'
-import { SearchBox } from './SearchBox'
 
 interface Props {
-  onPlace: (item: AddNodeItem) => void
   onPickGenerator: () => void
 }
 
-/** The Planner sidebar: one search to place nodes, the energy and generator adders, and the Factory import. */
-export function PlannerPalette({ onPlace, onPickGenerator }: Props) {
+/** The Planner sidebar: the grid grows by right-click; only the generator adder and the Factory import live here. */
+export function PlannerPalette({ onPickGenerator }: Props) {
   const planner = usePlanner()
   const factory = useFactory()
-  const { garage, meta } = useStore()
   const { nodes } = planner
   const hasEnergy = nodes.some((node) => node.kind === 'energy')
   const hasSteps = nodes.some((node) => node.kind === 'step')
-
-  const addEnergy = () => {
-    const tier = Math.max(1, garage.defaultTier)
-    const euT = meta?.tierVoltages[tier] ?? 32
-    planner.addNode({ kind: 'energy', amps: 1, tier, euT, x: 980, y: 40 })
-  }
 
   const importFromFactory = () => {
     const plan = factory.plan
@@ -56,31 +45,18 @@ export function PlannerPalette({ onPlace, onPickGenerator }: Props) {
   return (
     <section className="panel">
       <header className="panel-title">Grid</header>
-      <SearchBox
-        placeholder="Search an item to place…"
-        onPick={(item) => onPlace({ itemId: item.itemId, name: item.name, atlasIdx: item.atlasIdx })}
-      />
       {nodes.length === 0 ? (
         <p className="hint">
-          Everything lives on the grid: place an Output to anchor the pipeline, Inputs for what you
-          have on hand, and steps for the machines between them.
+          Right-click the canvas to place a node: an Output anchors the pipeline, Inputs are what
+          you have on hand, and producing steps are the machines between them.
         </p>
       ) : (
         <p className="hint">
-          {nodes.length} node{nodes.length === 1 ? '' : 's'} on the grid — click a dashed ghost to
-          grow the pipeline.
+          {nodes.length} node{nodes.length === 1 ? '' : 's'} on the grid — right-click to add more,
+          click a dashed ghost to grow the pipeline.
         </p>
       )}
       <div className="step-actions">
-        <button
-          type="button"
-          className="ghost-button target-add-energy"
-          title={hasEnergy ? 'The grid already has its energy node' : 'Place the energy export node'}
-          disabled={hasEnergy || meta === null}
-          onClick={addEnergy}
-        >
-          + energy node
-        </button>
         <button
           type="button"
           className="ghost-button target-add-energy"

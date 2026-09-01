@@ -59,6 +59,9 @@ export interface GridModel {
   edges: ChainEdge[]
   width: number
   height: number
+  /** What the zero-origin shift added to every node coordinate; display − offset = node space. */
+  offsetX: number
+  offsetY: number
 }
 
 /** The stable identity a node's card and its persisted position share. */
@@ -289,7 +292,7 @@ export function buildGrid(nodes: PlannerNode[], plan: FactoryResponse | null): G
 
   const edges = links.map((link) =>
     gridEdge(cards.get(link.from)!, cards.get(link.to)!, link.itemId, link.row))
-  return { cards: [...cards.values()], edges, width, height }
+  return { cards: [...cards.values()], edges, width, height, offsetX: -minX, offsetY: -minY }
 }
 
 /** Layered auto-positions for every placed node — the Tidy button — via the same SCC

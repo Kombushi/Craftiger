@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.50
+# GTNH Crafting Planner — Specification v1.51
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -877,13 +877,18 @@ Screens:
   travels in the request or the cache key. The target list, toggles,
   priority and unit choice persist (§8).
 - **Planner** — the manual pipeline grid over the same engine (§8 `steps`
-  and `supplies`): the canvas is the document. The user places nodes —
-  **steps** (a recipe from the all-scope producer catalog, farm rows
-  included, or a generator line), **Inputs** (free sources; unbounded by
-  default, a rate turns one into a consume target the pipeline must
-  absorb), **Outputs** (produce targets, rate edited on the node) and one
-  **Energy** node (amps × tier, fed by generator steps) — and the solver
-  draws every edge; flows are never hand-wired. Nodes drag with
+  and `supplies`): the canvas is the document. Right-clicking the canvas
+  opens the create menu — there is no standing search box — and places a
+  node at the clicked spot: **steps** (a recipe from the all-scope
+  producer catalog, farm rows included, or a generator line), **Inputs**
+  (free sources; unbounded by default, a rate turns one into a consume
+  target the pipeline must absorb), **Outputs** (produce targets, rate
+  edited on the node) and one **Energy** node (amps × tier, fed by
+  generator steps); the item behind an Input, Output or step is named in
+  a search dialog the menu opens. The solver draws every edge; flows are
+  never hand-wired. The producer picker renders each candidate as a mini
+  recipe card: the machine block's icon and tier, duration and EU/t, the
+  input stacks, and every output with its amount and chance. Nodes drag with
   snap-to-grid and keep their positions; **Tidy** re-runs the layered
   auto-layout. The solve is live, debounced a breath after every edit
   that changes the derived request (drags never re-solve); it runs once
@@ -1076,9 +1081,10 @@ Screens:
 - `POST /api/factory/producers` — body `{garage, b, weights, itemId}` →
   the item detail with every garage-legal producer across all recipe
   scopes, each factory-only row labeled by its `scope` (`factory`,
-  `factory_mob`, `factory_bred`; null is a crafting recipe); the
-  pipeline picker's source, where farm rows the crafting tab hides
-  become placeable steps.
+  `factory_mob`, `factory_bred`; null is a crafting recipe) and each row
+  naming its `machineItemId` — the cheapest block that runs it, for the
+  picker's machine icon; the pipeline picker's source, where farm rows
+  the crafting tab hides become placeable steps.
 - `GET /api/meta` → tier ladder, tier voltages (EU/t per amp per tier,
   indexed like the ladder), machine list (each with its availability
   era), coil list, pack version, atlas dimensions
@@ -1507,4 +1513,5 @@ All "does not / never" rules live here; other sections only reference this one.
     produce target, and supplies hash into the `factoryId` and make a
     stepless request a pipeline.
 71. `/api/factory/producers` lists a farm-scoped producer with its scope
-    label beside the crafting rows the item detail alone would show.
+    label beside the crafting rows the item detail alone would show, and
+    every row names the machine block that runs it.

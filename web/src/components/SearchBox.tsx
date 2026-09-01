@@ -8,9 +8,10 @@ import { Slot } from './Slot'
 interface Props {
   placeholder: string
   onPick: (item: ItemSummary) => void
+  autoFocus?: boolean
 }
 
-export function SearchBox({ placeholder, onPick }: Props) {
+export function SearchBox({ placeholder, onPick, autoFocus }: Props) {
   const { results, rememberNames } = useStore()
   const [query, setQuery] = useState('')
   const [found, setFound] = useState<ItemSummary[]>([])
@@ -60,6 +61,7 @@ export function SearchBox({ placeholder, onPick }: Props) {
         type="text"
         value={query}
         placeholder={placeholder}
+        autoFocus={autoFocus}
         onChange={(event) => {
           setQuery(event.target.value)
           setOpen(true)
