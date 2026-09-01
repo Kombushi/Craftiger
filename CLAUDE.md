@@ -28,8 +28,12 @@ behavior must change, update `spec.md` in the same commit as the code.
   solved entry also kept in Valkey so any replica can serve it (spec §8).
 - `web/` — React SPA. All user state lives in browser `localStorage` and
   travels with each request; the API stores nothing per user.
-- `tests/Craftiger.Builder.UnitTests/` — xUnit tests for the Builder; Solver
-  and API tests get sibling projects under `tests/`.
+- `tests/` — one xUnit project per production project:
+  `Craftiger.Builder.UnitTests` (runs the builder over the fixture dump),
+  `Craftiger.Solver.UnitTests` (pure, fixture graphs, a recording LP fake),
+  `Craftiger.Solver.Highs.UnitTests` (end-to-end factory solves through the
+  native adapter), and `Craftiger.Api.UnitTests` (endpoints over a
+  hand-written artifact, codecs, cache fakes).
 
 ## Invariants — do not "improve" these
 
@@ -42,8 +46,8 @@ behavior must change, update `spec.md` in the same commit as the code.
   counts (spec §4, §6).
 - No byproduct credit: each output is priced from the recipe's full input cost.
 - Pins overlay recipe choice only: never part of the cost-solve cache key
-  (the factory cache key hashes them — a pipeline's steps take their
-  place, spec §8), never able to bypass garage legality (spec §5).
+  (the factory cache key hashes them — a pipeline's steps and supplies take
+  their place, spec §8), never able to bypass garage legality (spec §5).
 - Every "does not / never" product rule lives in spec §9. Add new ones there,
   nowhere else.
 - All modpack parsing happens offline in the builder; runtime consumes only
@@ -75,8 +79,9 @@ types and identifiers.
 ## Testing
 
 - The real NESQL dump is huge and never committed. Builder and solver tests
-  run on a small hand-written fixture dump covering: an ingot↔block cycle, a
-  chanced output, an EBF heat recipe, a `None` machine, and a pinned recipe.
+  run on small hand-written fixtures (`FixtureDump` for the builder, `Fx`
+  graphs for the solver); every fixture row exists to reproduce a real-dump
+  trap, so extend the fixture rather than weakening a test.
 - Every acceptance check in spec §10 gets at least one automated test.
 
 ## Conventions
@@ -106,10 +111,3 @@ types and identifiers.
   as a bullet list wrapped at 72. Never add Claude attribution footers,
   session URLs, or `Co-Authored-By` trailers.
 - Code, identifiers, and UI strings are in English.
-
-## Implementation order
-
-1. Builder (real `planner.sqlite` early — dump schema surprises surface first)
-2. Solver core against fixtures (pure, fully testable without a dump)
-3. API
-4. Web

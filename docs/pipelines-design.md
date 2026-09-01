@@ -1,10 +1,12 @@
-# Factory — design proposal
+# Factory — design record
 
-Status: **draft, revision 3 — all design questions resolved**. Nothing here
-is implemented; `spec.md` stays the source of truth, and on approval the
-accepted parts of this document merge into it (new sections plus deltas to
-§2, §3, §7, §8, §9, §10) in the same commits as the code. The feature is named **Factory** (the new
-tab); the existing planner tab is renamed **Crafting**. Internal names follow:
+The design rationale behind the rate planner: why the Factory and Planner
+tabs are shaped the way they are, the prior art and measurements that shaped
+them, and the queue of deferred work. `spec.md` is the source of truth for
+shipped behavior — every ruling here that shipped is merged there, and the
+"shipped mechanics" notes below only carry the reasoning the spec leaves
+out. The feature is named **Factory** (the automatic tab) beside **Crafting**
+(the cost planner) and **Planner** (the manual grid); internal names follow:
 `/api/factory/solve`, `factoryId`, `gtnhp.factory`.
 
 ## 1. Statement of value
@@ -607,7 +609,7 @@ pinned in source (CropsNH `MTECropManager`, `MTEIndustrialFarm`,
 - Renewability chain anchors as ordinary recipes (§4.6); `MOB_INFO_DROPS`
   with 1,137 probability-weighted rows.
 
-### 5.2 Schema bump (v8 → v9)
+### 5.2 Extracted data (the v9 schema additions)
 
 - **`recipes.amps`** — from `GREG_TECH_RECIPE.AMPERAGE`, which is
   authoritative and already folds in map-level amperage (the 860 >1A rows
@@ -682,9 +684,9 @@ Three candidate sources were evaluated per datum; the decision:
   tables), and to validation cross-checks (every extracted number asserted
   the way benzene 360 already is).
 
-### 5.4 Fixture dump additions (phase 1)
+### 5.4 Fixture dump coverage
 
-`FixtureDump.cs` lacks even `RECIPE_SPECIAL_VALUE` today. Additions, each
+The rate-planning rows of `FixtureDump.cs`, each
 mapping to a real-dump trap: the special-value column + a
 `GREG_TECH_RECIPE_METADATA` cross-check row; a 1000 mB cell fuel AND a
 144 mB one; a direct-fluid fuel; a boiler-style solid (coal-equivalent) and
@@ -725,8 +727,7 @@ guard.
   start for the sequential layers. Thread safety is undocumented: **one
   solver instance per solve, never shared**. Fallback (not chosen — far
   heavier for identical LP capability): Google.OrTools, Apache-2.0, behind
-  the same interface. Phase-2 spike: confirm load on linux-x64/.NET 10 and
-  whether the bundled HiGHS ≥ 1.9 (native lexicographic objectives, §4.3).
+  the same interface.
 - **Execution model**: hard per-layer and per-solve time budgets (flow2
   needed 15 s/stage; expected sizes are far smaller) with timeout as a typed
   error; bounded concurrency (semaphore) so N factory solves cannot starve
@@ -817,7 +818,7 @@ guard.
 - **Rotor picker** per large-turbine family (analogous to coils), stored
   client-side, defaulting to auto-best garage-legal, plus the per-line
   tight/loose fit toggle (§4.5).
-- **Machine-block era gap** (found in phase 2): `machine_props.era` covers
+- **Machine-block era gap**: `machine_props.era` covers
   only the 256 signal blocks, so ordinary single blocks (the LV…UV tiers of
   every basic machine) have no craftability era. Until a schema bump ships
   eras for every `machine_items` row, the loader derives a single block's
@@ -1060,10 +1061,10 @@ card only off a real producer and past a 2 % corridor allowance.
 - Automated fishing and scrapbox loops as auto-infinite sources.
 - Formula/prose multis without curated entries run bonus-less (flagged).
 
-## 9. Decisions and remaining items
+## 9. Decision log
 
-All design questions raised by earlier revisions are resolved; the rulings
-are folded into their sections above. The decision log, for the spec merge:
+Every design question the feature raised, with its ruling; the reasoning
+lives in the sections above:
 HiGHS backend (§6.1); auto-infinite seeds = gtnh-flow catalog minus lava,
 plus Air and Cobblestone, no fishing/scrapbox, EU free in the fixpoint,
 catalyst-only recipes qualify, label ∞ (§4.6); mob farming an optional
@@ -1080,12 +1081,13 @@ most-used-first (§4.4, §5.3); generator tier identities confirmed as
 dump-extracted (§5.1); TGS modeled with sapling + tool catalysts and tool
 multipliers (§4.6); cleanroom is a running line, low-gravity gated by era
 (§4.4); non-deprecated boiler items win (§4.5); the empty semifluid-boiler
-map is an exporter bug to fix in phase 0 (§5.2); durationless lines free
-and flagged (§4.4); burnable-surplus figure shown (§6.4); tabs, single
+map is correct and asserted so, no machine class serves it (§5.2);
+durationless lines free and flagged (§4.4); burnable-surplus figure shown
+(§6.4; deferred until the API prices it); tabs, single
 target list, shared visible pins, display-only unit picker defaulting to
 per-second, no machine count caps (§6.4, §8).
 
-To pin during implementation (facts to evidence, not decisions):
+Facts pinned from source rather than decided (each names its evidence):
 
 - Cleanroom controller EU/t draw — **pinned** from GT5-Unofficial
   5.09.54.20 `MTECleanroom`: 40 EU/t recipe, running draw `consumption/10`
@@ -1108,54 +1110,3 @@ To pin during implementation (facts to evidence, not decisions):
   `blend_multi_objectives = false` honors priorities in both directions
   (negative weight maximizes a layer), and single-threaded fixed-seed
   simplex solves are deterministic across repeats.
-
-## 10. Phasing and acceptance checks
-
-0. **Exporter**: per-datum source decision table finalized; the
-   `gregtech_machine_props` plugin (typed getters + MBTT template
-   extraction + rotor stats + dynamo data + boiler steam yields +
-   steam-turbine conversion + steam-machine draw); investigate and fix the
-   empty `semifluidboilerfuels` export; plugin-only test exports, one full
-   re-export + `dump:convert`, verification pass (row counts, reference
-   asserts).
-1. **Builder**: schema v9 (§5.2), the fixture additions (§5.4), extraction
-   with per-map disposition asserts.
-2. **Solver**: HiGHS spike (load + version), `ILinearProgramSolver` +
-   adapter project, `FactorySolverService`, closure-size measurement,
-   fixtures: loop balance, byproduct feedback, chanced rates, consume
-   shortfall, energy net, OC-choice arithmetic, parallels division,
-   free-lunch guard, elastic diagnosis.
-3. **API**: `/api/factory/solve`, factoryId caching, single-flight, typed
-   errors, `tierVoltages` in `/meta`.
-4. **Web**: nav + rename, target editor, store slice, graph adapter,
-   badges/chips/EST, infeasibility UX, rate-unit picker.
-
-Acceptance checks feeding the spec §10 merge (one automated test each):
-turbine line at optimal flow yields `optimalFlow × rotorEff` EU/t capped by
-the dynamo, with the Enet output loss applied; generator fuel math includes
-efficiency; an A×tier energy target rejects plans whose exporting
-generators sit below the tier; a boiler → steam → steam-machine line
-balances steam as a carrier; parallels divide machine counts and the
-machine-efficiency objective; a TGS line applies the tool's output
-multiplier; an RTG consumes pellets at `1/lifetime`; a leaf-overproducing
-chain cannot push the resource layer below zero; the canonicalization layer
-removes a zero-cost churn cycle and errors on a free-lunch cycle; the
-auto-infinite fixpoint flips when the enabling machine leaves the garage,
-and the mob-farm toggle adds/removes the mob-drop seeds; priority-order
-permutations change the plan as specified; same inputs solved twice return
-byte-identical plans; a pinned-away route reports the pin in the diagnosis;
-the burnable-surplus figure matches the fuels table; each fuel-map unit
-regime hits its reference assert.
-
-## 11. Spec merge plan
-
-Per phase, in the same commits as code: new spec sections for the model and
-Factory UI; §2 glossary entries (Factory, target, machine line, surplus,
-auto-infinite, factoryId, machine props); §3 artifact schema v9; §7 UI
-deltas; §8 repo layout (`Craftiger.Solver.Highs`), endpoints, cache keys,
-localStorage keys (`gtnhp.factory`, `gtnhp.rateUnit`); §9 — re-scope "pins
-never part of the solve cache key" to cost solves, add the factory
-counterpart rules ("no negative leaf credit", "surplus never discarded
-silently", "no bare infeasible"); §10 acceptance checks above; CLAUDE.md —
-layout and the pins invariant bullet, edited in the same commit that ships
-the factory cache.

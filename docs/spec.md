@@ -950,8 +950,12 @@ Screens:
   solutions on every replica. Registered in DI by the API; the Solver
   project never references it.
 - `src/Craftiger.Api/` — .NET minimal API.
-- `tests/Craftiger.Builder.UnitTests/` — xUnit tests for the Builder;
-  Solver and API tests get sibling projects under `tests/`.
+- `tests/` — one xUnit project per production project:
+  `Craftiger.Builder.UnitTests` runs the builder over a hand-written fixture
+  dump, `Craftiger.Solver.UnitTests` exercises the pure engines on fixture
+  graphs with a recording LP fake, `Craftiger.Solver.Highs.UnitTests` solves
+  end to end through the native adapter, and `Craftiger.Api.UnitTests` boots
+  the API over a hand-written artifact.
 - `web/` — React SPA.
 
 ### Runtime
