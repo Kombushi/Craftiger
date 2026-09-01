@@ -20,7 +20,8 @@ public sealed class DumpMachineReader : IDumpMachineReader
             ReadTreeFarmTools(db),
             ReadCoils(db),
             ReadEngines(db),
-            ReadReactorModes(db));
+            ReadReactorModes(db),
+            ReadConstants(db));
 
     /// <summary>A GregTech recipe type is named rt~gregtech~(recipe map)~(voltage).</summary>
     private static IReadOnlyDictionary<string, DumpRecipeMap> ReadRecipeMaps(SqliteConnection db)
@@ -66,6 +67,14 @@ public sealed class DumpMachineReader : IDumpMachineReader
             SELECT ITEM_ID, MACHINE_CLASS, TIER, MULTIBLOCK, STEAM FROM GREG_TECH_MACHINE
             """).Select(r => new DumpMachine(
             r.ItemId, r.MachineClass, r.Tier, r.Multiblock != 0, r.Steam != 0))];
+    }
+
+    private static Dictionary<string, long> ReadConstants(SqliteConnection db)
+    {
+        DumpQueries.RequireMachineData(db, "GREG_TECH_CONSTANT");
+        return db.Query<(string Name, long Value)>("""
+            SELECT NAME, VALUE FROM GREG_TECH_CONSTANT
+            """).ToDictionary(r => r.Name, r => r.Value);
     }
 
     private static List<DumpEngine> ReadEngines(SqliteConnection db)

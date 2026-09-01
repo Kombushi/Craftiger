@@ -435,15 +435,20 @@ Builder responsibilities, in order:
   NULL, boiler_eu_t NULL, rotor_fuel NULL)` — rate-planning stats of one
   machine block, merged
   from the dump's generator, dynamo hatch, large boiler, and multiblock
-  exports, plus the builder's curated machine overlay (tooltip-prose
-  constants audited in game: the XL turbo turbines' parallel factor, and
-  `rotor_fuel` naming the rotor stat class — `GAS`, `PLASMA` or `STEAM` —
-  a rotor-driven controller spins, null on every other block); `era` is
+  exports, plus what the machines' exported classes say: an XL turbine's
+  `max_parallel` is the exported slot-count constant (the prototype's own
+  parallel reading needs a live structure and is overridden), and
+  `rotor_fuel` names the rotor stat class — `GAS`, `PLASMA` or `STEAM` —
+  a rotor-driven controller spins by its class name, null on every other
+  block (the HP and SC steam kinds burn fuels the model does not rate and
+  stay unclassified); `era` is
   the block's own craftability era where the era solve reached it. Only
   blocks carrying signal ship a row — a bonus-less multiblock at one
   parallel is the model's default
 - `machine_bonuses(item_id, kind, bonus, multiplicative, tier_axis NULL)` —
-  a multiblock's typed parallel/speed/EU bonus lines; `bonus` is the
+  a multiblock's typed parallel/speed/EU bonus lines, straight from the
+  dump's tooltip-template export; a steam multiblock's `STEAM_DISCOUNT`
+  ships as `EU_DISCOUNT`, since steam is those machines' power; `bonus` is the
   displayed number (220 for "220 % Speed"), `tier_axis` the scaling axis
   (`VOLTAGE`, `COIL`, …) of per-tier kinds
 - `generator_modes(item_id, kind, fluid_id, per_second, factor)` — the

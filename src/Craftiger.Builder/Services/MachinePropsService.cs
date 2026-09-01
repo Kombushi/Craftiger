@@ -1,19 +1,14 @@
 using Craftiger.Builder.Interfaces;
 using Craftiger.Builder.Models.Dump;
-using Craftiger.Builder.Models.Options;
 using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services;
 
 /// <summary>Only rows that carry signal ship: a bonus-less multiblock at one parallel is the model's default and needs no row.</summary>
 public sealed class MachinePropsService(
-    IOptions<MachineOverlayConfiguration> overlay,
     ILogger<MachinePropsService> logger) : IMachinePropsService
 {
-    private readonly MachineOverlayConfiguration _overlay = overlay.Value;
-
     // Engine burn mechanics that hold for every pack: the booster gas burns at 2 L/t and
     // lubricant at 1 L per 72 ticks, each times the engine's additive factor.
     private const double TicksPerSecond = 20.0;
@@ -84,8 +79,10 @@ public sealed class MachinePropsService(
             var itemId = unified.Canonical(multiblock.ItemId);
             foreach (var bonus in multiblock.Bonuses)
             {
+                // A steam multiblock's power is its steam draw, so its steam discount is the model's EU discount.
+                var kind = bonus.Kind == "STEAM_DISCOUNT" ? "EU_DISCOUNT" : bonus.Kind;
                 bonuses.Add(new PlannerMachineBonus(
-                    itemId, bonus.Kind, bonus.Value, bonus.Multiplicative, bonus.TierAxis));
+                    itemId, kind, bonus.Value, bonus.Multiplicative, bonus.TierAxis));
             }
             if (multiblock.Bonuses.Count > 0 || multiblock.MaxParallel is > 1)
             {
@@ -96,31 +93,21 @@ public sealed class MachinePropsService(
             }
         }
 
-        foreach (var (itemId, parallels) in _overlay.Parallels.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        // Turbine kinds and the XL slot count come off the machines' classes, after the
+        // multiblock rows so the constant overrides the prototype's structureless parallels.
+        foreach (var machine in dump.Machines.OrderBy(m => m.ItemId, StringComparer.Ordinal))
         {
-            if (Overlaid(itemId))
+            if (MachineClasses.RotorFuelOf(machine.MachineClass) is { } fuel)
             {
-                props[itemId] = Row(itemId) with { MaxParallel = parallels };
+                props[unified.Canonical(machine.ItemId)] = Row(machine.ItemId) with { RotorFuel = fuel };
             }
-        }
-        foreach (var (itemId, fuel) in _overlay.RotorTurbines.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-        {
-            if (Overlaid(itemId))
+            if (machine.MachineClass.Contains(MachineClasses.XlTurbines, StringComparison.Ordinal))
             {
-                props[itemId] = Row(itemId) with { RotorFuel = fuel };
+                props[unified.Canonical(machine.ItemId)] = Row(machine.ItemId) with
+                {
+                    MaxParallel = (int)dump.Constant("XL_TURBINE_SLOTS"),
+                };
             }
-        }
-        foreach (var itemId in _overlay.SteamMultiblocks.Order(StringComparer.Ordinal))
-        {
-            if (!Overlaid(itemId))
-            {
-                continue;
-            }
-            // Every GT++ steam multiblock shares the same tooltip triple, verified per item.
-            props[itemId] = Row(itemId) with { MaxParallel = 8 };
-            bonuses.Add(new PlannerMachineBonus(itemId, "PARALLEL", 8, false, null));
-            bonuses.Add(new PlannerMachineBonus(itemId, "SPEED", 125, false, null));
-            bonuses.Add(new PlannerMachineBonus(itemId, "EU_DISCOUNT", 62.5, false, null));
         }
 
         var modes = new List<PlannerGeneratorMode>();
@@ -187,20 +174,6 @@ public sealed class MachinePropsService(
                     null, null, null, null, null, null, null);
             }
             return row;
-        }
-
-        bool Overlaid(string itemId)
-        {
-            if (!dump.Items.ContainsKey(itemId))
-            {
-                logger.LogWarning("machine overlay names {ItemId}, unknown to this dump; skipped", itemId);
-                return false;
-            }
-            if (machineItems.Values.All(m => m.ItemId != itemId))
-            {
-                throw new InvalidOperationException($"machine overlay names {itemId}, which the dump lists as no machine block");
-            }
-            return true;
         }
     }
 }

@@ -153,9 +153,20 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
     }
 
     [Fact]
-    public void OverlayParallelsLandInMachineProps() =>
-        Assert.Equal(16, fixture.Scalar<int>(
+    public void XlTurbinesRunTheirExportedSlotCountAsParallels() =>
+        Assert.Equal(12, fixture.Scalar<int>(
             $"SELECT max_parallel FROM machine_props WHERE item_id = '{FixtureDump.XlTurbine}'"));
+
+    [Fact]
+    public void SteamDiscountBonusesShipAsEuDiscounts()
+    {
+        Assert.Equal(62.5, fixture.Scalar<double>(
+            $"SELECT bonus FROM machine_bonuses WHERE item_id = '{FixtureDump.SteamMulti}' AND kind = 'EU_DISCOUNT'"));
+        Assert.Equal(0, fixture.Scalar<int>(
+            "SELECT COUNT(*) FROM machine_bonuses WHERE kind = 'STEAM_DISCOUNT'"));
+        Assert.Equal(8, fixture.Scalar<int>(
+            $"SELECT max_parallel FROM machine_props WHERE item_id = '{FixtureDump.SteamMulti}'"));
+    }
 
     [Fact]
     public void RotorTurbinesCarryTheirFuelClass()

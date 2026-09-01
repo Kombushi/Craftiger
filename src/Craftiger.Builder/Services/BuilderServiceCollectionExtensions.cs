@@ -34,8 +34,6 @@ public static class BuilderServiceCollectionExtensions
             .Configure<FuelsConfiguration>(configuration.GetSection(nameof(FuelsConfiguration)))
             .Configure<RenewableSeedsConfiguration>(
                 configuration.GetSection(nameof(RenewableSeedsConfiguration)))
-            .Configure<MachineOverlayConfiguration>(
-                configuration.GetSection(nameof(MachineOverlayConfiguration)))
             .Configure<SteamConfiguration>(configuration.GetSection(nameof(SteamConfiguration)))
             .Configure<FarmsConfiguration>(configuration.GetSection(nameof(FarmsConfiguration)))
             .AddSingleton<IDumpItemReader, DumpItemReader>()

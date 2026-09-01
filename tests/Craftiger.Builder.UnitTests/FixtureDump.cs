@@ -51,6 +51,7 @@ public static partial class FixtureDump
     public const string EbfController = "i~gregtech~gt.blockmachines~1003";
     public const string MaceratorLv = "i~gregtech~gt.blockmachines~106";
     public const string MaceratorHv = "i~gregtech~gt.blockmachines~303";
+    public const string SteamMulti = "i~gregtech~gt.blockmachines~31041";
     public const string CoilCupro = "i~gregtech~gt.blockcasings5~0";
     public const string CoilKanthal = "i~gregtech~gt.blockcasings5~1";
     public const string HotIngot = "i~fixture~hot_ingot";
@@ -211,6 +212,7 @@ public static partial class FixtureDump
                 NOMINAL_OUTPUT INTEGER, BOOSTER_FLUID_ID TEXT, LUBRICANT_FLUID_ID TEXT, ITEM_ID TEXT);
             CREATE TABLE GREG_TECH_REACTOR_MODE(ID TEXT, AMOUNT INTEGER, FACTOR INTEGER, KIND TEXT,
                 FLUID_ID TEXT, MACHINE_ID TEXT);
+            CREATE TABLE GREG_TECH_CONSTANT(ID TEXT, NAME TEXT, SOURCE TEXT, VALUE INTEGER);
             CREATE TABLE GREG_TECH_TREE_FARM_TOOL(ID TEXT, MODE TEXT, MULTIPLIER INTEGER, ITEM_ID TEXT);
             CREATE TABLE MOB(ID TEXT, ARMOUR INTEGER, HEALTH REAL, HEIGHT REAL, IMAGE_FILE_PATH TEXT,
                 IMMUNE_TO_FIRE INTEGER, INTERNAL_NAME TEXT, LEASHABLE INTEGER, LOCALIZED_NAME TEXT,
@@ -385,6 +387,11 @@ public static partial class FixtureDump
                 id = $"gtmach~{itemId}", machineClass, tier, itemId,
                 multiblock = multiblock ? 1 : 0, steam = steam ? 1 : 0
             });
+
+    private static void Constant(SqliteConnection db, string name, long value) =>
+        db.Execute(
+            "INSERT INTO GREG_TECH_CONSTANT(ID, NAME, SOURCE, VALUE) VALUES (@id, @name, 'fixture', @value)",
+            new { id = $"gtconst~{name}", name, value });
 
     private static void ReactorMode(
         SqliteConnection db, string machineId, string kind, string fluidId, int amount, int? factor) =>

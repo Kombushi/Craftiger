@@ -65,6 +65,7 @@ public sealed class DumpRepository(
             Coils = machineSet.Coils,
             Engines = machineSet.Engines,
             ReactorModes = machineSet.ReactorModes,
+            Constants = machineSet.Constants,
             Mobs = cropSet.Mobs,
             MobDropsByMob = cropSet.MobDropsByMob,
             DeprecatedItems = itemSet.DeprecatedItems,

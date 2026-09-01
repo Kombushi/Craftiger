@@ -12,4 +12,5 @@ public sealed record DumpMachineSet(
     IReadOnlyList<DumpTreeFarmTool> TreeFarmTools,
     IReadOnlyList<DumpCoil> Coils,
     IReadOnlyList<DumpEngine> Engines,
-    IReadOnlyList<DumpReactorMode> ReactorModes);
+    IReadOnlyList<DumpReactorMode> ReactorModes,
+    IReadOnlyDictionary<string, long> Constants);

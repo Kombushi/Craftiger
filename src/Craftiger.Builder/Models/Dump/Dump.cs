@@ -89,6 +89,14 @@ public sealed record Dump
 
     public required IReadOnlyList<DumpReactorMode> ReactorModes { get; init; }
 
+    /// <summary>Mechanics constants read off GregTech code at export time, by name.</summary>
+    public required IReadOnlyDictionary<string, long> Constants { get; init; }
+
+    public long Constant(string name) =>
+        Constants.TryGetValue(name, out var value)
+            ? value
+            : throw new InvalidOperationException($"dump exports no constant {name}");
+
     /// <summary>Distinct drops of soul-vial-capturable mobs: what an auto mob farm yields.</summary>
     public required IReadOnlyList<DumpMob> Mobs { get; init; }
 

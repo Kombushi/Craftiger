@@ -84,9 +84,20 @@ public static partial class FixtureDump
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 8, 'PARALLEL', 0, '8 Parallels', NULL)");
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 2, 'PARALLEL_PER_TIER', 1, '2x Parallels per Heating Coil Tier', 'COIL')");
 
-        // Machine classes: the tree farm map is found through its controller's class, and the
-        // tool table names the accepted tools per mode with only the best multiplier surviving.
+        // Machine classes: the tree farm map is found through its controller's class, the XL
+        // turbine runs its exported slot count as parallels, and the class names its rotor fuel.
         Machine(db, TreeFarm, "gregtech.common.tileentities.machines.multi.MTETreeFarm", multiblock: true);
+        Machine(db, XlTurbine, "gregtech.common.tileentities.machines.multi.xlturbines.MTEXLTurbineGas", multiblock: true);
+        Constant(db, "XL_TURBINE_SLOTS", 12);
+        Constant(db, "STEAM_PER_WATER", 160);
+        Constant(db, "EEC_XP_JUICE_PER_OPERATION", 120);
+
+        // A steam multiblock's dump bonuses carry a steam discount the artifact ships as an EU discount.
+        Item(db, SteamMulti, "Steam Grinding Stack", "gregtech");
+        db.Execute($"INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE VALUES ('gtmb~2', 8, '{SteamMulti}')");
+        db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~2', 8, 'PARALLEL', 0, '8 Parallels', NULL)");
+        db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~2', 125, 'SPEED', 0, '125% Speed', NULL)");
+        db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~2', 62.5, 'STEAM_DISCOUNT', 0, '62.5% Steam Usage', NULL)");
         TreeFarmTool(db, Saw, "LOG", 1);
         TreeFarmTool(db, Chainsaw, "LOG", 4);
         TreeFarmTool(db, BranchCutter, "SAPLING", 1);
