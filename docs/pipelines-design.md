@@ -949,6 +949,64 @@ machines-first outsourcing question is answered by pipelines rather than
 by a new buy heuristic; restricting automatic buys to standing-price
 leaves remains an open option if it still grates.
 
+### 6.6 The Planner grid
+
+The step-list Planner works but reads as a form; the ruled successor makes
+**the canvas the document**: the user places nodes on a pan/zoom grid, and
+the solver draws every edge — flows are LP results, never hand-wired.
+
+Node kinds:
+
+- **Step node** — a recipe or generator line (a §6.5 step). The line card
+  becomes editable in place: select it to LOCK the solved block/OC as the
+  pin, nudge overclock with ±, or delete. Farm rows (Crop Manager, TGS,
+  Industrial Farm, EEC) are ordinary step nodes — the engine already
+  admits any scoped recipe as an explicit step; only the picker needs a
+  source beyond the crafting-tab detail (which filters to `None` scope).
+- **Input node** — a free source the user declares. Unbounded by default
+  (ruled): the item's buy column is charged **zero** instead of its
+  standing price, via a new `FactoryRequest.Supplies` list that hashes
+  into the factoryId (unknown id → `supply_unknown` warning). With an
+  optional rate set (ruled), the node is exactly today's consume target:
+  a fixed intake the pipeline must fully absorb — no new engine surface.
+- **Output node** — a produce target with its rate edited on the node;
+  the separate targets panel is removed.
+- **Energy node** — replaces the energy-target row: tier + amps on the
+  node, generator steps feed it, the card shows gross and net EU/t. One
+  per grid in v1.
+
+Removed controls (ruled):
+
+- **Priority picker** — the planner always sends machines → resources →
+  energy; with the candidate set fixed by the nodes, priority's only
+  leverage was OC-vs-count, and the per-node lock is the honest control.
+- **Mob/bred checkboxes** — consent is derived from the grid: `mobFarms`
+  is sent exactly when an EEC node is placed, `bredSeeds` exactly when a
+  bred-variant farm node is placed.
+
+Ghost cards keep half-built grids honest (ruled): an item consumed but
+made by no node still auto-supplies at its standing price and renders as
+a dashed ghost input — clicking it offers *make it an Input*, *add a
+producing step*, or *add a farm*; surplus and byproducts render as ghost
+outputs offering *make it an Output* or *add a consuming step*. This is
+§6.5's build-out loop moved onto the canvas.
+
+Layout is manual with a safety net (ruled): nodes drag with snap-to-grid,
+positions persist client-side (`gtnhp.planner` v2, migrating the v1
+step/target lists on first load), new nodes spawn near whatever spawned
+them, and a **Tidy** button re-runs the layered SCC layout. The sidebar
+shrinks to a palette — one item search (place as Output, as Input, or
+pick a producing step), energy/generator buttons, the Factory-plan
+import — plus the garage panel; solved totals and the shopping list of
+auto-supplied ghosts sit in a summary strip above the canvas. No graph
+library: `GraphViewport` already pans and zooms absolutely-positioned
+cards, so card drag is the only new interaction machinery.
+
+API deltas: `Supplies` on the solve request, and
+`POST /api/factory/producers` — an item's producers across **all**
+scopes with scope and variant labels (farm rows carry no candidate
+cost), the picker source the farm nodes need.
+
 ## 7. The three examples, mapped
 
 1. **32 PE/min at HV** — produce target `32/60 s⁻¹`; with resource-first
