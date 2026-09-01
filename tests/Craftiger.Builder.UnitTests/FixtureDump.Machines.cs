@@ -78,8 +78,10 @@ public static partial class FixtureDump
         db.Execute("INSERT INTO GREG_TECH_LARGE_BOILER VALUES ('gtlb~1', 16, 480, 'i~fixture~boiler')");
         Item(db, BronzeBoiler, "Large Bronze Boiler", "gregtech");
         db.Execute($"INSERT INTO GREG_TECH_LARGE_BOILER VALUES ('gtlb~2', 16, 480, '{BronzeBoiler}')");
+        Machine(db, BronzeBoiler, "gregtech.common.tileentities.machines.multi.MTELargeBoilerBronze", multiblock: true);
         Item(db, SteamTurbine, "Basic Steam Turbine", "gregtech");
         db.Execute($"INSERT INTO GREG_TECH_GENERATOR VALUES ('gtgen~2', 1, 85.714285714285708, 32, '{SteamTurbine}')");
+        Machine(db, SteamTurbine, "gregtech.common.tileentities.generators.MTESteamTurbine", tier: 1);
         db.Execute($"INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE VALUES ('gtmb~1', 8, '{EbfController}')");
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 8, 'PARALLEL', 0, '8 Parallels', NULL)");
         db.Execute("INSERT INTO GREG_TECH_MULTIBLOCK_MACHINE_BONUSES VALUES ('gtmb~1', 2, 'PARALLEL_PER_TIER', 1, '2x Parallels per Heating Coil Tier', 'COIL')");

@@ -17,18 +17,6 @@ public sealed record SteamConfiguration
     /// <summary>EU per liter of steam at 100 %; GT's base rate is 2 L per EU.</summary>
     public required double EuPerLiter { get; init; }
 
-    /// <summary>Liters of steam boiled from one liter of water.</summary>
-    public required long WaterPerSteam { get; init; }
-
-    /// <summary>boiler_fuels generation name to the controller item that burns those rows.</summary>
-    public required IReadOnlyDictionary<string, string> Boilers { get; init; }
-
-    /// <summary>Single-block steam turbine items; their conversion ships in machine_props.</summary>
-    public required IReadOnlyList<string> SingleTurbines { get; init; }
-
-    /// <summary>Rotor-driven steam turbine controllers, large and XL.</summary>
-    public required IReadOnlyList<string> LargeTurbines { get; init; }
-
     public required string TurbineMap { get; init; }
 
     public required string LargeTurbineMap { get; init; }

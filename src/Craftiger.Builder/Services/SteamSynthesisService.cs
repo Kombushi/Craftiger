@@ -20,28 +20,37 @@ public sealed class SteamSynthesisService(IOptions<SteamConfiguration> options, 
         var machines = new List<PlannerMachineItem>();
         var fuels = new List<PlannerFuel>();
 
+        var waterPerSteam = dump.Constant("STEAM_PER_WATER");
         var fluidsKnown = dump.IsFluid(_config.WaterFluidId) && dump.IsFluid(_config.SteamOutputFluidId);
         if (!fluidsKnown)
         {
             logger.LogWarning("steam config's water or steam fluid is unknown to this dump; no boiler recipes");
         }
 
-        var boilers = fluidsKnown ? _config.Boilers.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToList() : [];
-        foreach (var (boilerName, rawId) in boilers)
+        // Every non-deprecated boiler class names its generation, which the fuel tabs' prose
+        // abbreviates ("Tungstenst."), so a fuel matches where its name prefixes the generation.
+        var classes = new Dictionary<string, string>();
+        foreach (var machine in dump.Machines)
         {
-            var controllerId = unified.Canonical(rawId);
-            if (!Known(controllerId))
-            {
-                continue;
-            }
-
-            var boiler = dump.Boilers.FirstOrDefault(b => unified.Canonical(b.ItemId) == controllerId)
-                ?? throw new InvalidOperationException($"steam config maps {boilerName} to {controllerId}, which has no large-boiler row");
-
+            classes.TryAdd(machine.ItemId, machine.MachineClass);
+        }
+        var boilers = fluidsKnown
+            ? dump.Boilers
+                .Select(boiler => (Boiler: boiler,
+                    Generation: MachineClasses.BoilerGenerationOf(classes.GetValueOrDefault(boiler.ItemId) ?? "")))
+                .Where(pair => pair.Generation is not null && !dump.DeprecatedItems.Contains(pair.Boiler.ItemId))
+                .OrderBy(pair => pair.Generation, StringComparer.Ordinal)
+                .ToList()
+            : [];
+        foreach (var (boiler, generation) in boilers)
+        {
+            var controllerId = unified.Canonical(boiler.ItemId);
             var map = dump.NameOf(controllerId);
             machines.Add(new PlannerMachineItem(map, controllerId, null, Multiblock: true, Steam: false, Era: null));
 
-            foreach (var fuel in boilerFuels.Where(f => f.Boiler == boilerName).OrderBy(f => f.ItemId, StringComparer.Ordinal))
+            foreach (var fuel in boilerFuels
+                .Where(f => generation!.StartsWith(f.Boiler.TrimEnd('.'), StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => f.ItemId, StringComparer.Ordinal))
             {
                 var ticks = (long)Math.Round(fuel.BurnSeconds * TicksPerSecond);
                 if (ticks <= 0)
@@ -49,7 +58,7 @@ public sealed class SteamSynthesisService(IOptions<SteamConfiguration> options, 
                     continue;
                 }
                 var steam = 2L * boiler.EuT * ticks;
-                var water = (long)Math.Ceiling(steam / (double)_config.WaterPerSteam);
+                var water = (long)Math.Ceiling(steam / (double)waterPerSteam);
                 recipes.Add(new PlannerRecipe(
                     $"gtboil~{controllerId}~{fuel.ItemId}", map, Tier: 0, Heat: null,
                     DurationTicks: ticks, EuT: 0, Amps: 1,
@@ -64,32 +73,28 @@ public sealed class SteamSynthesisService(IOptions<SteamConfiguration> options, 
         }
 
         var singles = 0;
-        foreach (var rawId in _config.SingleTurbines.Order(StringComparer.Ordinal))
-        {
-            var itemId = unified.Canonical(rawId);
-            if (!Known(itemId))
-            {
-                continue;
-            }
-            var generator = dump.Generators.FirstOrDefault(g => unified.Canonical(g.ItemId) == itemId)
-                ?? throw new InvalidOperationException($"steam config lists single turbine {itemId}, which has no generator row");
-            machines.Add(new PlannerMachineItem(
-                _config.TurbineMap, itemId, TierLadder.VoltageTier(generator.MaxEuOutput),
-                Multiblock: false, Steam: false, Era: null));
-            singles++;
-        }
-
         var larges = 0;
-        foreach (var rawId in _config.LargeTurbines.Order(StringComparer.Ordinal))
+        foreach (var machine in dump.Machines.OrderBy(m => m.ItemId, StringComparer.Ordinal))
         {
-            var itemId = unified.Canonical(rawId);
-            if (!Known(itemId))
+            if (dump.DeprecatedItems.Contains(machine.ItemId))
             {
                 continue;
             }
-
-            machines.Add(new PlannerMachineItem(_config.LargeTurbineMap, itemId, null, Multiblock: true, Steam: false, Era: null));
-            larges++;
+            var itemId = unified.Canonical(machine.ItemId);
+            if (machine.MachineClass.EndsWith(MachineClasses.SteamTurbine, StringComparison.Ordinal))
+            {
+                var generator = dump.Generators.FirstOrDefault(g => unified.Canonical(g.ItemId) == itemId)
+                    ?? throw new InvalidOperationException($"steam turbine {itemId} has no generator row");
+                machines.Add(new PlannerMachineItem(
+                    _config.TurbineMap, itemId, TierLadder.VoltageTier(generator.MaxEuOutput),
+                    Multiblock: false, Steam: false, Era: null));
+                singles++;
+            }
+            else if (MachineClasses.RotorFuelOf(machine.MachineClass) == "STEAM")
+            {
+                machines.Add(new PlannerMachineItem(_config.LargeTurbineMap, itemId, null, Multiblock: true, Steam: false, Era: null));
+                larges++;
+            }
         }
 
         var steamFluids = _config.SteamFluidIds.Where(dump.IsFluid).ToList();
@@ -107,22 +112,12 @@ public sealed class SteamSynthesisService(IOptions<SteamConfiguration> options, 
             steamFluids,
             dump.IsFluid(_config.DistilledWaterId) ? _config.DistilledWaterId : null,
             _config.EuPerLiter,
-            _config.WaterPerSteam);
+            waterPerSteam);
 
         logger.LogInformation(
             "  {Recipes:N0} boiler recipes, {Machines:N0} steam machine rows, {Fuels:N0} steam fuels",
             recipes.Count, machines.Count, fuels.Count);
 
         return new SteamSynthesis(recipes, machines, fuels, carrier);
-
-        bool Known(string itemId)
-        {
-            if (dump.Items.ContainsKey(itemId))
-            {
-                return true;
-            }
-            logger.LogWarning("steam config names {ItemId}, unknown to this dump; skipped", itemId);
-            return false;
-        }
     }
 }

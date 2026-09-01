@@ -416,11 +416,15 @@ Builder responsibilities, in order:
   Timed, Boiler, Excluded (real recipes wearing the fuel flag), or Empty
   (must stay so) — and an unclassified map fails the build. The steam
   carrier adds
-  synthesized rows: steam pseudo-fuels at 0.5 EU per mB on the curated
-  steam-turbine maps, whose controllers likewise get synthesized
-  `machine_items` rows, and one `gtboil~` recipe per (large boiler, fuel)
-  boiling water into IC2 steam at the boiler's rate over the extracted burn
-  seconds (1 L of water per 160 L of steam)
+  synthesized rows: steam pseudo-fuels at 0.5 EU per mB on the synthesized
+  steam-turbine maps, whose machines come off the dump's classes (single
+  steam turbines by class, large and XL steam turbines as the STEAM rotor
+  kinds, deprecated generations dropped), and one `gtboil~` recipe per
+  (large boiler, fuel) boiling water into IC2 steam at the boiler's rate
+  over the extracted burn seconds. A boiler's generation is its class
+  suffix, matched against the fuel prose's abbreviated names by prefix
+  ("Tungstenst." → TungstenSteel); the water per liter of steam is the
+  dump's `STEAM_PER_WATER` constant
 - `boiler_fuels(item_id, boiler, burn_seconds)` — how long one unit burns
   per large-boiler generation, parsed from the dump's burn-time text;
   "Not allowed" generations ship no row
@@ -501,7 +505,8 @@ Builder responsibilities, in order:
   carrier's pack facts as JSON: `SteamFluidIds` (every fluid that counts as
   steam, in the builder's configured order, limited to fluids the dump
   knows), `DistilledWaterId` (what turbines condense steam into; null when
-  the dump lacks the fluid), `EuPerLiter` (0.5) and `WaterPerSteam` (160)
+  the dump lacks the fluid), `EuPerLiter` (0.5) and `WaterPerSteam` (the
+  dump's `STEAM_PER_WATER` constant, 160)
   — so the runtime carries no modpack ids of its own — `environment` —
   the environment walls as JSON: `CleanroomItemId` and `CleanroomEra`,
   the Cleanroom Controller's canonical item and its solved era (falling
