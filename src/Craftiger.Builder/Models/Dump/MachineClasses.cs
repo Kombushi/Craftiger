@@ -6,6 +6,10 @@ public static class MachineClasses
     public const string TreeFarm = ".MTETreeFarm";
     public const string XlTurbines = ".xlturbines.";
     public const string SteamTurbine = ".MTESteamTurbine";
+    public const string CropManager = ".MTECropManager";
+    public const string IndustrialFarm = ".MTEIndustrialFarm";
+    public const string EntityCrusher = ".MTEExtremeEntityCrusher";
+    public const string SeedBed = ".BlockSeedBed";
     private const string LargeBoiler = ".MTELargeBoiler";
 
     /// <summary>The generation suffix of a large boiler's class ("Bronze" … "TungstenSteel"); null for other classes.</summary>

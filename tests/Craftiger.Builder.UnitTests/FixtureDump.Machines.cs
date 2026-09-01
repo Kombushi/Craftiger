@@ -89,6 +89,14 @@ public static partial class FixtureDump
         // Machine classes: the tree farm map is found through its controller's class, the XL
         // turbine runs its exported slot count as parallels, and the class names its rotor fuel.
         Machine(db, TreeFarm, "gregtech.common.tileentities.machines.multi.MTETreeFarm", multiblock: true);
+        Machine(db, CropManagerLv, "com.gtnewhorizon.cropsnh.tileentity.singleblock.MTECropManager", tier: 1);
+        Machine(db, IndustrialFarm, "com.gtnewhorizon.cropsnh.tileentity.multi.MTEIndustrialFarm", multiblock: true);
+        Machine(db, Eec, "kubatech.tileentity.gregtech.multiblock.MTEExtremeEntityCrusher", multiblock: true);
+        Fertilizer(db, CropFertilizer, 100);
+        FluidFertilizer(db, "f~cropsnh~cropsnh.fertilizer", 1);
+        FluidFertilizer(db, "f~cropsnh~cropsnh.enrichedfertilizer", 10);
+        FarmComponent(db, "com.gtnewhorizon.cropsnh.blocks.BlockSeedBed", 2);
+        FarmComponent(db, "com.gtnewhorizon.cropsnh.blocks.BlockSeedBed", 13);
         Machine(db, XlTurbine, "gregtech.common.tileentities.machines.multi.xlturbines.MTEXLTurbineGas", multiblock: true);
         Constant(db, "XL_TURBINE_SLOTS", 12);
         Constant(db, "STEAM_PER_WATER", 160);

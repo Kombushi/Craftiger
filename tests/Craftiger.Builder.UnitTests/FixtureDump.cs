@@ -213,6 +213,9 @@ public static partial class FixtureDump
             CREATE TABLE GREG_TECH_REACTOR_MODE(ID TEXT, AMOUNT INTEGER, FACTOR INTEGER, KIND TEXT,
                 FLUID_ID TEXT, MACHINE_ID TEXT);
             CREATE TABLE GREG_TECH_CONSTANT(ID TEXT, NAME TEXT, SOURCE TEXT, VALUE INTEGER);
+            CREATE TABLE CROPS_NH_FERTILIZER_ITEM(ID TEXT, POTENCY INTEGER, ITEM_ID TEXT);
+            CREATE TABLE CROPS_NH_FERTILIZER_FLUID(ID TEXT, POTENCY INTEGER, FLUID_ID TEXT);
+            CREATE TABLE CROPS_NH_FARM_COMPONENT(ID TEXT, COMPONENT_CLASS TEXT, TIER INTEGER, ITEM_ID TEXT);
             CREATE TABLE GREG_TECH_TREE_FARM_TOOL(ID TEXT, MODE TEXT, MULTIPLIER INTEGER, ITEM_ID TEXT);
             CREATE TABLE MOB(ID TEXT, ARMOUR INTEGER, HEALTH REAL, HEIGHT REAL, IMAGE_FILE_PATH TEXT,
                 IMMUNE_TO_FIRE INTEGER, INTERNAL_NAME TEXT, LEASHABLE INTEGER, LOCALIZED_NAME TEXT,
@@ -387,6 +390,21 @@ public static partial class FixtureDump
                 id = $"gtmach~{itemId}", machineClass, tier, itemId,
                 multiblock = multiblock ? 1 : 0, steam = steam ? 1 : 0
             });
+
+    private static void Fertilizer(SqliteConnection db, string itemId, int potency) =>
+        db.Execute(
+            "INSERT INTO CROPS_NH_FERTILIZER_ITEM(ID, POTENCY, ITEM_ID) VALUES (@id, @potency, @itemId)",
+            new { id = $"cnhfi~{itemId}", potency, itemId });
+
+    private static void FluidFertilizer(SqliteConnection db, string fluidId, int potency) =>
+        db.Execute(
+            "INSERT INTO CROPS_NH_FERTILIZER_FLUID(ID, POTENCY, FLUID_ID) VALUES (@id, @potency, @fluidId)",
+            new { id = $"cnhff~{fluidId}", potency, fluidId });
+
+    private static void FarmComponent(SqliteConnection db, string componentClass, int tier) =>
+        db.Execute(
+            "INSERT INTO CROPS_NH_FARM_COMPONENT(ID, COMPONENT_CLASS, TIER, ITEM_ID) VALUES (@id, @componentClass, @tier, @itemId)",
+            new { id = $"cnhfc~{componentClass}~{tier}", componentClass, tier, itemId = $"i~cropsnh~component~{tier}" });
 
     private static void Constant(SqliteConnection db, string name, long value) =>
         db.Execute(

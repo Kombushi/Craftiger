@@ -100,6 +100,12 @@ public sealed record Dump
     /// <summary>Distinct drops of soul-vial-capturable mobs: what an auto mob farm yields.</summary>
     public required IReadOnlyList<DumpMob> Mobs { get; init; }
 
+    public required IReadOnlyList<DumpFertilizer> Fertilizers { get; init; }
+
+    public required IReadOnlyList<DumpFluidFertilizer> FluidFertilizers { get; init; }
+
+    public required IReadOnlyList<DumpFarmComponent> FarmComponents { get; init; }
+
     /// <summary>Every mob's drop item ids by mob id, capturable or not.</summary>
     public required IReadOnlyDictionary<string, IReadOnlyList<string>> MobDropsByMob { get; init; }
 

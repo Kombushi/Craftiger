@@ -22,12 +22,14 @@ public sealed class MobLineRecipeService(
 
     public MobLines Run(Dump dump, UnifiedItems unified)
     {
-        var eecId = unified.Canonical(_config.EecItemId);
-        if (!dump.Items.ContainsKey(eecId))
+        if (dump.Machines.FirstOrDefault(
+                m => m.MachineClass.EndsWith(MachineClasses.EntityCrusher, StringComparison.Ordinal)) is not { } crusher)
         {
-            logger.LogWarning("entity crusher {ItemId} is unknown to this dump; no mob lines ship", eecId);
+            logger.LogWarning("this dump grows no entity crusher machine; no mob lines ship");
             return new MobLines([], []);
         }
+        var eecId = unified.Canonical(crusher.ItemId);
+        var xpJuicePerKill = dump.Constant("EEC_XP_JUICE_PER_OPERATION");
         var machine = new RecipeMachine(eecId, Multiblock: true, Tier: null, Steam: false);
         var machines = new List<PlannerMachineItem>
         {
@@ -62,7 +64,7 @@ public sealed class MobLineRecipeService(
             }
             if (xpJuice is not null)
             {
-                outputs.Add(new PlannerOutput(xpJuice, _config.XpJuicePerKill, 1.0));
+                outputs.Add(new PlannerOutput(xpJuice, xpJuicePerKill, 1.0));
             }
 
             var euT = mob.AlwaysInfernal ? BaseEuT * 8 : BaseEuT;

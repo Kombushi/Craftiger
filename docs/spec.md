@@ -369,7 +369,13 @@ Builder responsibilities, in order:
   breeding cap. Below the tier-9 fertilizer wall a fertilized twin (`~f`)
   competes against plain sticks; the Crop Manager spends the item
   fertilizers of its choice slot, the Industrial Farm drinks liquid
-  fertilizer at its configured potency. Industrial Farm rows additionally
+  fertilizer — both from the dump's fertilizer-registry export, with the
+  enriched liquid the fertilizer unit demands told apart as the
+  higher-potency one of the exported pair. The farm machines themselves
+  come off the dump's classes (crop managers with their tiers, the
+  Industrial Farm, the Extreme Entity Crusher), the seed-bed tier span off
+  the component export, and the crusher's xp-juice yield off the exported
+  constant. Industrial Farm rows additionally
   ship per upgrade build — one slot per structure slice (bed tier − 1):
   the all-accelerator build (`~gau`, +100 % speed and +125 % base power
   per unit), the harvest build (`~hrv`, fertilizer unit at ×1.5 speed and

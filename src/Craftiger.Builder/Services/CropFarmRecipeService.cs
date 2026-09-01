@@ -23,27 +23,37 @@ public sealed class CropFarmRecipeService(
     {
         var machines = new List<PlannerMachineItem>();
         var managers = new List<(int Tier, RecipeMachine Machine)>();
-        for (var tier = 1; tier <= _config.CropManagerItemIds.Count; tier++)
+        foreach (var manager in dump.Machines
+            .Where(m => m.MachineClass.EndsWith(MachineClasses.CropManager, StringComparison.Ordinal) && m.Tier is not null)
+            .OrderBy(m => m.Tier))
         {
-            var itemId = unified.Canonical(_config.CropManagerItemIds[tier - 1]);
-            if (!dump.Items.ContainsKey(itemId))
-            {
-                logger.LogWarning("crop manager {ItemId} is unknown to this dump; its tier ships no rows", itemId);
-                continue;
-            }
+            var itemId = unified.Canonical(manager.ItemId);
+            var tier = manager.Tier!.Value;
             machines.Add(new PlannerMachineItem(_config.CropManagerMap, itemId, tier, Multiblock: false, Steam: false, Era: null));
             managers.Add((tier, new RecipeMachine(itemId, Multiblock: false, tier, Steam: false)));
         }
-        var farmId = unified.Canonical(_config.IndustrialFarmItemId);
         RecipeMachine? farm = null;
-        if (dump.Items.ContainsKey(farmId))
+        if (dump.Machines.FirstOrDefault(
+                m => m.MachineClass.EndsWith(MachineClasses.IndustrialFarm, StringComparison.Ordinal)) is { } farmMachineRow)
         {
+            var farmId = unified.Canonical(farmMachineRow.ItemId);
             machines.Add(new PlannerMachineItem(_config.IndustrialFarmMap, farmId, Tier: null, Multiblock: true, Steam: false, Era: null));
             farm = new RecipeMachine(farmId, Multiblock: true, Tier: null, Steam: false);
         }
         else
         {
-            logger.LogWarning("industrial farm {ItemId} is unknown to this dump; no farm rows ship", farmId);
+            logger.LogWarning("this dump grows no industrial farm machine; no farm rows ship");
+        }
+
+        // The farm's structure tier is its seed bed's; the component export spans the buildable beds.
+        var seedBedTiers = dump.FarmComponents
+            .Where(c => c.ComponentClass.EndsWith(MachineClasses.SeedBed, StringComparison.Ordinal))
+            .Select(c => c.Tier)
+            .ToList();
+        if (seedBedTiers.Count == 0 && farm is not null)
+        {
+            logger.LogWarning("this dump exports no seed beds; no farm rows ship");
+            farm = null;
         }
 
         var waterId = dump.FluidIdsNamed(_config.WaterFluidName).Select(unified.Canonical).Order(StringComparer.Ordinal).FirstOrDefault();
@@ -51,12 +61,23 @@ public sealed class CropFarmRecipeService(
         {
             logger.LogWarning("no fluid named '{Name}'; farm rows ship without water", _config.WaterFluidName);
         }
-        var fertilizers = _config.Fertilizers
+        var fertilizers = dump.Fertilizers
             .Select(f => (ItemId: unified.Canonical(f.ItemId), f.Potency))
             .Where(f => dump.Items.ContainsKey(f.ItemId))
+            .OrderBy(f => f.ItemId, StringComparer.Ordinal)
             .ToList();
-        var liquidFertilizer = KnownFluid(dump, _config.LiquidFertilizerFluidId);
-        var enrichedFertilizer = KnownFluid(dump, _config.EnrichedFertilizerFluidId);
+        // The fertilizer unit demands the enriched liquid, which the registry marks only by its higher potency.
+        var fluidFertilizers = dump.FluidFertilizers
+            .Where(f => dump.IsFluid(f.FluidId))
+            .OrderBy(f => f.Potency)
+            .ThenBy(f => f.FluidId, StringComparer.Ordinal)
+            .ToList();
+        var liquidFertilizer = fluidFertilizers.Count >= 2 ? fluidFertilizers[0] : null;
+        var enrichedFertilizer = fluidFertilizers.Count >= 2 ? fluidFertilizers[^1] : null;
+        if (liquidFertilizer is null && farm is not null)
+        {
+            logger.LogWarning("this dump exports no liquid fertilizer pair; no farm rows ship");
+        }
 
         var recipes = new List<PlannerRecipe>();
         var skipped = 0;
@@ -90,17 +111,17 @@ public sealed class CropFarmRecipeService(
                 }
                 if (farm is { } farmMachine && liquidFertilizer is not null && enrichedFertilizer is not null)
                 {
-                    var minTier = Math.Max(_config.IndustrialFarmMinTier, crop.MinSeedBedTier);
-                    for (var tier = minTier; tier <= _config.IndustrialFarmMaxTier; tier++)
+                    var minTier = Math.Max(seedBedTiers.Min(), crop.MinSeedBedTier);
+                    for (var tier = minTier; tier <= seedBedTiers.Max(); tier++)
                     {
                         foreach (var build in FarmBuild.Of(tier))
                         {
                             foreach (var fertilized in build.Enriched ? new[] { true } : FertilizerAxis(crop))
                             {
+                                var fertilizer = build.Enriched ? enrichedFertilizer : liquidFertilizer;
                                 AddFarmRow(
                                     recipes, dump, crop, unified, farmMachine, tier, build, stats, fertilized,
-                                    drops, waterId, build.Enriched ? enrichedFertilizer : liquidFertilizer,
-                                    build.Enriched ? _config.EnrichedFertilizerPotency : _config.LiquidFertilizerPotency);
+                                    drops, waterId, fertilizer.FluidId, fertilizer.Potency);
                             }
                         }
                     }
@@ -119,16 +140,6 @@ public sealed class CropFarmRecipeService(
     /// <summary>Below the fertilizer wall both stick states ship as competing rows; from it only fertilized sticks grow.</summary>
     private static IEnumerable<bool> FertilizerAxis(DumpCrop crop) =>
         crop.Tier >= CropGrowth.FertilizerTier ? [true] : [false, true];
-
-    private string? KnownFluid(Dump dump, string fluidId)
-    {
-        if (dump.IsFluid(fluidId))
-        {
-            return fluidId;
-        }
-        logger.LogWarning("farm fertilizer fluid {FluidId} is unknown to this dump; farm rows ship without it", fluidId);
-        return null;
-    }
 
     private void AddManagerRow(
         List<PlannerRecipe> recipes, Dump dump, DumpCrop crop, UnifiedItems unified,

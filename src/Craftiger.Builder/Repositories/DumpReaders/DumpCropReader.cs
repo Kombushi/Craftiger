@@ -44,7 +44,33 @@ public sealed class DumpCropReader(ILogger<DumpCropReader> logger) : IDumpCropRe
                 cropUnderBlocks.GetValueOrDefault(r.Id) ?? []));
         }
 
-        return new DumpCropSet(crops, blockDrops, ReadMobs(db), ReadMobDropsByMob(db));
+        return new DumpCropSet(
+            crops, blockDrops, ReadMobs(db), ReadMobDropsByMob(db),
+            ReadFertilizers(db), ReadFluidFertilizers(db), ReadFarmComponents(db));
+    }
+
+    private static List<DumpFertilizer> ReadFertilizers(SqliteConnection db)
+    {
+        DumpQueries.RequireMachineData(db, "CROPS_NH_FERTILIZER_ITEM");
+        return [.. db.Query<(string ItemId, long Potency)>("""
+            SELECT ITEM_ID, POTENCY FROM CROPS_NH_FERTILIZER_ITEM
+            """).Select(r => new DumpFertilizer(r.ItemId, (int)r.Potency))];
+    }
+
+    private static List<DumpFluidFertilizer> ReadFluidFertilizers(SqliteConnection db)
+    {
+        DumpQueries.RequireMachineData(db, "CROPS_NH_FERTILIZER_FLUID");
+        return [.. db.Query<(string FluidId, long Potency)>("""
+            SELECT FLUID_ID, POTENCY FROM CROPS_NH_FERTILIZER_FLUID
+            """).Select(r => new DumpFluidFertilizer(r.FluidId, (int)r.Potency))];
+    }
+
+    private static List<DumpFarmComponent> ReadFarmComponents(SqliteConnection db)
+    {
+        DumpQueries.RequireMachineData(db, "CROPS_NH_FARM_COMPONENT");
+        return [.. db.Query<(string ComponentClass, long Tier)>("""
+            SELECT COMPONENT_CLASS, TIER FROM CROPS_NH_FARM_COMPONENT
+            """).Select(r => new DumpFarmComponent(r.ComponentClass, (int)r.Tier))];
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> ReadMobDropsByMob(SqliteConnection db)
