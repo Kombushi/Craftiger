@@ -186,12 +186,14 @@ Builder responsibilities, in order:
    name (NEI's "Blast Furnace" → "Electric Blast Furnace"). Any recipe with a
    coil heat requirement keeps it in `recipes.heat` (EBF and its multiblock
    upgrades); the coil list (name → max heat + tier equivalent, builder
-   config) is exported into `meta` for the garage UI. Macerator byproduct
-   slots only exist on tiered machines (2nd slot HV, 3rd EV, 4th IV; builder
-   config): each maceration recipe splits into a primary-only variant at the
-   map's tier plus cumulative variants (`id~b3`, `id~b4`, …) floored at the
-   slot's tier, so byproducts stay behind the right garage tier and era, and
-   steam macerators grind primaries only.
+   config) is exported into `meta` for the garage UI. Byproduct output slots
+   open where a map's electric single blocks gain them: the dump carries each
+   machine's output-slot count, and slot *i* unlocks at the lowest tier whose
+   machine has more than *i* slots (the Macerator's 2nd slot HV, 3rd EV,
+   4th IV). Each such recipe splits into a primary-only variant at the map's
+   tier plus cumulative variants (`id~b3`, `id~b4`, …) floored at the slot's
+   tier, so byproducts stay behind the right garage tier and era, and steam
+   macerators grind primaries only.
 5. **Leaf tagging** — mark leaves by exact GT prefix and lists (§4).
    Ore-washing and blast-furnace intermediates (`crushed*`, `dustImpure*`,
    `dustPure*`, `ingotHot*`) are never leaves: each is a GT prefix of its

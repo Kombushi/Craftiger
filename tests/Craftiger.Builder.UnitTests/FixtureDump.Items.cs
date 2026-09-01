@@ -80,6 +80,7 @@ public static partial class FixtureDump
         Item(db, Dryer, "Basic Dryer", "gregtech");
         Item(db, EbfController, "Electric Blast Furnace", "gregtech");
         Item(db, MaceratorLv, "Macerator", "gregtech");
+        Item(db, MaceratorHv, "Macerator", "gregtech");
         Item(db, MixerLv, "Mixer", "gregtech");
         Item(db, MixerStack, "Mixer Array", "gregtech");
         Item(db, DearStack, "Dear Mixer Array", "gregtech");

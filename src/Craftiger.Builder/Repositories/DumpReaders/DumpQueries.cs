@@ -26,6 +26,18 @@ public static class DumpQueries
 
     public static void RequireMachineProps(SqliteConnection db, string table) => RequireTable(db, table, "0.6.5");
 
+    /// <summary>The machine-class export series: whole tables and the columns added to older ones.</summary>
+    public static void RequireMachineData(SqliteConnection db, string table) => RequireTable(db, table, "1.0.1");
+
+    public static void RequireColumn(SqliteConnection db, string table, string column)
+    {
+        if (!HasColumn(db, table, column))
+        {
+            throw new InvalidOperationException(
+                $"dump predates {table}.{column}; re-export with exporter 1.0.1 or later");
+        }
+    }
+
     public static void Add<T>(Dictionary<string, List<T>> map, string key, T value)
     {
         if (!map.TryGetValue(key, out var list))

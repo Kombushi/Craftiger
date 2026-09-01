@@ -32,23 +32,23 @@ public static partial class FixtureDump
         RecipeType(db, "rt~gregtech~gt.recipe.mixer~MAX", "gregtech", "Mixer (MAX)", handlerIcons: 0);
         RecipeType(db, "rt~gregtech~gtpp.recipe.treefarm~ULV", "gregtech", "Tree Growth Simulator (ULV)", handlerIcons: 0);
 
-        RecipeMap(db, "gt.recipe.blastfurnace", "Blast Furnace", [(EbfController, true, null, false)]);
-        RecipeMap(db, "gt.recipe.macerator", "Macerator", [(MaceratorLv, false, 1, false)]);
-        RecipeMap(db, "gt.recipe.mixer", "Mixer", [(MixerLv, false, 1, false), (MixerStack, true, null, false)]);
-        RecipeMap(db, "gt.recipe.dearmixer", "Dear Mixer", [(MixerLv, false, 1, false), (DearStack, true, null, false)]);
+        RecipeMap(db, "gt.recipe.blastfurnace", "Blast Furnace", [(EbfController, true, null, false, null)]);
+        RecipeMap(db, "gt.recipe.macerator", "Macerator", [(MaceratorLv, false, 1, false, 1), (MaceratorHv, false, 3, false, 2)]);
+        RecipeMap(db, "gt.recipe.mixer", "Mixer", [(MixerLv, false, 1, false, null), (MixerStack, true, null, false, null)]);
+        RecipeMap(db, "gt.recipe.dearmixer", "Dear Mixer", [(MixerLv, false, 1, false, null), (DearStack, true, null, false, null)]);
         // The fuel flag alone drops the tab; the machine name says nothing about fuels.
         RecipeMap(db, "gt.recipe.largeboilerfakefuels", "Large Boiler", [], isFuel: true);
         RecipeMap(db, "gt.recipe.gasturbinefuel", "Gas Turbine Fuel",
-            [(DeadTurbine, true, null, false), (LiveTurbine, true, null, false), (XlTurbine, true, null, false)],
+            [(DeadTurbine, true, null, false, null), (LiveTurbine, true, null, false, null), (XlTurbine, true, null, false, null)],
             isFuel: true);
         RecipeMap(db, "gtpp.recipe.RTGgenerators", "RTG", [], isFuel: true);
         RecipeMap(db, "gg.recipe.naquadah_reactor", "Large Naquadah Reactor",
-            [(LargeNaquadahReactor, true, null, false), (LargeCombustionEngine, true, null, false)],
+            [(LargeNaquadahReactor, true, null, false, null), (LargeCombustionEngine, true, null, false, null)],
             isFuel: true);
         RecipeMap(db, "gt.recipe.semifluidboilerfuels", "Semifluid Boiler", [], isFuel: true);
         // A steam machine relaxes its map's LV recipes; the flag decides, never the name.
-        RecipeMap(db, "gt.recipe.fixturegrinder", "Bronze Grinder", [(SteamGrinder, false, 1, true)]);
-        RecipeMap(db, "gtpp.recipe.treefarm", "Tree Growth Simulator", [(TreeFarm, true, null, false)]);
+        RecipeMap(db, "gt.recipe.fixturegrinder", "Bronze Grinder", [(SteamGrinder, false, 1, true, null)]);
+        RecipeMap(db, "gtpp.recipe.treefarm", "Tree Growth Simulator", [(TreeFarm, true, null, false, null)]);
 
         // The tree farm's NEI row: no inputs, the sapling in the controller slot, one output per mode slot.
         Recipe(db, "r_tree_oak", "rt~gregtech~gtpp.recipe.treefarm~ULV", inputs: [], outputs: [(Log, 2, 1.0)],

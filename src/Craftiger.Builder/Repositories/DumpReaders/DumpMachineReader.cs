@@ -19,14 +19,15 @@ public sealed class DumpMachineReader : IDumpMachineReader
     /// <summary>A GregTech recipe type is named rt~gregtech~(recipe map)~(voltage).</summary>
     private static IReadOnlyDictionary<string, DumpRecipeMap> ReadRecipeMaps(SqliteConnection db)
     {
+        DumpQueries.RequireColumn(db, "GREG_TECH_RECIPE_MAP_MACHINES", "MACHINES_OUTPUT_SLOTS");
         var machinesByMapId = new Dictionary<string, List<DumpRecipeMapMachine>>();
-        foreach (var r in db.Query<(string MapId, string ItemId, long Multiblock, int? Tier, long Steam)>("""
-            SELECT GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER, MACHINES_STEAM
+        foreach (var r in db.Query<(string MapId, string ItemId, long Multiblock, int? Tier, long Steam, int? OutputSlots)>("""
+            SELECT GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER, MACHINES_STEAM, MACHINES_OUTPUT_SLOTS
             FROM GREG_TECH_RECIPE_MAP_MACHINES
             """))
         {
             DumpQueries.Add(machinesByMapId, r.MapId,
-                new DumpRecipeMapMachine(r.ItemId, r.Multiblock != 0, r.Tier, r.Steam != 0));
+                new DumpRecipeMapMachine(r.ItemId, r.Multiblock != 0, r.Tier, r.Steam != 0, r.OutputSlots));
         }
 
         var recipeMaps = new Dictionary<string, DumpRecipeMap>();

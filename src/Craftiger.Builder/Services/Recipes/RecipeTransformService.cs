@@ -30,6 +30,7 @@ public sealed partial class RecipeTransformService(
         var tools = new ToolIndex(dump.Items, dump.ItemContainers);
         var machinesByTypeId = machineLists.Run(dump, unified);
         var ungatedTypeIds = new HashSet<string>(dump.Recipes.Where(r => r.Category == "minecraft").Select(r => r.RecipeTypeId));
+        var slotTiersByMap = new Dictionary<string, IReadOnlyList<int>?>();
 
         foreach (var recipe in dump.Recipes)
         {
@@ -40,7 +41,8 @@ public sealed partial class RecipeTransformService(
             }
 
             // Fuel maps burn their inputs for EU; their tabs are recipes only to NEI. Tree farm rows are synthesized with their catalysts.
-            if (dump.RecipeMapByTypeId.GetValueOrDefault(recipe.RecipeTypeId) is { } map && (map.IsFuel || map.UnlocalizedName == _treeFarm.Map))
+            var map = dump.RecipeMapByTypeId.GetValueOrDefault(recipe.RecipeTypeId);
+            if (map is not null && (map.IsFuel || map.UnlocalizedName == _treeFarm.Map))
             {
                 continue;
             }
@@ -157,7 +159,11 @@ public sealed partial class RecipeTransformService(
                 continue;
             }
 
-            var slotTiers = _config.ByproductSlotTiers.GetValueOrDefault(machine);
+            var slotTiers = map is null
+                ? null
+                : slotTiersByMap.TryGetValue(map.UnlocalizedName, out var known)
+                    ? known
+                    : slotTiersByMap[map.UnlocalizedName] = map.ByproductSlotTiers();
             foreach (var variant in variants.Variants(recipe.Id, tier, outputs, slotTiers))
             {
                 var (variantInputs, merged) = PlannerOutputs.Net(inputs, PlannerOutputs.Merge(variant.Outputs));

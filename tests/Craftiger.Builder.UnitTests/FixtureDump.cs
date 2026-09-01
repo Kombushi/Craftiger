@@ -50,6 +50,7 @@ public static partial class FixtureDump
     public const string Dryer = "i~gregtech~gt.blockmachines~2002";
     public const string EbfController = "i~gregtech~gt.blockmachines~1003";
     public const string MaceratorLv = "i~gregtech~gt.blockmachines~106";
+    public const string MaceratorHv = "i~gregtech~gt.blockmachines~303";
     public const string MixerLv = "i~gregtech~gt.blockmachines~110";
     public const string MixerStack = "i~gregtech~gt.blockmachines~798";
     public const string DearStack = "i~gregtech~gt.blockmachines~799";
@@ -196,7 +197,8 @@ public static partial class FixtureDump
             CREATE TABLE GREG_TECH_RECIPE_MAP(ID TEXT, AMPERAGE INTEGER, HAS_MULTI_BLOCK INTEGER,
                 HAS_SINGLE_BLOCK INTEGER, IS_FUEL INTEGER, LOCALIZED_NAME TEXT, UNLOCALIZED_NAME TEXT);
             CREATE TABLE GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID TEXT, MACHINES_ITEM_ID TEXT,
-                MACHINES_MULTIBLOCK INTEGER, MACHINES_TIER INTEGER, MACHINES_STEAM INTEGER);
+                MACHINES_MULTIBLOCK INTEGER, MACHINES_TIER INTEGER, MACHINES_STEAM INTEGER,
+                MACHINES_OUTPUT_SLOTS INTEGER);
             CREATE TABLE MOB(ID TEXT, ARMOUR INTEGER, HEALTH REAL, HEIGHT REAL, IMAGE_FILE_PATH TEXT,
                 IMMUNE_TO_FIRE INTEGER, INTERNAL_NAME TEXT, LEASHABLE INTEGER, LOCALIZED_NAME TEXT,
                 MOD_ID TEXT, NBT TEXT, WIDTH REAL);
@@ -362,7 +364,7 @@ public static partial class FixtureDump
     /// <summary>A recipe map and the machines serving it; only a multiblock earns the tier allowance.</summary>
     private static void RecipeMap(
         SqliteConnection db, string map, string name,
-        (string ItemId, bool Multiblock, int? Tier, bool Steam)[] machines, bool isFuel = false)
+        (string ItemId, bool Multiblock, int? Tier, bool Steam, int? OutputSlots)[] machines, bool isFuel = false)
     {
         var id = $"gtrm~{map}";
         db.Execute(
@@ -376,11 +378,12 @@ public static partial class FixtureDump
         foreach (var machine in machines)
         {
             db.Execute(
-                "INSERT INTO GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER, MACHINES_STEAM) VALUES (@id, @itemId, @multiblock, @tier, @steam)",
+                "INSERT INTO GREG_TECH_RECIPE_MAP_MACHINES(GREG_TECH_RECIPE_MAP_ID, MACHINES_ITEM_ID, MACHINES_MULTIBLOCK, MACHINES_TIER, MACHINES_STEAM, MACHINES_OUTPUT_SLOTS) VALUES (@id, @itemId, @multiblock, @tier, @steam, @outputSlots)",
                 new
                 {
                     id, itemId = machine.ItemId, multiblock = machine.Multiblock ? 1 : 0,
-                    tier = machine.Tier, steam = machine.Steam ? 1 : 0
+                    tier = machine.Tier, steam = machine.Steam ? 1 : 0,
+                    outputSlots = machine.OutputSlots
                 });
         }
     }
