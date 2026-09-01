@@ -83,6 +83,7 @@ public static partial class FixtureDump
         Item(db, MaceratorHv, "Macerator", "gregtech");
         Item(db, CoilCupro, "Cupronickel Coil Block", "gregtech");
         Item(db, CoilKanthal, "Kanthal Coil Block", "gregtech");
+        Item(db, CoilTrinium, "Trinium Coil Block", "gregtech");
         Item(db, HotIngot, "Fixture Hot Ingot", "fixture");
         Item(db, MixerLv, "Mixer", "gregtech");
         Item(db, MixerStack, "Mixer Array", "gregtech");

@@ -54,10 +54,12 @@ public sealed class EraSolveService(
             ladder = settled;
         }
         logger.LogInformation("  coil ladder settled after {Iterations} era solves", iteration);
-        if (ladder.Coils.Count < dump.Coils.Count)
+        var unresolved = dump.Coils.Count(coil => !table.TryGetEra(unified.Canonical(coil.ItemId), out _));
+        if (unresolved > 0)
         {
             logger.LogWarning(
-                "{Count} coils never become craftable and left the ladder", dump.Coils.Count - ladder.Coils.Count);
+                "{Count} coils never become craftable and ship at the ladder's edge era {Edge}",
+                unresolved, ladder.Coils.Max(coil => coil.Tier));
         }
 
         var tiers = leafTiers.Run(unscoped, leafClasses, unified, dump.OrePrefixes, table, ladder);
@@ -65,18 +67,23 @@ public sealed class EraSolveService(
             tiers, availability.Run(recipes, table), Environment(dump, unified, table), ladder.Coils);
     }
 
-    /// <summary>The ladder the solved table implies: each coil at its item's era, unreachable coils dropped.</summary>
+    /// <summary>The ladder the solved table implies: each coil at its item's era. A coil the solve
+    /// never reaches ships at the ladder's edge — the garage must still be able to install what
+    /// the model merely fails to reach, or every hotter recipe becomes a pricing hole.</summary>
     private static CoilLadder SolvedLadder(IReadOnlyList<DumpCoil> coils, UnifiedItems unified, EraTable table)
     {
-        var settled = new List<LadderCoil>();
+        var eras = new Dictionary<string, int>();
         foreach (var coil in coils)
         {
             if (table.TryGetEra(unified.Canonical(coil.ItemId), out var era))
             {
-                settled.Add(new LadderCoil(coil.Name, coil.Heat, era));
+                eras[coil.ItemId] = era;
             }
         }
-        return new CoilLadder([.. settled.OrderBy(coil => coil.MaxHeat)]);
+        var edge = eras.Count == 0 ? 0 : eras.Values.Max() + 1;
+        return new CoilLadder([.. coils
+            .Select(coil => new LadderCoil(coil.Name, coil.Heat, eras.GetValueOrDefault(coil.ItemId, edge)))
+            .OrderBy(coil => coil.MaxHeat)]);
     }
 
     /// <summary>The cleanroom wall from the solved table, falling back to the configured floor when the dump lacks the controller.</summary>

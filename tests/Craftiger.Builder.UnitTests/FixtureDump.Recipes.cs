@@ -71,6 +71,8 @@ public static partial class FixtureDump
         // heat gate settles only on the second era solve.
         Coil(db, CoilCupro, "Cupronickel", 1801, 0);
         Coil(db, CoilKanthal, "Kanthal", 2701, 1);
+        // Nothing crafts the Trinium coil, so it ships at the ladder's edge era.
+        Coil(db, CoilTrinium, "Trinium", 9001, 2);
         Recipe(db, "r_coil_cupro", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(CoilCupro, 1, 1.0)]);
         Recipe(db, "r_coil_kanthal", "t_shaped", inputs: [("g_alu_ingot", 0)], outputs: [(CoilKanthal, 1, 1.0)]);
         Recipe(db, "r_ebf_hot", "rt~gregtech~gt.recipe.blastfurnace~MV", inputs: [("g_alu_dust", 0)], outputs: [(HotIngot, 1, 1.0)], voltage: 120, duration: 500, heat: 2500);

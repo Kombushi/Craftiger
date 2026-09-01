@@ -272,8 +272,11 @@ Builder responsibilities, in order:
    EBF products — so the solve iterates: every coil starts at era 0, the
    ladder is rebuilt from the solved coil eras, and the solve reruns until
    the ladder stops rising (it rises monotonically, so a bounded number of
-   passes settles it; a coil that never becomes craftable leaves the
-   ladder). Machine availability gates the era too: a recipe costs what the
+   passes settles it). A coil the solve never reaches ships at the ladder's
+   edge — one era past the highest solved coil — because the garage must
+   still be able to install what the model merely fails to reach, or every
+   hotter recipe would become a pricing
+   hole. Machine availability gates the era too: a recipe costs what the
    cheapest machine that can run it costs, taking for each machine serving its
    map the highest of the machine's own era, the machine's input-voltage tier,
    and the recipe's tier on that machine (§2, hatch allowance for multiblocks).
@@ -1551,6 +1554,7 @@ All "does not / never" rules live here; other sections only reference this one.
     every row names the machine block that runs it.
 72. The coil ladder derives from the dump and the era solve: names and
     heats are the coil export's, each tier is the coil item's own solved
-    era, and a coil first craftable only through another coil's heat gate
+    era, a coil first craftable only through another coil's heat gate
     settles on a later solve pass (Kanthal made from EBF aluminium tiers
-    above Cupronickel).
+    above Cupronickel), and a coil the solve never reaches still ships,
+    at one era past the highest solved coil.

@@ -268,7 +268,7 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
     [Fact]
     public void TheCoilLadderTiersDeriveFromTheEraSolve() =>
         Assert.Equal(
-            """[{"Name":"Cupronickel","MaxHeat":1801,"Tier":0},{"Name":"Kanthal","MaxHeat":2701,"Tier":1}]""",
+            """[{"Name":"Cupronickel","MaxHeat":1801,"Tier":0},{"Name":"Kanthal","MaxHeat":2701,"Tier":1},{"Name":"Trinium","MaxHeat":9001,"Tier":2}]""",
             _fixture.Scalar<string>("SELECT value FROM meta WHERE key = 'coils'"));
 
     [Fact]

@@ -54,6 +54,7 @@ public static partial class FixtureDump
     public const string SteamMulti = "i~gregtech~gt.blockmachines~31041";
     public const string CoilCupro = "i~gregtech~gt.blockcasings5~0";
     public const string CoilKanthal = "i~gregtech~gt.blockcasings5~1";
+    public const string CoilTrinium = "i~gregtech~gt.blockcasings5~10";
     public const string HotIngot = "i~fixture~hot_ingot";
     public const string MixerLv = "i~gregtech~gt.blockmachines~110";
     public const string MixerStack = "i~gregtech~gt.blockmachines~798";
