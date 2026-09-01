@@ -18,6 +18,9 @@ public sealed class EraSolveService(
 {
     private readonly ErasConfiguration _eras = eras.Value;
 
+    /// <summary>Bounds the coil fixpoint; the ladder rises monotonically, so more means a cyclic ladder.</summary>
+    private const int MaxCoilIterations = 16;
+
     public EraSolve Run(
         IReadOnlyList<PlannerRecipe> recipes,
         IReadOnlyDictionary<string, string> leafClasses,
@@ -26,10 +29,54 @@ public sealed class EraSolveService(
         WorldgenEras worldgen)
     {
         var unscoped = recipes.Where(recipe => recipe.Scope == RecipeScope.None).ToList();
-        var table = seeds.Run(leafClasses, unified, dump, worldgen);
-        propagation.Run(unscoped, table, unified, dump);
-        var tiers = leafTiers.Run(unscoped, leafClasses, unified, dump.OrePrefixes, table);
-        return table.ToSolve(tiers, availability.Run(recipes, table), Environment(dump, unified, table));
+
+        // Coil tiers are the eras the coils are first craftable at, which the heat gates they set
+        // feed back into: start every coil at era 0 and re-solve until the ladder stops rising.
+        var ladder = new CoilLadder([.. dump.Coils
+            .Select(coil => new LadderCoil(coil.Name, coil.Heat, 0))
+            .OrderBy(coil => coil.MaxHeat)]);
+        EraTable table;
+        var iteration = 0;
+        while (true)
+        {
+            iteration++;
+            table = seeds.Run(leafClasses, unified, dump, worldgen);
+            propagation.Run(unscoped, table, unified, dump, ladder);
+            var settled = SolvedLadder(dump.Coils, unified, table);
+            if (settled.Coils.SequenceEqual(ladder.Coils))
+            {
+                break;
+            }
+            if (iteration >= MaxCoilIterations)
+            {
+                throw new InvalidOperationException("the coil-era fixpoint did not settle; the coil ladder is cyclic");
+            }
+            ladder = settled;
+        }
+        logger.LogInformation("  coil ladder settled after {Iterations} era solves", iteration);
+        if (ladder.Coils.Count < dump.Coils.Count)
+        {
+            logger.LogWarning(
+                "{Count} coils never become craftable and left the ladder", dump.Coils.Count - ladder.Coils.Count);
+        }
+
+        var tiers = leafTiers.Run(unscoped, leafClasses, unified, dump.OrePrefixes, table, ladder);
+        return table.ToSolve(
+            tiers, availability.Run(recipes, table), Environment(dump, unified, table), ladder.Coils);
+    }
+
+    /// <summary>The ladder the solved table implies: each coil at its item's era, unreachable coils dropped.</summary>
+    private static CoilLadder SolvedLadder(IReadOnlyList<DumpCoil> coils, UnifiedItems unified, EraTable table)
+    {
+        var settled = new List<LadderCoil>();
+        foreach (var coil in coils)
+        {
+            if (table.TryGetEra(unified.Canonical(coil.ItemId), out var era))
+            {
+                settled.Add(new LadderCoil(coil.Name, coil.Heat, era));
+            }
+        }
+        return new CoilLadder([.. settled.OrderBy(coil => coil.MaxHeat)]);
     }
 
     /// <summary>The cleanroom wall from the solved table, falling back to the configured floor when the dump lacks the controller.</summary>

@@ -51,6 +51,9 @@ public static partial class FixtureDump
     public const string EbfController = "i~gregtech~gt.blockmachines~1003";
     public const string MaceratorLv = "i~gregtech~gt.blockmachines~106";
     public const string MaceratorHv = "i~gregtech~gt.blockmachines~303";
+    public const string CoilCupro = "i~gregtech~gt.blockcasings5~0";
+    public const string CoilKanthal = "i~gregtech~gt.blockcasings5~1";
+    public const string HotIngot = "i~fixture~hot_ingot";
     public const string MixerLv = "i~gregtech~gt.blockmachines~110";
     public const string MixerStack = "i~gregtech~gt.blockmachines~798";
     public const string DearStack = "i~gregtech~gt.blockmachines~799";
@@ -201,6 +204,8 @@ public static partial class FixtureDump
                 MACHINES_OUTPUT_SLOTS INTEGER);
             CREATE TABLE GREG_TECH_MACHINE(ID TEXT, MACHINE_CLASS TEXT, MULTIBLOCK INTEGER,
                 STEAM INTEGER, TIER INTEGER, ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_COIL(ID TEXT, HEAT INTEGER, LEVEL TEXT, LEVEL_TIER INTEGER,
+                ITEM_ID TEXT);
             CREATE TABLE GREG_TECH_TREE_FARM_TOOL(ID TEXT, MODE TEXT, MULTIPLIER INTEGER, ITEM_ID TEXT);
             CREATE TABLE MOB(ID TEXT, ARMOUR INTEGER, HEALTH REAL, HEIGHT REAL, IMAGE_FILE_PATH TEXT,
                 IMMUNE_TO_FIRE INTEGER, INTERNAL_NAME TEXT, LEASHABLE INTEGER, LOCALIZED_NAME TEXT,
@@ -375,6 +380,11 @@ public static partial class FixtureDump
                 id = $"gtmach~{itemId}", machineClass, tier, itemId,
                 multiblock = multiblock ? 1 : 0, steam = steam ? 1 : 0
             });
+
+    private static void Coil(SqliteConnection db, string itemId, string name, int heat, int levelTier) =>
+        db.Execute(
+            "INSERT INTO GREG_TECH_COIL(ID, HEAT, LEVEL, LEVEL_TIER, ITEM_ID) VALUES (@id, @heat, @name, @levelTier, @itemId)",
+            new { id = $"gtcoil~{levelTier}", heat, name, levelTier, itemId });
 
     private static void TreeFarmTool(SqliteConnection db, string itemId, string mode, int multiplier) =>
         db.Execute(

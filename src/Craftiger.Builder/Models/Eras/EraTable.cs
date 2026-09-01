@@ -68,6 +68,7 @@ public sealed class EraTable
     public EraSolve ToSolve(
         IReadOnlyDictionary<string, int> tiers,
         IReadOnlyDictionary<string, int?> machineEras,
-        PlannerEnvironment environment) =>
-        new(tiers, _era, _best, _seeds, machineEras, environment);
+        PlannerEnvironment environment,
+        IReadOnlyList<LadderCoil> coils) =>
+        new(tiers, _era, _best, _seeds, machineEras, environment, coils);
 }

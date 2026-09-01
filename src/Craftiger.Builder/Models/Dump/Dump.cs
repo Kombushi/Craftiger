@@ -83,6 +83,8 @@ public sealed record Dump
 
     public required IReadOnlyList<DumpTreeFarmTool> TreeFarmTools { get; init; }
 
+    public required IReadOnlyList<DumpCoil> Coils { get; init; }
+
     /// <summary>Distinct drops of soul-vial-capturable mobs: what an auto mob farm yields.</summary>
     public required IReadOnlyList<DumpMob> Mobs { get; init; }
 

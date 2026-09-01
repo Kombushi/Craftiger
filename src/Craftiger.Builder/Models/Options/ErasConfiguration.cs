@@ -20,7 +20,4 @@ public sealed record ErasConfiguration
 
     /// <summary>Mobs whose drops date from an era, by dump mob id; the dump names no mob's world, so an unlisted mob's drops seed nothing.</summary>
     public required IReadOnlyDictionary<string, int> MobDropEras { get; init; }
-
-    /// <summary>EBF coil ladder; tier is the coil's voltage-tier equivalent.</summary>
-    public required IReadOnlyList<CoilSpec> Coils { get; init; }
 }

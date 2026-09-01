@@ -139,7 +139,7 @@ public sealed class BuilderPipeline(
             ["tier_voltages"] = JsonSerializer.Serialize(
                 Enumerable.Range(0, Math.Min(maxTier + 1, TierLadder.Names.Count))
                     .Select(TierLadder.Voltage)),
-            ["coils"] = JsonSerializer.Serialize(_eras.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier })),
+            ["coils"] = JsonSerializer.Serialize(eraSolve.Coils.Select(c => new { c.Name, c.MaxHeat, c.Tier })),
             ["steam"] = JsonSerializer.Serialize(steam.Carrier),
             ["environment"] = JsonSerializer.Serialize(eraSolve.Environment),
             ["price_leaks"] = prices.Undercut.ToString(),

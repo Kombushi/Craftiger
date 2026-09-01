@@ -2,28 +2,24 @@ using System.Collections.Frozen;
 using Craftiger.Builder.Interfaces.Eras;
 using Craftiger.Builder.Models.Dump;
 using Craftiger.Builder.Models.Eras;
-using Craftiger.Builder.Models.Options;
 using Craftiger.Builder.Models.Planner;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Craftiger.Builder.Services.Eras;
 
 public sealed class LeafTierService(
-    IOptions<ErasConfiguration> eras,
     ILogger<LeafTierService> logger) : ILeafTierService
 {
     /// <summary>Leaf classes priced by production era rather than a flat weight.</summary>
     private static readonly FrozenSet<string> TieredClasses = FrozenSet.ToFrozenSet<string>(["ingot", "gem", "dust"]);
-
-    private readonly CoilLadder _coils = new(eras.Value.Coils);
 
     public IReadOnlyDictionary<string, int> Run(
         IReadOnlyList<PlannerRecipe> recipes,
         IReadOnlyDictionary<string, string> leafClasses,
         UnifiedItems unified,
         OrePrefixIndex prefixes,
-        EraTable table)
+        EraTable table,
+        CoilLadder coils)
     {
         var tiers = new Dictionary<string, int>();
         foreach (var (id, leafClass) in leafClasses)
@@ -34,7 +30,7 @@ public sealed class LeafTierService(
             }
         }
 
-        var recycled = ApplyRecyclingFallback(tiers, recipes, unified, prefixes, leafClasses);
+        var recycled = ApplyRecyclingFallback(tiers, recipes, unified, prefixes, leafClasses, coils);
         InheritTwinTiers(tiers, leafClasses, unified);
 
         logger.LogInformation("  {Recycled:N0} materials tiered by recycling fallback", recycled);
@@ -42,12 +38,13 @@ public sealed class LeafTierService(
     }
 
     /// <summary>Materials that never bootstrap (recycling-only) fall back to the cheapest direct recipe.</summary>
-    private int ApplyRecyclingFallback(
+    private static int ApplyRecyclingFallback(
         Dictionary<string, int> tiers,
         IReadOnlyList<PlannerRecipe> recipes,
         UnifiedItems unified,
         OrePrefixIndex prefixes,
-        IReadOnlyDictionary<string, string> leafClasses)
+        IReadOnlyDictionary<string, string> leafClasses,
+        CoilLadder coils)
     {
         // Pile packing and remelting exist for every material at ULV, so a reshuffle only speaks when nothing else does.
         var fallback = new Dictionary<string, int>();
@@ -59,7 +56,11 @@ public sealed class LeafTierService(
             {
                 continue;
             }
-            var intrinsic = _coils.Floor(recipe.BestCaseTier, recipe.Heat);
+            var intrinsic = coils.Floor(recipe.BestCaseTier, recipe.Heat);
+            if (intrinsic == int.MaxValue)
+            {
+                continue;
+            }
             foreach (var output in recipe.Outputs)
             {
                 if (!TieredClasses.Contains(leafClasses.GetValueOrDefault(output.ItemId) ?? "")

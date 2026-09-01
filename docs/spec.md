@@ -185,8 +185,9 @@ Builder responsibilities, in order:
    (shaped/shapeless → "Crafting Table") and the EBF map takes its controller's
    name (NEI's "Blast Furnace" → "Electric Blast Furnace"). Any recipe with a
    coil heat requirement keeps it in `recipes.heat` (EBF and its multiblock
-   upgrades); the coil list (name → max heat + tier equivalent, builder
-   config) is exported into `meta` for the garage UI. Byproduct output slots
+   upgrades); the coil list (name and max heat from the dump's coil export,
+   tier the coil's own solved era, §3 step 6) is exported into `meta` for
+   the garage UI. Byproduct output slots
    open where a map's electric single blocks gain them: the dump carries each
    machine's output-slot count, and slot *i* unlocks at the lowest tier whose
    machine has more than *i* slots (the Macerator's 2nd slot HV, 3rd EV,
@@ -266,7 +267,13 @@ Builder responsibilities, in order:
    matching `ingot*` or `gem*` twin then overrides where one exists — a dust
    is the same material as its metal. An EBF
    recipe's intrinsic tier is `max(voltage tier, coil tier of its required
-   heat)`. Machine availability gates the era too: a recipe costs what the
+   heat)`, where a heat's coil tier is the lowest era among the coils
+   reaching it. Coil eras are themselves outputs of this solve — coils are
+   EBF products — so the solve iterates: every coil starts at era 0, the
+   ladder is rebuilt from the solved coil eras, and the solve reruns until
+   the ladder stops rising (it rises monotonically, so a bounded number of
+   passes settles it; a coil that never becomes craftable leaves the
+   ladder). Machine availability gates the era too: a recipe costs what the
    cheapest machine that can run it costs, taking for each machine serving its
    map the highest of the machine's own era, the machine's input-voltage tier,
    and the recipe's tier on that machine (§2, hatch allowance for multiblocks).
@@ -1522,3 +1529,8 @@ All "does not / never" rules live here; other sections only reference this one.
 71. `/api/factory/producers` lists a farm-scoped producer with its scope
     label beside the crafting rows the item detail alone would show, and
     every row names the machine block that runs it.
+72. The coil ladder derives from the dump and the era solve: names and
+    heats are the coil export's, each tier is the coil item's own solved
+    era, and a coil first craftable only through another coil's heat gate
+    settles on a later solve pass (Kanthal made from EBF aluminium tiers
+    above Cupronickel).

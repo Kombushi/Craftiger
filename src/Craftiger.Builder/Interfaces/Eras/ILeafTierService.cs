@@ -12,5 +12,6 @@ public interface ILeafTierService
         IReadOnlyDictionary<string, string> leafClasses,
         UnifiedItems unified,
         OrePrefixIndex prefixes,
-        EraTable table);
+        EraTable table,
+        CoilLadder coils);
 }

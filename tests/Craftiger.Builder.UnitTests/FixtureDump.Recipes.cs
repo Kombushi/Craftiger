@@ -67,6 +67,13 @@ public static partial class FixtureDump
         // Smelting bronze dust is the tier-0 route; EBF is aluminium's only real route.
         Recipe(db, "r_smelt", "t_furnace", inputs: [("g_bronze_dust", 0)], outputs: [(GtBronze, 1, 1.0)]);
         Recipe(db, "r_ebf", "rt~gregtech~gt.recipe.blastfurnace~MV", inputs: [("g_alu_dust", 0)], outputs: [(AluIngot, 1, 1.0)], voltage: 120, duration: 500, heat: 1700);
+        // The coil fixpoint: Kanthal is made from the EBF's own aluminium, so the hot recipe's
+        // heat gate settles only on the second era solve.
+        Coil(db, CoilCupro, "Cupronickel", 1801, 0);
+        Coil(db, CoilKanthal, "Kanthal", 2701, 1);
+        Recipe(db, "r_coil_cupro", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(CoilCupro, 1, 1.0)]);
+        Recipe(db, "r_coil_kanthal", "t_shaped", inputs: [("g_alu_ingot", 0)], outputs: [(CoilKanthal, 1, 1.0)]);
+        Recipe(db, "r_ebf_hot", "rt~gregtech~gt.recipe.blastfurnace~MV", inputs: [("g_alu_dust", 0)], outputs: [(HotIngot, 1, 1.0)], voltage: 120, duration: 500, heat: 2500);
 
         // Chanced byproduct plus a saw catalyst on the grid.
         Recipe(db, "r_macerate", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_bronze_ingot", 0)], outputs: [(BronzeDust, 1, 1.0), (BronzeDust, 1, 0.9)], voltage: 4, duration: 100, amperage: 2);

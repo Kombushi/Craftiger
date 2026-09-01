@@ -81,6 +81,9 @@ public static partial class FixtureDump
         Item(db, EbfController, "Electric Blast Furnace", "gregtech");
         Item(db, MaceratorLv, "Macerator", "gregtech");
         Item(db, MaceratorHv, "Macerator", "gregtech");
+        Item(db, CoilCupro, "Cupronickel Coil Block", "gregtech");
+        Item(db, CoilKanthal, "Kanthal Coil Block", "gregtech");
+        Item(db, HotIngot, "Fixture Hot Ingot", "fixture");
         Item(db, MixerLv, "Mixer", "gregtech");
         Item(db, MixerStack, "Mixer Array", "gregtech");
         Item(db, DearStack, "Dear Mixer Array", "gregtech");

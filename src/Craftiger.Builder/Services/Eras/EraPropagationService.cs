@@ -13,9 +13,8 @@ public sealed class EraPropagationService(
     ILogger<EraPropagationService> logger) : IEraPropagationService
 {
     private readonly ErasConfiguration _eras = eras.Value;
-    private readonly CoilLadder _coils = new(eras.Value.Coils);
 
-    public void Run(IReadOnlyList<PlannerRecipe> recipes, EraTable table, UnifiedItems unified, Dump dump)
+    public void Run(IReadOnlyList<PlannerRecipe> recipes, EraTable table, UnifiedItems unified, Dump dump, CoilLadder coils)
     {
         var cleanroomIds = dump.Items.Values
             .Where(i => i.Name == _eras.CleanroomItemName)
@@ -30,7 +29,7 @@ public sealed class EraPropagationService(
         {
             queued.Remove(recipe.Id);
 
-            var candidate = RecipeEra(recipe, table, cleanroomIds, machineVoltage);
+            var candidate = RecipeEra(recipe, table, cleanroomIds, machineVoltage, coils);
             if (candidate == int.MaxValue)
             {
                 continue;
@@ -63,9 +62,10 @@ public sealed class EraPropagationService(
         PlannerRecipe recipe,
         EraTable table,
         HashSet<string> cleanroomIds,
-        Dictionary<string, int> machineVoltage)
+        Dictionary<string, int> machineVoltage,
+        CoilLadder coils)
     {
-        var candidate = MachineEra(recipe, table, machineVoltage);
+        var candidate = MachineEra(recipe, table, machineVoltage, coils);
         if (candidate == int.MaxValue)
         {
             return int.MaxValue;
@@ -100,11 +100,11 @@ public sealed class EraPropagationService(
     }
 
     /// <summary>The cheapest producible machine gates the recipe, each floored at its own input voltage.</summary>
-    private int MachineEra(PlannerRecipe recipe, EraTable table, Dictionary<string, int> machineVoltage)
+    private static int MachineEra(PlannerRecipe recipe, EraTable table, Dictionary<string, int> machineVoltage, CoilLadder coils)
     {
         if (recipe.Machines.Count == 0)
         {
-            return _coils.Floor(recipe.Tier, recipe.Heat);
+            return coils.Floor(recipe.Tier, recipe.Heat);
         }
         var best = int.MaxValue;
         foreach (var machine in recipe.Machines)
@@ -119,7 +119,7 @@ public sealed class EraPropagationService(
                 : machine.Tier ?? machineVoltage.GetValueOrDefault(machine.ItemId, 0);
             var on = Math.Max(
                 Math.Max(machineEra, voltageFloor),
-                _coils.Floor(recipe.VoltageTierOn(machine), recipe.Heat));
+                coils.Floor(recipe.VoltageTierOn(machine), recipe.Heat));
             if (on < best)
             {
                 best = on;
