@@ -36,23 +36,15 @@ const defaultGarage: GarageState = {
 
 /** Machines the artifact renamed; stored garage keys follow so a tier or coil survives the rebuild. */
 const machineRenames: Record<string, string> = { 'Blast Furnace': 'Electric Blast Furnace' }
-const coilRenames: Record<string, string> = { 'TPV-Alloy': 'TPV' }
 
 /** Renames stored keys only once the live machine list carries the new name and not the old one. */
-function migrateGarage(garage: GarageState, live: Set<string>, liveCoils: Set<string>): GarageState {
+function migrateGarage(garage: GarageState, live: Set<string>): GarageState {
   const rename = (name: string) => {
     const renamed = machineRenames[name]
     return renamed !== undefined && live.has(renamed) && !live.has(name) ? renamed : name
   }
-  const renameCoil = (name: string) => {
-    const renamed = coilRenames[name]
-    return renamed !== undefined && liveCoils.has(renamed) && !liveCoils.has(name) ? renamed : name
-  }
   const keys = [...Object.keys(garage.machines), ...Object.keys(garage.coils), ...garage.builtMultiblocks]
-  if (
-    keys.every((name) => rename(name) === name) &&
-    Object.values(garage.coils).every((name) => renameCoil(name) === name)
-  ) {
+  if (keys.every((name) => rename(name) === name)) {
     return garage
   }
   const renameKeys = <T,>(record: Record<string, T>) =>
@@ -60,9 +52,7 @@ function migrateGarage(garage: GarageState, live: Set<string>, liveCoils: Set<st
   return {
     ...garage,
     machines: renameKeys(garage.machines),
-    coils: Object.fromEntries(
-      Object.entries(garage.coils).map(([map, coil]) => [rename(map), renameCoil(coil)]),
-    ),
+    coils: renameKeys(garage.coils),
     builtMultiblocks: [...new Set(garage.builtMultiblocks.map(rename))].sort(),
   }
 }
@@ -155,8 +145,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (meta !== null) {
       const live = new Set(meta.machines.map((machine) => machine.name))
-      const liveCoils = new Set(meta.coils.map((coil) => coil.name))
-      setGarage((current) => migrateGarage(current, live, liveCoils))
+      setGarage((current) => migrateGarage(current, live))
     }
   }, [meta])
   useEffect(() => persist('gtnhp.cart', cart), [cart])
