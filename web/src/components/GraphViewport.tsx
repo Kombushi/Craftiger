@@ -12,12 +12,13 @@ interface View {
 interface Props {
   width: number
   height: number
-  orientation: ChainOrientation
-  onToggleOrientation: () => void
+  /** The layout direction the toggle button flips; the Planner grid has none and omits both. */
+  orientation?: ChainOrientation
+  onToggleOrientation?: () => void
   children: ReactNode
 }
 
-/** The pan-zoom-fit canvas both flow graphs render into; children are the edges and cards at layout coordinates. */
+/** The pan-zoom-fit canvas the flow graphs and the Planner grid render into; children are the edges and cards at layout coordinates. */
 export function GraphViewport({ width, height, orientation, onToggleOrientation, children }: Props) {
   const viewport = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<View>({ x: MARGIN, y: MARGIN, k: 1 })
@@ -127,14 +128,16 @@ export function GraphViewport({ width, height, orientation, onToggleOrientation,
         {children}
       </div>
       <div className="chain-controls">
-        <button
-          type="button"
-          className="ghost-button"
-          title={orientation === 'vertical' ? 'Horizontal layout' : 'Vertical layout'}
-          onClick={onToggleOrientation}
-        >
-          {orientation === 'vertical' ? '⇄' : '⇅'}
-        </button>
+        {onToggleOrientation !== undefined ? (
+          <button
+            type="button"
+            className="ghost-button"
+            title={orientation === 'vertical' ? 'Horizontal layout' : 'Vertical layout'}
+            onClick={onToggleOrientation}
+          >
+            {orientation === 'vertical' ? '⇄' : '⇅'}
+          </button>
+        ) : null}
         <button type="button" className="ghost-button" title="Fit to view" onClick={fit}>
           ⤢
         </button>

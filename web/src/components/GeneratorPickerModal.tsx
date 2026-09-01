@@ -87,6 +87,7 @@ export function GeneratorPickerModal({ onPick, onClose }: Props) {
                         machine: line.map,
                         machineItemId: null,
                         ocSteps: null,
+                        scope: null,
                       })
                     }
                   >

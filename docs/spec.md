@@ -876,23 +876,33 @@ Screens:
   second) converts every displayed rate, is display-only, and never
   travels in the request or the cache key. The target list, toggles,
   priority and unit choice persist (§8).
-- **Planner** — the manual pipeline tab over the same engine (§8 `steps`):
-  a step list — each step one recipe, picked from an item's garage-legal
-  producers, or one generator line from the catalog endpoint — beside its
-  own target rows and priority picker, re-solving live a breath after
-  every edit with no button: hand-picked models solve in milliseconds,
+- **Planner** — the manual pipeline grid over the same engine (§8 `steps`
+  and `supplies`): the canvas is the document. The user places nodes —
+  **steps** (a recipe from the all-scope producer catalog, farm rows
+  included, or a generator line), **Inputs** (free sources; unbounded by
+  default, a rate turns one into a consume target the pipeline must
+  absorb), **Outputs** (produce targets, rate edited on the node) and one
+  **Energy** node (amps × tier, fed by generator steps) — and the solver
+  draws every edge; flows are never hand-wired. Nodes drag with
+  snap-to-grid and keep their positions; **Tidy** re-runs the layered
+  auto-layout. The solve is live, debounced a breath after every edit
+  that changes the derived request (drags never re-solve); it runs once
+  at least one target-bearing node and one step or unbounded Input exist,
   and only the first solve after a garage or weights change pays for the
-  cost solve behind it. A step row shows the solver's chosen block,
-  overclock and whole-machine count; **LOCK** captures that choice as the
-  step's pin, the ± arrows nudge the pinned overclock, and a generator
-  step has nothing to lock. The entering streams are the building loop:
-  clicking an inflow opens the add-step picker for that item, so a chain
-  grows top-down from its target with the plan solved at every stage;
-  "start from the Factory plan" seeds the step list from the automatic
-  tab's solved lines. Pins never apply here (§9) and the pins row stays
-  on the Factory tab; the scope toggles gate only the mob-seed set. The
-  steps, targets, toggles and priority persist under `gtnhp.planner`
-  (§8); the plan stays in memory.
+  cost solve behind it. A step card shows the solver's chosen block,
+  overclock and whole-machine count with **LOCK** and ± overclock nudges
+  in place; a generator step has nothing to lock. Whatever the solve
+  supplies from outside without an Input node renders as a dashed
+  **ghost** card — clicking it offers *make it an Input* or *add a
+  producing step* — and real surplus without an Output node ghosts
+  symmetrically, offering *make it an Output*; that is the building loop,
+  with the plan solved at every stage. "Start from the Factory plan"
+  copies the automatic tab's solved lines onto the grid. There is no
+  priority picker (the planner always sends machines → resources →
+  energy), no pins (§9), and no scope checkboxes: placing an EEC or
+  bred-variant farm node is the consent the mob-farms and bred-seeds
+  toggles carry on the Factory tab. The nodes persist with their
+  positions under `gtnhp.planner` (§8); the plan stays in memory.
 - **Config** — the `B` input and the editable per-item leaf-weights table (§4)
   live in a separate weights window; both apply on the next Calculate. Leaf
   membership — which blocks are minable, which fluids are world fluids — is
@@ -1083,9 +1093,10 @@ overrides, per-map coils, built multiblocks), `gtnhp.config` (B), `gtnhp.ui`
 (display caches plus the applied solve, so an unchanged reload resumes on the
 cached solve instead of asking for a recalculation), `gtnhp.factory` (the
 factory targets, scope toggles and layer priority; the plan itself stays in
-memory — a reload starts idle), `gtnhp.planner` (the pipeline steps with
-their locks, and its own targets, toggles and priority; the live loop
-re-solves on load once steps and targets exist), `gtnhp.rateUnit`, and the layout
+memory — a reload starts idle), `gtnhp.planner` (the grid's nodes with
+their positions, rates and locks; a stored step-and-target list from the
+pre-grid tab is migrated into nodes on load, and the live loop re-solves
+once the grid holds a target and a feed), `gtnhp.rateUnit`, and the layout
 preferences `gtnhp.sidebarWidth`, `gtnhp.sidebarHidden`, and
 `gtnhp.chainOrientation` (shared by both flow graphs). Machine keys inside
 `gtnhp.machines` follow the

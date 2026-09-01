@@ -986,10 +986,12 @@ Removed controls (ruled):
 
 Ghost cards keep half-built grids honest (ruled): an item consumed but
 made by no node still auto-supplies at its standing price and renders as
-a dashed ghost input — clicking it offers *make it an Input*, *add a
-producing step*, or *add a farm*; surplus and byproducts render as ghost
-outputs offering *make it an Output* or *add a consuming step*. This is
-§6.5's build-out loop moved onto the canvas.
+a dashed ghost input — clicking it offers *make it an Input* or *add a
+producing step* (farm rows are ordinary producers in that picker);
+surplus and byproducts render as ghost outputs offering *make it an
+Output* — an *add a consuming step* offer would need a consumers-of
+catalog the API does not have. This is §6.5's build-out loop moved onto
+the canvas.
 
 Layout is manual with a safety net (ruled): nodes drag with snap-to-grid,
 positions persist client-side (`gtnhp.planner` v2, migrating the v1
@@ -997,15 +999,24 @@ step/target lists on first load), new nodes spawn near whatever spawned
 them, and a **Tidy** button re-runs the layered SCC layout. The sidebar
 shrinks to a palette — one item search (place as Output, as Input, or
 pick a producing step), energy/generator buttons, the Factory-plan
-import — plus the garage panel; solved totals and the shopping list of
-auto-supplied ghosts sit in a summary strip above the canvas. No graph
-library: `GraphViewport` already pans and zooms absolutely-positioned
-cards, so card drag is the only new interaction machinery.
+import — plus the garage panel; solved totals sit in a strip above the
+canvas, and the ghosts *are* the shopping list. No graph library:
+`GraphViewport` already pans and zooms absolutely-positioned cards, so
+card drag is the only new interaction machinery.
 
 API deltas: `Supplies` on the solve request, and
 `POST /api/factory/producers` — an item's producers across **all**
 scopes with scope and variant labels (farm rows carry no candidate
 cost), the picker source the farm nodes need.
+
+Shipped as spec v1.50 (§7 Planner, §8 `supplies` + producers endpoint,
+§9, checks 70–71), verified live on the real artifact: a PTFE grid grown
+ghost-by-ghost with an adopted Input zeroing the inflow bill, a 1A HV
+energy grid landing at exactly +512 EU/t net through a Turbo Gas
+Turbine, an Industrial Farm (bred) node solving an Oak Log output with
+Apple and sapling surplus ghosts, and the pre-grid step/target store
+migrating into nodes. Overbuy slivers never ghost: a surplus earns its
+card only off a real producer and past a 2 % corridor allowance.
 
 ## 7. The three examples, mapped
 

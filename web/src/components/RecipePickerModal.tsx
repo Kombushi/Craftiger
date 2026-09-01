@@ -11,7 +11,14 @@ interface Props {
   onClose: () => void
 }
 
-/** Picks one producing recipe of an item as a pipeline step; recipes come with their candidate costs from the garage's cost solve. */
+/** How a factory-only scope reads on a picker row. */
+const scopeChips: Record<string, string> = {
+  factory: 'FARM',
+  factory_mob: 'MOB',
+  factory_bred: 'BRED',
+}
+
+/** Picks one producer of an item as a pipeline step — the full catalog, farm rows included. */
 export function RecipePickerModal({ itemId, onPick, onClose }: Props) {
   const { garage, b, weights } = useStore()
   const [detail, setDetail] = useState<ItemDetail | null>(null)
@@ -20,8 +27,7 @@ export function RecipePickerModal({ itemId, onPick, onClose }: Props) {
   useEffect(() => {
     let live = true
     api
-      .solve(garage, b, weights)
-      .then((solved) => api.itemDetail(itemId, solved.solveId))
+      .factoryProducers(garage, b, weights, itemId)
       .then((fetched) => {
         if (live) {
           setDetail(fetched)
@@ -62,6 +68,7 @@ export function RecipePickerModal({ itemId, onPick, onClose }: Props) {
                   return `${output.amount}× ${name}`
                 })
                 .join(', ')
+              const chip = recipe.scope != null ? scopeChips[recipe.scope] : undefined
               return (
                 <li key={recipe.recipeId}>
                   <button
@@ -75,12 +82,16 @@ export function RecipePickerModal({ itemId, onPick, onClose }: Props) {
                         machine: recipe.machine,
                         machineItemId: null,
                         ocSteps: null,
+                        scope: recipe.scope ?? null,
                       })
                     }
                   >
                     <Slot atlasIdx={detail.atlasIdx} size="sm" />
                     <span className="picker-main">
-                      <span className="picker-title">{recipe.machine}</span>
+                      <span className="picker-title">
+                        {recipe.machine}
+                        {chip !== undefined ? <span className="tag tag-chip mono"> {chip}</span> : null}
+                      </span>
                       <span className="picker-sub mono">
                         {fmtDuration(recipe.durationTicks)} · {recipe.euT.toLocaleString('en-US')} EU/t
                         {' → '}

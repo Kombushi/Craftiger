@@ -1,22 +1,18 @@
 import { createContext, useContext } from 'react'
-import type { TargetsStore } from './factoryContext'
 import type { Status } from './storeContext'
-import type { FactoryResponse, PlannerStep } from './types'
+import type { FactoryResponse, PlannerNode } from './types'
 
-export interface PlannerStore extends TargetsStore {
-  steps: PlannerStep[]
-  addStep: (step: PlannerStep) => void
-  updateStep: (index: number, next: PlannerStep) => void
-  removeStep: (index: number) => void
-  /** Replaces the whole list — the "start from the Factory plan" import. */
-  setSteps: (steps: PlannerStep[]) => void
-  mobFarms: boolean
-  setMobFarms: (on: boolean) => void
-  bredSeeds: boolean
-  setBredSeeds: (on: boolean) => void
-  priority: string[]
-  setPriority: (priority: string[]) => void
-  /** The live plan; re-solved automatically, debounced, on every edit. */
+/** The Planner grid: user-placed nodes are the whole document, edges come from the live solve. */
+export interface PlannerStore {
+  nodes: PlannerNode[]
+  /** Adds unless a node with the same identity already sits on the grid. */
+  addNode: (node: PlannerNode) => void
+  updateNode: (id: string, next: PlannerNode) => void
+  removeNode: (id: string) => void
+  moveNode: (id: string, x: number, y: number) => void
+  /** Replaces the whole grid — the Factory import and the Tidy button. */
+  setNodes: (nodes: PlannerNode[]) => void
+  /** The live plan; re-solved automatically, debounced, whenever the derived request changes. */
   plan: FactoryResponse | null
   status: Status
 }

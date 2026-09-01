@@ -1,34 +1,102 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as api from './api'
-import { ratePerSecond } from './factoryContext'
 import { PlannerContext, type PlannerStore } from './plannerContext'
+import { nodeId } from './plannerGrid'
 import { useStore, type Status } from './storeContext'
-import type { FactoryResponse, FactoryTargetState, PlannerStep } from './types'
+import type {
+  FactoryResponse,
+  FactoryTargetState,
+  PlannerNode,
+  PlannerStep,
+  RateUnit,
+} from './types'
 import { usePersistent } from './usePersistent'
 
 interface PlannerPersisted {
-  steps: PlannerStep[]
-  targets: FactoryTargetState[]
-  mobFarms: boolean
-  bredSeeds: boolean
-  priority: string[]
+  nodes: PlannerNode[]
 }
 
-const empty: PlannerPersisted = { steps: [], targets: [], mobFarms: false, bredSeeds: false, priority: [] }
+/** The pre-grid persisted shape: a step list plus a target list. */
+interface LegacyPersisted {
+  steps?: PlannerStep[]
+  targets?: FactoryTargetState[]
+}
 
 const DEBOUNCE_MS = 400
 
+/** A node rate in units per second. */
+function rateOf(amount: number, window: number, windowUnit: RateUnit): number {
+  const seconds = windowUnit === 'tick' ? window / 20 : windowUnit === 'minute' ? window * 60 : window
+  return seconds > 0 ? amount / seconds : 0
+}
+
+/** A stored step list and target list become grid nodes in three loose columns; Tidy settles them. */
+function migrate(raw: unknown): PlannerPersisted {
+  const legacy = raw as (PlannerPersisted & LegacyPersisted) | null
+  if (legacy?.nodes !== undefined) {
+    return { nodes: legacy.nodes }
+  }
+  const nodes: PlannerNode[] = []
+  ;(legacy?.steps ?? []).forEach((step, index) => {
+    nodes.push({ ...step, scope: step.scope ?? null, kind: 'step', x: 420, y: index * 160 })
+  })
+  ;(legacy?.targets ?? []).forEach((target, index) => {
+    if (target.kind === 'energy') {
+      nodes.push({ kind: 'energy', amps: target.amps, tier: target.tier, euT: target.euT, x: 960, y: 400 + index * 120 })
+    } else if (target.kind === 'consume') {
+      nodes.push({ ...target, kind: 'input', x: 0, y: index * 120 })
+    } else {
+      nodes.push({ ...target, kind: 'output', x: 960, y: index * 120 })
+    }
+  })
+  return { nodes }
+}
+
+/** What the grid asks of the engine; positions and labels stay out so drags never re-solve. */
+function requestOf(nodes: PlannerNode[]) {
+  const steps = nodes.flatMap((node) =>
+    node.kind === 'step' ? [{ id: node.id, machineItemId: node.machineItemId, ocSteps: node.ocSteps }] : [])
+  const supplies = nodes
+    .flatMap((node) => (node.kind === 'input' && node.amount === null ? [node.itemId] : []))
+    .toSorted()
+  const targets: api.FactorySolveTarget[] = []
+  for (const node of nodes) {
+    if (node.kind === 'output') {
+      targets.push({ kind: 'produce', itemId: node.itemId, rate: rateOf(node.amount, node.window, node.windowUnit) })
+    } else if (node.kind === 'input' && node.amount !== null) {
+      targets.push({ kind: 'consume', itemId: node.itemId, rate: rateOf(node.amount, node.window, node.windowUnit) })
+    } else if (node.kind === 'energy') {
+      targets.push({ kind: 'energy', rate: node.euT, generatorTier: node.tier })
+    }
+  }
+  // Placing a farm node is the consent the scope toggles used to carry.
+  const mobFarms = nodes.some((node) => node.kind === 'step' && node.scope === 'factory_mob')
+  const bredSeeds = nodes.some((node) => node.kind === 'step' && node.scope === 'factory_bred')
+  const solvable = targets.some((target) => target.rate > 0) && (steps.length > 0 || supplies.length > 0)
+  return { steps, supplies, targets, mobFarms, bredSeeds, solvable }
+}
+
 export function PlannerProvider({ children }: { children: ReactNode }) {
-  const { meta, garage, b, weights, pushToast } = useStore()
-  const [state, setState] = usePersistent<PlannerPersisted>('gtnhp.planner', empty)
+  const { garage, b, weights, pushToast } = useStore()
+  const [raw, setRaw] = usePersistent<unknown>('gtnhp.planner', null)
+  const state = migrate(raw)
   const [plan, setPlan] = useState<FactoryResponse | null>(null)
   const [status, setStatus] = useState<Status>({ phase: 'idle' })
   const generation = useRef(0)
 
-  // The live loop: hand-picked models solve in milliseconds, so every edit re-solves after a
-  // breath; only the first solve after a garage or weights change pays for the cost solve.
+  const setNodes = useCallback(
+    (next: PlannerNode[] | ((previous: PlannerNode[]) => PlannerNode[])) =>
+      setRaw((previous: unknown) => ({
+        nodes: typeof next === 'function' ? next(migrate(previous).nodes) : next,
+      })),
+    [setRaw],
+  )
+
+  // The live loop keys on the derived request, so drags and renames re-render but never re-solve.
+  const requestKey = JSON.stringify(requestOf(state.nodes))
   useEffect(() => {
-    if (state.steps.length === 0 || state.targets.length === 0) {
+    const { steps, supplies, targets, mobFarms, bredSeeds, solvable } = JSON.parse(requestKey) as ReturnType<typeof requestOf>
+    if (!solvable) {
       generation.current++
       setPlan(null)
       setStatus({ phase: 'idle' })
@@ -39,24 +107,8 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     const timer = setTimeout(() => {
       api
         .factorySolve(
-          garage,
-          b,
-          weights,
-          state.targets.map((target) =>
-            target.kind === 'energy'
-              ? { kind: 'energy' as const, rate: target.euT, generatorTier: target.tier }
-              : { kind: target.kind, itemId: target.itemId, rate: ratePerSecond(target) },
-          ),
-          state.priority,
-          {},
-          state.mobFarms,
-          state.bredSeeds,
-          state.steps.map((step) => ({
-            id: step.id,
-            machineItemId: step.machineItemId,
-            ocSteps: step.ocSteps,
-          })),
-        )
+          garage, b, weights, targets, ['machines', 'resource', 'energy'], {},
+          mobFarms, bredSeeds, steps, supplies)
         .then((solved) => {
           if (run === generation.current) {
             setPlan(solved)
@@ -71,73 +123,17 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         })
     }, DEBOUNCE_MS)
     return () => clearTimeout(timer)
-  }, [state, garage, b, weights, pushToast])
-
-  const addStep = useCallback(
-    (step: PlannerStep) => {
-      setState((previous) =>
-        previous.steps.some((existing) => existing.id === step.id)
-          ? previous
-          : { ...previous, steps: [...previous.steps, step] },
-      )
-    },
-    [setState],
-  )
-
-  const addEnergyTarget = useCallback(() => {
-    setState((previous) => {
-      if (previous.targets.some((target) => target.kind === 'energy')) {
-        return previous
-      }
-      const tier = Math.max(1, garage.defaultTier)
-      const euT = meta?.tierVoltages[tier] ?? 32
-      return { ...previous, targets: [...previous.targets, { kind: 'energy', amps: 1, tier, euT }] }
-    })
-  }, [setState, garage.defaultTier, meta])
+  }, [requestKey, garage, b, weights, pushToast])
 
   const value: PlannerStore = {
-    steps: state.steps,
-    addStep,
-    updateStep: (index, next) =>
-      setState((previous) => ({
-        ...previous,
-        steps: previous.steps.map((step, at) => (at === index ? next : step)),
-      })),
-    removeStep: (index) =>
-      setState((previous) => ({ ...previous, steps: previous.steps.filter((_, at) => at !== index) })),
-    setSteps: (steps) => setState((previous) => ({ ...previous, steps })),
-    targets: state.targets,
-    addItemTarget: (target) =>
-      setState((previous) =>
-        previous.targets.some(
-          (existing) => existing.kind !== 'energy' && existing.itemId === target.itemId,
-        )
-          ? previous
-          : {
-              ...previous,
-              targets: [
-                ...previous.targets,
-                { kind: 'produce', ...target, amount: 1, window: 1, windowUnit: 'second' },
-              ],
-            },
-      ),
-    addEnergyTarget,
-    updateTarget: (index, next) =>
-      setState((previous) => ({
-        ...previous,
-        targets: previous.targets.map((target, at) => (at === index ? next : target)),
-      })),
-    removeTarget: (index) =>
-      setState((previous) => ({
-        ...previous,
-        targets: previous.targets.filter((_, at) => at !== index),
-      })),
-    mobFarms: state.mobFarms,
-    setMobFarms: (on) => setState((previous) => ({ ...previous, mobFarms: on })),
-    bredSeeds: state.bredSeeds,
-    setBredSeeds: (on) => setState((previous) => ({ ...previous, bredSeeds: on })),
-    priority: state.priority,
-    setPriority: (priority) => setState((previous) => ({ ...previous, priority })),
+    nodes: state.nodes,
+    addNode: (node) =>
+      setNodes((nodes) => (nodes.some((existing) => nodeId(existing) === nodeId(node)) ? nodes : [...nodes, node])),
+    updateNode: (id, next) => setNodes((nodes) => nodes.map((node) => (nodeId(node) === id ? next : node))),
+    removeNode: (id) => setNodes((nodes) => nodes.filter((node) => nodeId(node) !== id)),
+    moveNode: (id, x, y) =>
+      setNodes((nodes) => nodes.map((node) => (nodeId(node) === id ? { ...node, x, y } : node))),
+    setNodes: (nodes) => setNodes(nodes),
     plan,
     status,
   }

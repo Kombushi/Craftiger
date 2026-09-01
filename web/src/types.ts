@@ -144,6 +144,8 @@ export interface RecipeDto {
   /** A shaped crafting recipe's nine cells, row-major: the slot each holds — slots first,
    * then catalysts — or null for an empty cell; null when the recipe has no shape. */
   grid: (number | null)[] | null
+  /** A factory-only row's scope ('factory', 'factory_mob', 'factory_bred'); null is a crafting recipe. */
+  scope?: string | null
 }
 
 export interface ItemDetail {
@@ -243,7 +245,7 @@ export interface FactoryWarning {
 
 export type FactoryStatus = 'solved' | 'infeasible' | 'unbounded' | 'timed_out' | 'failed'
 
-/** One Planner step as stored: the id a pipeline names, a display snapshot, and the optional block/OC lock. */
+/** One Planner step as a picker delivers it: the id a pipeline names, a display snapshot, the optional block/OC lock, and the recipe's scope. */
 export interface PlannerStep {
   id: string
   label: string
@@ -251,7 +253,55 @@ export interface PlannerStep {
   machine: string
   machineItemId: string | null
   ocSteps: number | null
+  /** The producer catalog's scope; farm consent derives from it, null is a crafting recipe or a generator line. */
+  scope: string | null
 }
+
+/** A recipe or generator line placed on the Planner grid. */
+export interface StepNode extends PlannerStep {
+  kind: 'step'
+  x: number
+  y: number
+}
+
+/** A free source the user declares on hand; a rate turns it into a fixed intake the pipeline must absorb. */
+export interface InputNode {
+  kind: 'input'
+  itemId: string
+  name: string
+  atlasIdx: number
+  /** null = unbounded free supply. */
+  amount: number | null
+  window: number
+  windowUnit: RateUnit
+  x: number
+  y: number
+}
+
+/** A produce target on the grid. */
+export interface OutputNode {
+  kind: 'output'
+  itemId: string
+  name: string
+  atlasIdx: number
+  amount: number
+  window: number
+  windowUnit: RateUnit
+  x: number
+  y: number
+}
+
+/** The energy export target on the grid; generator steps feed it. */
+export interface EnergyNode {
+  kind: 'energy'
+  amps: number
+  tier: number
+  euT: number
+  x: number
+  y: number
+}
+
+export type PlannerNode = StepNode | InputNode | OutputNode | EnergyNode
 
 export interface GeneratorLineDto {
   id: string

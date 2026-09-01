@@ -96,10 +96,15 @@ export const factorySolve = (
   mobFarms: boolean,
   bredSeeds: boolean,
   steps?: FactorySolveStep[],
+  supplies?: string[],
 ) =>
   post<FactoryResponse>('/api/factory/solve', {
-    garage, b, weights, targets, priority, pins, mobFarms, bredSeeds, steps,
+    garage, b, weights, targets, priority, pins, mobFarms, bredSeeds, steps, supplies,
   })
 
 export const factoryGenerators = (garage: GarageState, b: number, weights: Record<string, number>) =>
   post<GeneratorCatalogResponse>('/api/factory/generators', { garage, b, weights })
+
+export const factoryProducers = (
+  garage: GarageState, b: number, weights: Record<string, number>, itemId: string,
+) => post<ItemDetail>('/api/factory/producers', { garage, b, weights, itemId })

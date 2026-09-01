@@ -132,7 +132,7 @@ export function layoutFactory(plan: FactoryResponse, orientation: ChainOrientati
     }
   }
 
-  const componentOf = condense(cards, links)
+  const componentOf = condense(cards.keys(), links)
   const componentSize = new Map<number, number>()
   for (const component of componentOf.values()) {
     componentSize.set(component, (componentSize.get(component) ?? 0) + 1)
@@ -185,7 +185,7 @@ export function layoutFactory(plan: FactoryResponse, orientation: ChainOrientati
 }
 
 /** Tarjan's strongly connected components, iteratively — plans are small but recursion depth is not worth risking. */
-function condense(cards: Map<string, FactoryCard>, links: LayoutLink[]): Map<string, number> {
+export function condense(ids: Iterable<string>, links: LayoutLink[]): Map<string, number> {
   const adjacency = new Map<string, string[]>()
   for (const link of links) {
     adjacency.set(link.from, [...(adjacency.get(link.from) ?? []), link.to])
@@ -198,7 +198,7 @@ function condense(cards: Map<string, FactoryCard>, links: LayoutLink[]): Map<str
   let next = 0
   let components = 0
 
-  for (const start of cards.keys()) {
+  for (const start of ids) {
     if (index.has(start)) {
       continue
     }

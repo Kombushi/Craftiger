@@ -1574,3 +1574,98 @@ a:focus-visible {
   color: var(--accent);
   white-space: nowrap;
 }
+
+/* ---- planner grid ---- */
+
+.grid-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.grid-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* A placed node drags by its frame; interactive children keep their own cursor. */
+.card-node {
+  cursor: move;
+  touch-action: none;
+}
+
+.card-io {
+  background: var(--panel);
+}
+
+.card-energy .card-machine {
+  color: var(--fg);
+}
+
+.io-kind {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.io-kind-out {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.io-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.io-rate {
+  flex-wrap: wrap;
+}
+
+.io-mode {
+  white-space: nowrap;
+}
+
+.card-idle {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dim);
+}
+
+.step-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.step-spacer {
+  flex: 1;
+}
+
+.card-ghost {
+  border-style: dashed;
+  border-color: var(--dim);
+  background: color-mix(in srgb, var(--panel-strip) 55%, transparent);
+  cursor: pointer;
+}
+
+.card-ghost:hover {
+  border-color: var(--accent);
+}
