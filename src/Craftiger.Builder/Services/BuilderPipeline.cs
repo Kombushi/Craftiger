@@ -34,11 +34,9 @@ public sealed class BuilderPipeline(
     IAtlasBuilder atlasBuilder,
     IPlannerRepository plannerRepository,
     IOptions<BuilderOptions> options,
-    IOptions<ErasConfiguration> eras,
     ILogger<BuilderPipeline> logger) : IBuilderPipeline
 {
     private readonly BuilderOptions _options = options.Value;
-    private readonly ErasConfiguration _eras = eras.Value;
 
     public int Run()
     {
