@@ -206,6 +206,11 @@ public static partial class FixtureDump
                 STEAM INTEGER, TIER INTEGER, ITEM_ID TEXT);
             CREATE TABLE GREG_TECH_COIL(ID TEXT, HEAT INTEGER, LEVEL TEXT, LEVEL_TIER INTEGER,
                 ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_COMBUSTION_ENGINE(ID TEXT, ADDITIVE_FACTOR INTEGER,
+                BOOST_FUEL_FACTOR INTEGER, EFFICIENCY_BOOSTED INTEGER, EFFICIENCY_UNBOOSTED INTEGER,
+                NOMINAL_OUTPUT INTEGER, BOOSTER_FLUID_ID TEXT, LUBRICANT_FLUID_ID TEXT, ITEM_ID TEXT);
+            CREATE TABLE GREG_TECH_REACTOR_MODE(ID TEXT, AMOUNT INTEGER, FACTOR INTEGER, KIND TEXT,
+                FLUID_ID TEXT, MACHINE_ID TEXT);
             CREATE TABLE GREG_TECH_TREE_FARM_TOOL(ID TEXT, MODE TEXT, MULTIPLIER INTEGER, ITEM_ID TEXT);
             CREATE TABLE MOB(ID TEXT, ARMOUR INTEGER, HEALTH REAL, HEIGHT REAL, IMAGE_FILE_PATH TEXT,
                 IMMUNE_TO_FIRE INTEGER, INTERNAL_NAME TEXT, LEASHABLE INTEGER, LOCALIZED_NAME TEXT,
@@ -380,6 +385,12 @@ public static partial class FixtureDump
                 id = $"gtmach~{itemId}", machineClass, tier, itemId,
                 multiblock = multiblock ? 1 : 0, steam = steam ? 1 : 0
             });
+
+    private static void ReactorMode(
+        SqliteConnection db, string machineId, string kind, string fluidId, int amount, int? factor) =>
+        db.Execute(
+            "INSERT INTO GREG_TECH_REACTOR_MODE(ID, AMOUNT, FACTOR, KIND, FLUID_ID, MACHINE_ID) VALUES (@id, @amount, @factor, @kind, @fluidId, @machineId)",
+            new { id = $"gtrmode~{machineId}~{kind}~{fluidId}", amount, factor, kind, fluidId, machineId });
 
     private static void Coil(SqliteConnection db, string itemId, string name, int heat, int levelTier) =>
         db.Execute(

@@ -14,6 +14,12 @@ public sealed class MachinePropsService(
 {
     private readonly MachineOverlayConfiguration _overlay = overlay.Value;
 
+    // Engine burn mechanics that hold for every pack: the booster gas burns at 2 L/t and
+    // lubricant at 1 L per 72 ticks, each times the engine's additive factor.
+    private const double TicksPerSecond = 20.0;
+    private const double BoosterLitersPerTick = 2;
+    private const double LubricantTicksPerLiter = 72;
+
     public MachinePropsData Run(
         Dump dump, UnifiedItems unified, IReadOnlyDictionary<string, int> era,
         IReadOnlyList<PlannerMachineItem> synthesized)
@@ -127,31 +133,25 @@ public sealed class MachinePropsService(
             }
             modes.Add(new PlannerGeneratorMode(itemId, kind, fluidId, perSecond, factor));
         }
-        foreach (var engine in _overlay.Engines.OrderBy(e => e.ItemId, StringComparer.Ordinal))
+        foreach (var engine in dump.Engines.OrderBy(e => e.ItemId, StringComparer.Ordinal))
         {
-            if (!Overlaid(engine.ItemId))
-            {
-                continue;
-            }
-            props[engine.ItemId] = Row(engine.ItemId) with { GeneratorEuT = engine.NominalEuT };
-            AddMode(engine.ItemId, "BOOSTER", engine.BoosterFluidId, engine.BoosterPerSecond, engine.BoostFactor);
-            AddMode(engine.ItemId, "LUBRICANT", engine.LubricantFluidId, engine.LubricantPerSecond, 1);
+            var itemId = unified.Canonical(engine.ItemId);
+            props[itemId] = Row(engine.ItemId) with { GeneratorEuT = engine.NominalOutput };
+            AddMode(
+                itemId, "BOOSTER", engine.BoosterFluidId,
+                TicksPerSecond * BoosterLitersPerTick * engine.AdditiveFactor,
+                (double)engine.EfficiencyBoosted / engine.EfficiencyUnboosted);
+            AddMode(
+                itemId, "LUBRICANT", engine.LubricantFluidId,
+                TicksPerSecond * engine.AdditiveFactor / LubricantTicksPerLiter, 1);
         }
-        foreach (var reactor in _overlay.Reactors.OrderBy(r => r.ItemId, StringComparer.Ordinal))
+        foreach (var mode in dump.ReactorModes
+            .OrderBy(m => m.MachineItemId, StringComparer.Ordinal)
+            .ThenBy(m => m.Kind, StringComparer.Ordinal)
+            .ThenBy(m => m.FluidId, StringComparer.Ordinal))
         {
-            if (!Overlaid(reactor.ItemId))
-            {
-                continue;
-            }
-            AddMode(reactor.ItemId, "UPKEEP", reactor.UpkeepFluidId, reactor.UpkeepPerSecond, 1);
-            foreach (var coolant in reactor.Coolants)
-            {
-                AddMode(reactor.ItemId, "COOLANT", coolant.FluidId, coolant.PerSecond, coolant.Factor);
-            }
-            foreach (var excited in reactor.ExcitedLiquids)
-            {
-                AddMode(reactor.ItemId, "EXCITED", excited.FluidId, excited.PerSecond, excited.Factor);
-            }
+            var factor = mode.Kind == "COOLANT" ? mode.Factor!.Value / 100.0 : mode.Factor ?? 1;
+            AddMode(unified.Canonical(mode.MachineItemId), mode.Kind, mode.FluidId, mode.AmountPerSecond, factor);
         }
 
         var rotors = new List<PlannerTurbineRotor>();

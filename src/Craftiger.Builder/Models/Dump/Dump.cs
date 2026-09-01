@@ -85,6 +85,10 @@ public sealed record Dump
 
     public required IReadOnlyList<DumpCoil> Coils { get; init; }
 
+    public required IReadOnlyList<DumpEngine> Engines { get; init; }
+
+    public required IReadOnlyList<DumpReactorMode> ReactorModes { get; init; }
+
     /// <summary>Distinct drops of soul-vial-capturable mobs: what an auto mob farm yields.</summary>
     public required IReadOnlyList<DumpMob> Mobs { get; init; }
 

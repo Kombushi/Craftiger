@@ -36,9 +36,22 @@ public static partial class FixtureDump
         Recipe(db, "r_fuel_timed", "rt~gregtech~gg.recipe.naquadah_reactor~ULV", inputs: [], outputs: [], label: "ULV", specialValue: 1600000, duration: 160, fluidInputs: [("g_naq_fuel", 0)]);
         FluidOutput(db, "r_fuel_timed", 1, "f~fixture_naq_depleted");
 
-        // The boosted-generator blocks and their overlay mode fluids, under the ids the shipped settings name.
+        // The boosted-generator blocks with their dump-exported constants and mode tables.
         Item(db, LargeNaquadahReactor, "Large Naquadah Reactor", "gregtech");
         Item(db, LargeCombustionEngine, "Large Combustion Engine", "gregtech");
+        db.Execute(
+            $"INSERT INTO GREG_TECH_COMBUSTION_ENGINE VALUES ('gteng~1', 1, 2, 30000, 10000, 2048, "
+            + $"'f~gregtech~oxygen', 'f~gregtech~lubricant', '{LargeCombustionEngine}')");
+        ReactorMode(db, LargeNaquadahReactor, "UPKEEP", "f~gregtech~liquidair", 2400, null);
+        ReactorMode(db, LargeNaquadahReactor, "COOLANT", "f~IC2~ic2coolant", 1000, 105);
+        ReactorMode(db, LargeNaquadahReactor, "COOLANT", "f~gregtech~supercoolant", 1000, 150);
+        ReactorMode(db, LargeNaquadahReactor, "COOLANT", "f~miscutils~cryotheum", 1000, 275);
+        ReactorMode(db, LargeNaquadahReactor, "COOLANT", "f~gregtech~temporalfluid", 20, 500);
+        ReactorMode(db, LargeNaquadahReactor, "EXCITED", "f~gregtech~molten.caesium", 180, 2);
+        ReactorMode(db, LargeNaquadahReactor, "EXCITED", "f~gregtech~molten.uranium235", 180, 3);
+        ReactorMode(db, LargeNaquadahReactor, "EXCITED", "f~gregtech~molten.naquadah", 20, 4);
+        ReactorMode(db, LargeNaquadahReactor, "EXCITED", "f~bartworks~molten.atomic separation catalyst", 20, 16);
+        ReactorMode(db, LargeNaquadahReactor, "EXCITED", "f~gregtech~spatialfluid", 20, 64);
         Fluid(db, "f~gregtech~oxygen", "oxygen", "Oxygen");
         Fluid(db, "f~gregtech~lubricant", "lubricant", "Lubricant");
         Fluid(db, "f~gregtech~liquidair", "liquidair", "Liquid Air");

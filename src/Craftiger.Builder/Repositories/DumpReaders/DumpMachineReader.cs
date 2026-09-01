@@ -18,7 +18,9 @@ public sealed class DumpMachineReader : IDumpMachineReader
             ReadMultiblockMachines(db),
             ReadTurbineRotors(db),
             ReadTreeFarmTools(db),
-            ReadCoils(db));
+            ReadCoils(db),
+            ReadEngines(db),
+            ReadReactorModes(db));
 
     /// <summary>A GregTech recipe type is named rt~gregtech~(recipe map)~(voltage).</summary>
     private static IReadOnlyDictionary<string, DumpRecipeMap> ReadRecipeMaps(SqliteConnection db)
@@ -64,6 +66,27 @@ public sealed class DumpMachineReader : IDumpMachineReader
             SELECT ITEM_ID, MACHINE_CLASS, TIER, MULTIBLOCK, STEAM FROM GREG_TECH_MACHINE
             """).Select(r => new DumpMachine(
             r.ItemId, r.MachineClass, r.Tier, r.Multiblock != 0, r.Steam != 0))];
+    }
+
+    private static List<DumpEngine> ReadEngines(SqliteConnection db)
+    {
+        DumpQueries.RequireMachineData(db, "GREG_TECH_COMBUSTION_ENGINE");
+        DumpQueries.RequireColumn(db, "GREG_TECH_COMBUSTION_ENGINE", "LUBRICANT_FLUID_ID");
+        return [.. db.Query<(string ItemId, long Nominal, string Booster, string Lubricant, long Additive, long EffUnboosted, long EffBoosted)>("""
+            SELECT ITEM_ID, NOMINAL_OUTPUT, BOOSTER_FLUID_ID, LUBRICANT_FLUID_ID,
+                ADDITIVE_FACTOR, EFFICIENCY_UNBOOSTED, EFFICIENCY_BOOSTED
+            FROM GREG_TECH_COMBUSTION_ENGINE
+            """).Select(r => new DumpEngine(
+            r.ItemId, (int)r.Nominal, r.Booster, r.Lubricant, (int)r.Additive,
+            (int)r.EffUnboosted, (int)r.EffBoosted))];
+    }
+
+    private static List<DumpReactorMode> ReadReactorModes(SqliteConnection db)
+    {
+        DumpQueries.RequireMachineData(db, "GREG_TECH_REACTOR_MODE");
+        return [.. db.Query<(string MachineId, string Kind, string FluidId, long Amount, int? Factor)>("""
+            SELECT MACHINE_ID, KIND, FLUID_ID, AMOUNT, FACTOR FROM GREG_TECH_REACTOR_MODE
+            """).Select(r => new DumpReactorMode(r.MachineId, r.Kind, r.FluidId, (int)r.Amount, r.Factor))];
     }
 
     private static List<DumpCoil> ReadCoils(SqliteConnection db)

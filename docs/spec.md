@@ -447,14 +447,18 @@ Builder responsibilities, in order:
   displayed number (220 for "220 % Speed"), `tier_axis` the scaling axis
   (`VOLTAGE`, `COIL`, …) of per-tier kinds
 - `generator_modes(item_id, kind, fluid_id, per_second, factor)` — the
-  consumable modes of the boosted generator multiblocks, from the builder's
-  curated overlay. A combustion engine (its nominal EU/t rides
+  consumable modes of the boosted generator multiblocks, from the dump's
+  engine and reactor exports (a reactor's COOLANT factor arrives as a
+  percentage and ships as the multiplier). A combustion engine (its nominal EU/t rides
   `machine_props.generator_eu_t`) carries a `BOOSTER` row (the gas that
   multiplies output by `factor` at `per_second` liters) and a `LUBRICANT`
   row (drain unboosted; boosting doubles it); a reactor carries an `UPKEEP`
   row (flat drain), `COOLANT` rows (each multiplies output alone by
   `factor`) and `EXCITED` rows (each multiplies output and fuel together).
-  Engine burn mechanics are GregTech code constants and live in the solver:
+  The BOOSTER rate is the builder's 2 L/t and the LUBRICANT rate its
+  1 L per 72 ticks, each times the engine's exported additive factor; the
+  boost factor is the ratio of the exported efficiencies. Engine burn
+  mechanics are GregTech code constants and live in the solver:
   fuel per tick is the nominal output over the fuel value in integer
   division, boosted burns double that plus a weighted expected top-up on
   fuels richer than the nominal output, which refuse to run unboosted;

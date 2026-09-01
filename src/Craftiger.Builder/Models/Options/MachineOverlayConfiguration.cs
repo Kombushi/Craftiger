@@ -11,10 +11,4 @@ public sealed record MachineOverlayConfiguration
 
     /// <summary>The GT++ steam multiblocks: eight parallels at 125 % speed and 62.5 % steam use, per their tooltips.</summary>
     public required IReadOnlyList<string> SteamMultiblocks { get; init; }
-
-    /// <summary>The oxygen-boostable combustion engine multiblocks with their source-pinned constants.</summary>
-    public IReadOnlyList<EngineOverlay> Engines { get; init; } = [];
-
-    /// <summary>The mode-driven reactor multiblocks with their pack-config consumable tables.</summary>
-    public IReadOnlyList<ReactorOverlay> Reactors { get; init; } = [];
 }

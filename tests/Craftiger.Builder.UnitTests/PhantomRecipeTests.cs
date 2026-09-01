@@ -69,7 +69,7 @@ public sealed class PhantomRecipeTests(PhantomRecipeFixture fixture) : IClassFix
     }
 
     [Fact]
-    public void GeneratorModesShipTheOverlayTables()
+    public void GeneratorModesShipTheDumpExports()
     {
         Assert.Equal(10, fixture.Scalar<int>(
             "SELECT COUNT(*) FROM generator_modes WHERE item_id = 'i~gregtech~gt.blockmachines~15537'"));

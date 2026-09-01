@@ -10,4 +10,6 @@ public sealed record DumpMachineSet(
     IReadOnlyList<DumpMultiblockMachine> MultiblockMachines,
     IReadOnlyList<DumpTurbineRotor> TurbineRotors,
     IReadOnlyList<DumpTreeFarmTool> TreeFarmTools,
-    IReadOnlyList<DumpCoil> Coils);
+    IReadOnlyList<DumpCoil> Coils,
+    IReadOnlyList<DumpEngine> Engines,
+    IReadOnlyList<DumpReactorMode> ReactorModes);
