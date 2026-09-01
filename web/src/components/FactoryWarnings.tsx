@@ -20,6 +20,7 @@ const messages: Record<string, (name: string) => string> = {
   step_illegal: (name) => `The step '${name}' is not legal in this garage — left out of the solve.`,
   step_variant_unknown: (name) =>
     `No buildable variant of '${name}' matches its lock — the lock was ignored.`,
+  supply_unknown: (name) => `The supply '${name}' names no item in this pack — left out of the solve.`,
 }
 
 /** Informational rather than alarming rows. */

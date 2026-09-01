@@ -25,8 +25,9 @@ public sealed record CombustionEngine(long NominalEuT, GeneratorMode Booster, Ge
         {
             return null;
         }
+        var fuelPerTick = NominalEuT / fuelValue;
         return new EngineBurn(
-            NominalEuT / fuelValue * Ticks.PerSecond, NominalEuT, Lubricant.PerSecond, 0);
+            fuelPerTick * Ticks.PerSecond, NominalEuT, Lubricant.PerSecond, 0);
     }
 
     /// <summary>The boosted burn: output times the boost factor, integer-division draw plus the expected weighted top-up, doubled lubricant.</summary>
@@ -37,7 +38,8 @@ public sealed record CombustionEngine(long NominalEuT, GeneratorMode Booster, Ge
         {
             return null;
         }
-        double perTick = BoostFuelFactor * NominalEuT / fuelValue;
+        var boostedDraw = BoostFuelFactor * NominalEuT / fuelValue;
+        double perTick = boostedDraw;
         var boostedFuelValue = (long)(fuelValue * 1.5);
         var boostedOutput = NominalEuT * Booster.Factor;
         if (boostedFuelValue * 2 > boostedOutput)

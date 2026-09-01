@@ -4,7 +4,6 @@ namespace Craftiger.Api.Models;
 public sealed record ArtifactItem(
     string Id,
     string Name,
-    string? Oredict,
     bool IsFluid,
     string? LeafClass,
     long AtlasIdx,

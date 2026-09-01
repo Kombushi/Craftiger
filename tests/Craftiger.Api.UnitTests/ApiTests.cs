@@ -10,7 +10,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     private HttpClient Client => fixture.Client;
 
-    private static readonly object _hvGarage = new
+    private static readonly object HvGarage = new
     {
         defaultTier = 3,
         coils = new Dictionary<string, string> { ["Electric Blast Furnace"] = "Kanthal" }
@@ -19,7 +19,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     private async Task<string> SolveAsync(object? garage = null, double b = 4)
     {
         var response = await Client.PostAsJsonAsync(
-            "/api/solve", new { garage = garage ?? _hvGarage, b });
+            "/api/solve", new { garage = garage ?? HvGarage, b });
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<SolveResponse>())!.SolveId;
     }
@@ -366,7 +366,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         var plan = await FactorySolveAsync(new
         {
-            garage = _hvGarage,
+            garage = HvGarage,
             b = 4,
             targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.6 } },
         });
@@ -389,7 +389,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         object Body(Dictionary<string, string>? pins = null, bool bredSeeds = false) => new
         {
-            garage = _hvGarage,
+            garage = HvGarage,
             b = 4,
             targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.6 } },
             pins,
@@ -409,10 +409,10 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     [Fact]
     public async Task AMalformedFactoryRequestIsRefused()
     {
-        var empty = await Client.PostAsJsonAsync("/api/factory/solve", new { garage = _hvGarage, b = 4 });
+        var empty = await Client.PostAsJsonAsync("/api/factory/solve", new { garage = HvGarage, b = 4 });
         var unknownKind = await Client.PostAsJsonAsync("/api/factory/solve", new
         {
-            garage = _hvGarage,
+            garage = HvGarage,
             b = 4,
             targets = new[] { new { kind = "conjure", itemId = "wire", rate = 1.0 } },
         });
@@ -426,7 +426,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         var plan = await FactorySolveAsync(new
         {
-            garage = _hvGarage,
+            garage = HvGarage,
             b = 4,
             targets = new[] { new { kind = "produce", itemId = "frame", rate = 1.0 } },
             steps = new[] { new { id = "r_frame_asm" } },
@@ -447,7 +447,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         object Body(Dictionary<string, string>? pins, object[]? steps) => new
         {
-            garage = _hvGarage,
+            garage = HvGarage,
             b = 4,
             targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.0 } },
             pins,
@@ -470,7 +470,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         var response = await Client.PostAsJsonAsync("/api/factory/solve", new
         {
-            garage = _hvGarage,
+            garage = HvGarage,
             b = 4,
             targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.0 } },
             steps = new[] { new { id = " " } },
@@ -484,7 +484,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         object Body(object[]? steps, string[]? supplies) => new
         {
-            garage = _hvGarage,
+            garage = HvGarage,
             b = 4,
             targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.0 } },
             steps,
@@ -507,7 +507,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         var response = await Client.PostAsJsonAsync("/api/factory/solve", new
         {
-            garage = _hvGarage,
+            garage = HvGarage,
             b = 4,
             targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.0 } },
             supplies = new[] { "" },
@@ -520,7 +520,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     public async Task TheProducerCatalogIncludesFarmRows()
     {
         var response = await Client.PostAsJsonAsync(
-            "/api/factory/producers", new { garage = _hvGarage, b = 4, itemId = "wire" });
+            "/api/factory/producers", new { garage = HvGarage, b = 4, itemId = "wire" });
         response.EnsureSuccessStatusCode();
         var detail = (await response.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
 
@@ -537,7 +537,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         // The fixture's one generator emits at LV; demanding HV export leaves nothing legal.
         var plan = await FactorySolveAsync(new
         {
-            garage = _hvGarage,
+            garage = HvGarage,
             b = 4,
             targets = new[] { new { kind = "energy", rate = 32.0, generatorTier = 3 } },
         });
@@ -549,7 +549,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     [Fact]
     public async Task TheGeneratorCatalogListsBuildableLines()
     {
-        var response = await Client.PostAsJsonAsync("/api/factory/generators", new { garage = _hvGarage, b = 4 });
+        var response = await Client.PostAsJsonAsync("/api/factory/generators", new { garage = HvGarage, b = 4 });
         response.EnsureSuccessStatusCode();
         var catalog = (await response.Content.ReadFromJsonAsync<GeneratorCatalogResponse>())!;
 

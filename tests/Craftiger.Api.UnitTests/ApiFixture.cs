@@ -14,21 +14,21 @@ namespace Craftiger.Api.UnitTests;
 /// <summary>Boots the API once over a hand-written artifact at the current schema.</summary>
 public sealed class ApiFixture : IDisposable
 {
-    public string Dir { get; }
-
     public HttpClient Client { get; }
 
     private readonly WebApplicationFactory<Program> _factory;
 
+    private readonly string _dir;
+
     public ApiFixture()
     {
-        Dir = Path.Combine(Path.GetTempPath(), "craftiger-api-tests-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(Dir);
+        _dir = Path.Combine(Path.GetTempPath(), "craftiger-api-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_dir);
         WriteArtifact(
-            Path.Combine(Dir, "planner.sqlite"),
+            Path.Combine(_dir, "planner.sqlite"),
             schemaVersion: PlannerArtifactRepository.SupportedSchemaVersion);
-        File.WriteAllText(Path.Combine(Dir, "atlas-offsets.json"), "{}");
-        _factory = Create(Dir);
+        File.WriteAllText(Path.Combine(_dir, "atlas-offsets.json"), "{}");
+        _factory = Create(_dir);
         Client = _factory.CreateClient();
     }
 
@@ -195,7 +195,7 @@ public sealed class ApiFixture : IDisposable
         SqliteConnection.ClearAllPools();
         try
         {
-            Directory.Delete(Dir, recursive: true);
+            Directory.Delete(_dir, recursive: true);
         }
         catch (IOException)
         {

@@ -12,8 +12,8 @@ const PRIORITIES: { value: string; label: string }[] = [
   { value: 'machines,energy,resource', label: 'machines → energy → resource' },
 ]
 
-/** The priority picker both rate tabs share. */
-export function PrioritySelect({
+/** The layer-priority picker of the factory targets. */
+function PrioritySelect({
   priority,
   setPriority,
 }: {

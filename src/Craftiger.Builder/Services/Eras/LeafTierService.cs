@@ -14,7 +14,7 @@ public sealed class LeafTierService(
     ILogger<LeafTierService> logger) : ILeafTierService
 {
     /// <summary>Leaf classes priced by production era rather than a flat weight.</summary>
-    private static readonly FrozenSet<string> _tieredClasses = FrozenSet.ToFrozenSet<string>(["ingot", "gem", "dust"]);
+    private static readonly FrozenSet<string> TieredClasses = FrozenSet.ToFrozenSet<string>(["ingot", "gem", "dust"]);
 
     private readonly CoilLadder _coils = new(eras.Value.Coils);
 
@@ -28,7 +28,7 @@ public sealed class LeafTierService(
         var tiers = new Dictionary<string, int>();
         foreach (var (id, leafClass) in leafClasses)
         {
-            if (_tieredClasses.Contains(leafClass) && table.TryGetEra(id, out var itemEra))
+            if (TieredClasses.Contains(leafClass) && table.TryGetEra(id, out var itemEra))
             {
                 tiers[id] = itemEra;
             }
@@ -62,7 +62,7 @@ public sealed class LeafTierService(
             var intrinsic = _coils.Floor(recipe.BestCaseTier, recipe.Heat);
             foreach (var output in recipe.Outputs)
             {
-                if (!_tieredClasses.Contains(leafClasses.GetValueOrDefault(output.ItemId) ?? "")
+                if (!TieredClasses.Contains(leafClasses.GetValueOrDefault(output.ItemId) ?? "")
                     || tiers.ContainsKey(output.ItemId))
                 {
                     continue;

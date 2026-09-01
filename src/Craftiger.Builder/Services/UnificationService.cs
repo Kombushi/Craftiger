@@ -6,7 +6,7 @@ namespace Craftiger.Builder.Services;
 
 public sealed class UnificationService : IUnificationService
 {
-    private static readonly string[] _leafPrefixes = ["ingot", "dustSmall", "dustTiny", "dust", "gem", "logWood", "block"];
+    private static readonly string[] LeafPrefixes = ["ingot", "dustSmall", "dustTiny", "dust", "gem", "logWood", "block"];
 
     public UnifiedItems Run(Dump dump)
     {
@@ -131,7 +131,6 @@ public sealed class UnificationService : IUnificationService
             CanonicalByRawId = canonicalByRawId,
             PrimaryOredictByCanonical = primaryOredict,
             AliasesByCanonical = aliases,
-            MembersByOredict = membersByOredict.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value),
             OredictsByCanonical = oredictsByCanonical,
             CanonicalByOredict = canonicalByOredict
         };
@@ -143,7 +142,7 @@ public sealed class UnificationService : IUnificationService
     {
         foreach (var unifiedOnly in new[] { true, false })
         {
-            foreach (var prefix in _leafPrefixes)
+            foreach (var prefix in LeafPrefixes)
             {
                 foreach (var name in oredicts)
                 {

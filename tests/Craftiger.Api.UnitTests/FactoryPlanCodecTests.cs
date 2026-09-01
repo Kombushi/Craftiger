@@ -32,7 +32,7 @@ public sealed class FactoryPlanCodecTests : IDisposable
         [new FactoryLine(
             "r_wire", "Wiremill", "wiremill-lv", 1.6, 2, 4, 0.5, false, false, 1.25, 640,
             [new FactoryLineFlow("ing", 1.6)], [new FactoryLineFlow("wire", 3.2)])],
-        [new FactoryItemFlow("wire", 1.6, 0, 0.4, 0, AutoInfinite: false)],
+        [new FactoryItemFlow("wire", 1.6, 0, 0.4, AutoInfinite: false)],
         [new FactoryInflow("ing", 0.8, 4, AutoInfinite: true)],
         [FactoryWarning.RoutesPruned(), FactoryWarning.InfeasibleItem("rod")],
         3.2, 640, 0, 0.5);

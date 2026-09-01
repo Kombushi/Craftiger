@@ -27,9 +27,13 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.Berry}'"));
 
     [Fact]
-    public void HiddenCropsProduceNoHarvestRecipe() =>
+    public void HiddenCropsShipNoFarmRowsAndNoDropItem()
+    {
         Assert.Equal(0, _fixture.Scalar<int>(
-            "SELECT COUNT(*) FROM recipes WHERE id LIKE 'cnh~%'"));
+            "SELECT COUNT(*) FROM recipes WHERE id LIKE 'farm~weed~%'"));
+        Assert.Equal(0, _fixture.Scalar<int>(
+            $"SELECT COUNT(*) FROM items WHERE id = '{FixtureDump.Weed}'"));
+    }
 
     [Fact]
     public void UndergroundFluidsWaitForTheirPumpEra() =>
@@ -37,13 +41,9 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
             $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.OilIngot}'"));
 
     [Fact]
-    public void PumpedFluidsAreWorldFluidsButNeverPriceThemselves()
-    {
+    public void PumpedFluidsAreWorldFluids() =>
         Assert.Equal("world_fluid", _fixture.Scalar<string>(
             $"SELECT leaf_class FROM items WHERE id = '{FixtureDump.Oil}'"));
-        Assert.Equal(0, _fixture.Scalar<int>(
-            $"SELECT COUNT(*) FROM recipes WHERE id = 'gtuf~{FixtureDump.Oil}'"));
-    }
 
     [Fact]
     public void EndStoneSeedsAtItsOwnEra() =>

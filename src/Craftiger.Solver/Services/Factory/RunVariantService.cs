@@ -30,7 +30,7 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
         var durationTicks = context.Recipes.DurationTicks[recipe];
         if (durationTicks == 0)
         {
-            return [RunVariant.Durationless(recipe)];
+            return [RunVariant.Durationless];
         }
 
         var multiBuilt = index.MultiTierOf(recipe) is not null && garage.HasBuilt(map);
@@ -85,7 +85,7 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
                     required = singleRequired;
                 }
                 AddOverclocks(
-                    variants, mode, recipe, block.ItemId, durationTicks, euPerTick,
+                    variants, mode, block.ItemId, durationTicks, euPerTick,
                     required, voltageTier - required, perfectSteps, heatEuFactor, block.Effects(coilTier, voltageTier));
             }
         }
@@ -94,7 +94,7 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
         {
             var required = multiBuilt ? multiRequired : singleRequired;
             AddOverclocks(
-                variants, mode, recipe, null, durationTicks, euPerTick,
+                variants, mode, null, durationTicks, euPerTick,
                 required, mapTier - required, perfectSteps, heatEuFactor, BlockEffects.Anonymous);
         }
 
@@ -114,7 +114,7 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
                 foreach (var steamItem in context.SteamItems())
                 {
                     variants.Add(new RunVariant(
-                        recipe, block.ItemId, 0, effects.Parallels, steamSeconds, 0,
+                        block.ItemId, 0, effects.Parallels, steamSeconds, 0,
                         effects.Estimated, steamItem, steamPerRun));
                 }
             }
@@ -126,7 +126,6 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
     private static void AddOverclocks(
         List<RunVariant> variants,
         OverclockMode mode,
-        int recipe,
         string? machineItemId,
         long durationTicks,
         long euPerTick,
@@ -147,13 +146,13 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
             variants.Add(mode switch
             {
                 OverclockMode.TreeFarm => new RunVariant(
-                    recipe, machineItemId, overclock.Steps, effects.Parallels,
+                    machineItemId, overclock.Steps, effects.Parallels,
                     baseSeconds, baseEu * overclock.PowerMultiplier, effects.Estimated,
                     OutputFactor: TreeFarmYield.Gain(requiredTier, requiredTier + overclock.Steps)),
                 OverclockMode.EntityCrusher => CrusherVariant(
-                    recipe, machineItemId, overclock.Steps, baseSeconds, baseEu, effects),
+                    machineItemId, overclock.Steps, baseSeconds, baseEu, effects),
                 _ => new RunVariant(
-                    recipe, machineItemId, overclock.Steps, effects.Parallels,
+                    machineItemId, overclock.Steps, effects.Parallels,
                     baseSeconds / overclock.DurationDivisor, baseEu * overclock.EuMultiplier, effects.Estimated),
             });
         }
@@ -161,7 +160,7 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
 
     /// <summary>Each crusher step quarters the duration; a step that would break the one-second floor quadruples outputs instead.</summary>
     private static RunVariant CrusherVariant(
-        int recipe, string? machineItemId, int steps, double baseSeconds, double baseEu, BlockEffects effects)
+        string? machineItemId, int steps, double baseSeconds, double baseEu, BlockEffects effects)
     {
         var seconds = baseSeconds;
         var outputFactor = 1.0;
@@ -177,7 +176,7 @@ public sealed class RunVariantService(IGarageLegalityService legality) : IRunVar
             }
         }
         return new RunVariant(
-            recipe, machineItemId, steps, effects.Parallels, seconds,
+            machineItemId, steps, effects.Parallels, seconds,
             baseEu * Math.Pow(4, steps), effects.Estimated, OutputFactor: outputFactor);
     }
 }

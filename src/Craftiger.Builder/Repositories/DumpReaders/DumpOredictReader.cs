@@ -22,14 +22,13 @@ public sealed class DumpOredictReader : IDumpOredictReader
             """SELECT ITEM_ID FROM GREG_TECH_UNIFICATION_BLACKLIST""").ToHashSet();
 
         DumpQueries.RequireTable(db, "GREG_TECH_ORE_PREFIX", "0.6.3");
-        var orePrefixes = db.Query<(string Name, bool Unifiable, bool SelfReferencing, bool MaterialBased,
-            bool Container, bool Recyclable, long MaterialAmount)>("""
-            SELECT NAME, UNIFIABLE, SELF_REFERENCING, MATERIAL_BASED, CONTAINER, RECYCLABLE, MATERIAL_AMOUNT
+        var orePrefixes = db.Query<(string Name, bool Unifiable, bool MaterialBased,
+            bool Container, long MaterialAmount)>("""
+            SELECT NAME, UNIFIABLE, MATERIAL_BASED, CONTAINER, MATERIAL_AMOUNT
             FROM GREG_TECH_ORE_PREFIX
             """)
             .ToDictionary(r => r.Name, r => new DumpOrePrefix(
-                r.Name, r.Unifiable, r.SelfReferencing, r.MaterialBased, r.Container, r.Recyclable,
-                r.MaterialAmount));
+                r.Name, r.Unifiable, r.MaterialBased, r.Container, r.MaterialAmount));
 
         DumpQueries.RequireTable(db, "ITEM_CONTAINER", "0.6.4");
         var itemContainers = db.Query<(string ItemId, string ContainerId)>(
@@ -37,20 +36,20 @@ public sealed class DumpOredictReader : IDumpOredictReader
             .ToDictionary(r => r.ItemId, r => r.ContainerId);
 
         DumpQueries.RequireTable(db, "GREG_TECH_ITEM_DATA", "0.6.4");
-        var itemDataByproducts = new Dictionary<string, List<DumpMaterialAmount>>();
-        foreach (var (dataId, material, amount) in db.Query<(string, string, long)>("""
-            SELECT GREG_TECH_ITEM_DATA_ID, BY_PRODUCTS_MATERIAL_NAME, BY_PRODUCTS_AMOUNT
+        var itemDataByproducts = new Dictionary<string, List<long>>();
+        foreach (var (dataId, amount) in db.Query<(string, long)>("""
+            SELECT GREG_TECH_ITEM_DATA_ID, BY_PRODUCTS_AMOUNT
             FROM GREG_TECH_ITEM_DATA_BY_PRODUCTS WHERE BY_PRODUCTS_MATERIAL_NAME IS NOT NULL
             """))
         {
-            DumpQueries.Add(itemDataByproducts, dataId, new DumpMaterialAmount(material, amount));
+            DumpQueries.Add(itemDataByproducts, dataId, amount);
         }
-        var itemData = db.Query<(string Id, string ItemId, string? Prefix, string Material, long Amount)>("""
-            SELECT ID, ITEM_ID, PREFIX_NAME, MATERIAL_NAME, MATERIAL_AMOUNT
+        var itemData = db.Query<(string Id, string ItemId, string? Prefix, long Amount)>("""
+            SELECT ID, ITEM_ID, PREFIX_NAME, MATERIAL_AMOUNT
             FROM GREG_TECH_ITEM_DATA WHERE MATERIAL_NAME IS NOT NULL
             """)
             .Select(r => new DumpItemData(
-                r.ItemId, r.Prefix, r.Material, r.Amount,
+                r.ItemId, r.Prefix, r.Amount,
                 itemDataByproducts.GetValueOrDefault(r.Id) ?? []))
             .ToList();
 

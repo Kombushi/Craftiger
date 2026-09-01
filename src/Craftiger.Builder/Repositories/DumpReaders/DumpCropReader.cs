@@ -33,12 +33,12 @@ public sealed class DumpCropReader(ILogger<DumpCropReader> logger) : IDumpCropRe
             DumpQueries.Add(cropUnderBlocks, cropId, itemId);
         }
         var crops = new List<DumpCrop>();
-        foreach (var r in db.Query<(string Id, string CropId, string Name, string? SeedId, long Hidden, long Tier, long GrowthDuration, double DropChance, long MinSeedBed)>("""
-            SELECT ID, CROP_ID, NAME, SEED_ID, HIDDEN, TIER, GROWTH_DURATION, CAST(DROP_CHANCE AS REAL), MIN_SEED_BED_TIER FROM CROPS_NH_CROP
+        foreach (var r in db.Query<(string Id, string? SeedId, long Hidden, long Tier, long GrowthDuration, double DropChance, long MinSeedBed)>("""
+            SELECT ID, SEED_ID, HIDDEN, TIER, GROWTH_DURATION, CAST(DROP_CHANCE AS REAL), MIN_SEED_BED_TIER FROM CROPS_NH_CROP
             """))
         {
             crops.Add(new DumpCrop(
-                r.Id, r.CropId, r.Name, r.SeedId, r.Hidden != 0,
+                r.Id, r.SeedId, r.Hidden != 0,
                 (int)r.Tier, r.GrowthDuration, r.DropChance, (int)r.MinSeedBed,
                 cropDrops.GetValueOrDefault(r.Id) ?? [],
                 cropUnderBlocks.GetValueOrDefault(r.Id) ?? []));

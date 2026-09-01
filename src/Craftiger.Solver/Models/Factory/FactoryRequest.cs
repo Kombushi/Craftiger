@@ -15,10 +15,10 @@ public sealed record FactoryRequest(
 {
     public bool IsPipeline => Steps is { Count: > 0 } || Supplies is { Count: > 0 };
 
-    private static readonly IReadOnlyList<FactoryObjective> _defaultPriority = [FactoryObjective.Resource, FactoryObjective.Energy, FactoryObjective.Machines];
+    private static readonly IReadOnlyList<FactoryObjective> DefaultPriority = [FactoryObjective.Resource, FactoryObjective.Energy, FactoryObjective.Machines];
 
     /// <summary>The layers in the order they run, duplicates dropped.</summary>
-    public IReadOnlyList<FactoryObjective> Layers => Priority.Count > 0 ? Priority.Distinct().ToList() : _defaultPriority;
+    public IReadOnlyList<FactoryObjective> Layers => Priority.Count > 0 ? Priority.Distinct().ToList() : DefaultPriority;
 
     /// <summary>Whether the request's toggles admit a recipe scope.</summary>
     public bool Admits(RecipeScope scope) => scope switch

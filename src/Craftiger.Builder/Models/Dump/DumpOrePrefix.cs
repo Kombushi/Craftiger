@@ -4,10 +4,8 @@ namespace Craftiger.Builder.Models.Dump;
 public sealed record DumpOrePrefix(
     string Name,
     bool Unifiable,
-    bool SelfReferencing,
     bool MaterialBased,
     bool Container,
-    bool Recyclable,
     long MaterialAmount)
 {
     /// <summary>A shape's whole substance is its material; containers hold theirs inside something else.</summary>

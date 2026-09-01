@@ -22,9 +22,9 @@ internal static class FactoryHarness
         LeafClassPriority = ["ingot", "gem", "dust", "nugget", "dust_small", "dust_tiny"],
     };
 
-    public static HighsLinearProgramSolver Highs(HighsOptions? options = null)
+    public static HighsLinearProgramSolver Highs()
     {
-        var highsOptions = Options.Create(options ?? new HighsOptions());
+        var highsOptions = Options.Create(new HighsOptions());
         return new(new HighsModelLoader(highsOptions), new LexicographicLayerRunner(highsOptions), highsOptions);
     }
 

@@ -79,7 +79,7 @@ public sealed class GeneratorCatalogService(IOptions<FactorySolverOptions> optio
         CombustionEngine engine,
         double fuelValue)
     {
-        foreach (var (burn, variant) in new[] { (engine.Base(fuelValue), (string?)null), (engine.Boosted(fuelValue), "boost") })
+        foreach (var (burn, variant) in new[] { (engine.Base(fuelValue), null), (engine.Boosted(fuelValue), "boost") })
         {
             if (burn is null || context.Machines.BestHatch(context.Garage, block, burn.RawEuT) is not { } hatch
                 || hatch.NetEuT <= 0)

@@ -62,7 +62,7 @@ export const list = (solveId: string, page: number, pageSize: number, hideUnreac
 export const itemDetail = (itemId: string, solveId: string) =>
   request<ItemDetail>(`/api/item/${encodeURIComponent(itemId)}?solveId=${solveId}`)
 
-export const machinesFor = (targetIds: string[], deep = false) =>
+export const machinesFor = (targetIds: string[], deep: boolean) =>
   request<string[]>(
     `/api/machines?targets=${encodeURIComponent(targetIds.join(','))}${deep ? '&deep=true' : ''}`,
   )

@@ -11,7 +11,7 @@ public static class TierLadder
         "UV", "UHV", "UEV", "UIV", "UMV", "UXV", "MAX"
     ];
 
-    private static readonly FrozenDictionary<string, int> _labelTiers = new Dictionary<string, int>
+    private static readonly FrozenDictionary<string, int> LabelTiers = new Dictionary<string, int>
     {
         ["ULV"] = 1, ["LV"] = 1, ["MV"] = 2, ["HV"] = 3, ["EV"] = 4, ["IV"] = 5,
         ["LuV"] = 6, ["ZPM"] = 7, ["UV"] = 8, ["UHV"] = 9, ["UEV"] = 10,
@@ -20,7 +20,7 @@ public static class TierLadder
 
     /// <summary>GT's own per-recipe tier label; it already accounts for machine amperage.</summary>
     public static int? LabelTier(string? label) =>
-        label is not null && _labelTiers.TryGetValue(label, out var tier) ? tier : null;
+        label is not null && LabelTiers.TryGetValue(label, out var tier) ? tier : null;
 
     /// <summary>EU/t per amp a tier's machines run at; Steam machines draw no EU.</summary>
     public static long Voltage(int tier) => tier <= 0 ? 0 : 32L << (2 * (tier - 1));

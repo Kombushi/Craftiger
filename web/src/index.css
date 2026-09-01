@@ -1491,13 +1491,6 @@ a:focus-visible {
   flex-wrap: wrap;
 }
 
-.step-machine {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--dim);
-}
 
 .step-oc {
   display: inline-flex;

@@ -45,11 +45,11 @@ public sealed class PlannerArtifactRepository(
             .ToDictionary(group => group.Key, group => group.Select(row => row.Alias).ToList());
 
         var items = db.Query<ItemRow>(
-                "SELECT id, name_en AS Name, oredict, is_fluid AS IsFluid, leaf_class AS LeafClass, atlas_idx AS AtlasIdx, max_stack AS MaxStack FROM items")
+                "SELECT id, name_en AS Name, is_fluid AS IsFluid, leaf_class AS LeafClass, atlas_idx AS AtlasIdx, max_stack AS MaxStack FROM items")
             .ToDictionary(
                 row => row.Id,
                 row => new ArtifactItem(
-                    row.Id, row.Name, row.Oredict, row.IsFluid != 0, row.LeafClass, row.AtlasIdx, (int?)row.MaxStack,
+                    row.Id, row.Name, row.IsFluid != 0, row.LeafClass, row.AtlasIdx, (int?)row.MaxStack,
                     aliases.TryGetValue(row.Id, out var names)
                         ? [.. names.Where(name => name != row.Name).Distinct().Order(StringComparer.Ordinal)]
                         : []));

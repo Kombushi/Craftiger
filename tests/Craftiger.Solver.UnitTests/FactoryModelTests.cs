@@ -329,7 +329,7 @@ public class FactoryModelTests
 
         var program = lp.Program!;
         // The consumed item's balance is an equality; the supply column is capped at the rate.
-        var supplyColumn = program.Columns.Single(c => c.Upper == 2);
+        var supplyColumn = program.Columns.Single(c => c.Upper.Equals(2.0));
         var supplyRow = Assert.Single(supplyColumn.Entries);
         Assert.Equal(1, supplyRow.Value);
         Assert.Equal(0, program.Rows[supplyRow.Index].Lower);
@@ -419,7 +419,7 @@ public class FactoryModelTests
         Assert.Equal([5.0, 10.0, 5.0], machinesLayer.Select(e => e.Value));
         var steamDraws = program.Columns
             .SelectMany(c => c.Entries)
-            .Where(e => e.Value == -12000)
+            .Where(e => e.Value.Equals(-12000.0))
             .Count();
         Assert.Equal(2, steamDraws);
         // The energy layer is carrier-neutral: the electric variant at 100 t x 30 EU/t, and each steam variant at 12,000 L x 0.5 EU, all over 1000.

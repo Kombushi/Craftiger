@@ -20,7 +20,7 @@ public sealed record ItemDataIndex
         {
             return null;
         }
-        return row.Amount + row.Byproducts.Where(b => b.Amount > 0).Sum(b => b.Amount);
+        return row.Amount + row.Byproducts.Where(b => b > 0).Sum();
     }
 
     /// <summary>The ore prefix GT assigns the item, for shapes whose oredict never got registered.</summary>

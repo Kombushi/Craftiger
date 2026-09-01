@@ -131,6 +131,6 @@ public sealed class FactorySolverService(
             }
             recipes.Add(recipe);
         }
-        return (new CandidateSet([.. recipes.Order()], new HashSet<int>(), Pruned: false), lineIds);
+        return (new CandidateSet([.. recipes.Order()], Pruned: false), lineIds);
     }
 }

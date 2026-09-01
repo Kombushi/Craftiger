@@ -9,14 +9,11 @@ interface Props {
   plan: FactoryResponse
   unit: RateUnit
   setUnit: (unit: RateUnit) => void
-  /** Where an inflow slot leads; the Planner opens its add-step picker, the default is item detail. */
-  onInflowClick?: (itemId: string) => void
 }
 
 /** The solved-plan sections both rate tabs share: totals, entering streams, surplus, and the flow graph. */
-export function PlanResults({ plan, unit, setUnit, onInflowClick }: Props) {
+export function PlanResults({ plan, unit, setUnit }: Props) {
   const { openDetail } = useStore()
-  const inflowClick = onInflowClick ?? openDetail
   const machineCount = plan.lines.reduce((sum, line) => sum + Math.ceil(line.busyMachines), 0)
   const assumed = plan.lines.filter((line) => estimateNote(line) !== null).length
   const surplus = plan.flows
@@ -89,7 +86,7 @@ export function PlanResults({ plan, unit, setUnit, onInflowClick }: Props) {
                         : `${fmtCost(inflow.weight)} each`,
                     ],
                   }}
-                  onClick={() => inflowClick(inflow.itemId)}
+                  onClick={() => openDetail(inflow.itemId)}
                 />
               )
             })}

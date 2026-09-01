@@ -20,7 +20,7 @@ import { SidebarLayout } from './SidebarLayout'
 type Picker =
   | { kind: 'create'; screen: { x: number; y: number }; grid: { x: number; y: number } }
   | { kind: 'item'; choice: AddNodeChoice; grid: { x: number; y: number } }
-  | { kind: 'menu'; item: AddNodeItem; allow: AddNodeChoice[]; fromGhost: boolean }
+  | { kind: 'menu'; item: AddNodeItem; allow: AddNodeChoice[] }
   | { kind: 'recipe'; itemId: string; position: { x: number; y: number } | null }
   | { kind: 'generator' }
   | null
@@ -105,7 +105,6 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
       kind: 'menu',
       item: { itemId, name: item?.name ?? itemId, atlasIdx: item?.atlasIdx ?? -1 },
       allow: ['input', 'step'],
-      fromGhost: true,
     })
   }
 
@@ -115,7 +114,6 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
       kind: 'menu',
       item: { itemId, name: item?.name ?? itemId, atlasIdx: item?.atlasIdx ?? -1 },
       allow: ['output'],
-      fromGhost: true,
     })
   }
 
@@ -238,7 +236,7 @@ export function PlannerPage({ sidebarHidden }: { sidebarHidden: boolean }) {
             place(
               choice,
               picker.item,
-              picker.fromGhost && choice !== 'output' ? producerSpot(picker.item.itemId) : null,
+              choice !== 'output' ? producerSpot(picker.item.itemId) : null,
             )
           }
           onClose={() => setPicker(null)}

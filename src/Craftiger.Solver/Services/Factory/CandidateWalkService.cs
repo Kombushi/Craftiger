@@ -2,7 +2,6 @@ using Craftiger.Solver.Interfaces.Costs;
 using Craftiger.Solver.Interfaces.Factory;
 using Craftiger.Solver.Models.Costs;
 using Craftiger.Solver.Models.Factory;
-using Craftiger.Solver.Models.Graph;
 using Craftiger.Solver.Models.Options;
 using Microsoft.Extensions.Options;
 
@@ -49,7 +48,6 @@ public sealed class CandidateWalkService(IGarageLegalityService legality, IOptio
 
         // Supplied items are free to their consumers: the cost engine cannot price them, but a consume target delivers them at no cost.
         var supplied = consumed.ToHashSet();
-        var cone = new HashSet<int>();
         var pending = new Stack<int>();
         var downSeen = new HashSet<int>();
         var downPending = new Stack<int>(supplied);
@@ -66,7 +64,6 @@ public sealed class CandidateWalkService(IGarageLegalityService legality, IOptio
                 {
                     continue;
                 }
-                cone.Add(recipe);
                 for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
                 {
                     downPending.Push(index.OutputItem[o]);
@@ -102,7 +99,7 @@ public sealed class CandidateWalkService(IGarageLegalityService legality, IOptio
                 }
             }
         }
-        return new CandidateSet([.. candidates.Order()], cone, rejected.Count > 0);
+        return new CandidateSet([.. candidates.Order()], rejected.Count > 0);
     }
 
     /// <summary>Whether some output of the recipe prices within the band of its solved cost, the free items costing nothing.</summary>

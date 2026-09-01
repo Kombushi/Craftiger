@@ -5,7 +5,7 @@ export const SLOT_GAP = 4
 export const PAD = 10
 export const HEADER = 30
 export const FOOTER = 22
-export const ARROW = 26
+const ARROW = 26
 const LAYER_GAP = 80
 const CARD_GAP = 26
 export const LEAF_W = 200
@@ -69,13 +69,13 @@ export interface ChainLayout {
 export type ChainOrientation = 'horizontal' | 'vertical'
 
 /** A seed node shares its item with a loop member, so its card needs its own key. */
-export function nodeKey(node: BomNode): string {
+function nodeKey(node: BomNode): string {
   return node.seed ? `${node.itemId}#seed` : node.itemId
 }
 
 /** The crafting grid a shaped recipe draws its inputs on. */
-export const GRID_COLUMNS = 3
-export const GRID_ROWS = 3
+const GRID_COLUMNS = 3
+const GRID_ROWS = 3
 
 /** Slots a shaped recipe's grid does not place — a fluid split from a bucket — render under it. */
 export function gridExtras(node: BomNode): number[] {
@@ -93,7 +93,7 @@ export function gridExtras(node: BomNode): number[] {
   return extras
 }
 
-export function inputColumns(node: BomNode): number {
+function inputColumns(node: BomNode): number {
   const count = node.inputsPerRun.length + node.catalysts.length
   if (count === 0) {
     return 1
@@ -110,7 +110,7 @@ function inputRows(node: BomNode): number {
 
 /** Where a slot sits in the card's input area: its first grid cell on a shaped recipe (or the
  * rows under the grid for a slot the grid does not place), its running position otherwise. */
-export function slotPosition(node: BomNode, slot: number): { row: number; column: number } {
+function slotPosition(node: BomNode, slot: number): { row: number; column: number } {
   const columns = inputColumns(node)
   if (node.grid !== null) {
     const cell = node.grid.indexOf(slot)
@@ -123,7 +123,7 @@ export function slotPosition(node: BomNode, slot: number): { row: number; column
   return { row: Math.floor(slot / columns), column: slot % columns }
 }
 
-export function outputColumns(node: BomNode): number {
+function outputColumns(node: BomNode): number {
   return Math.min(2, Math.max(1, node.outputs.length))
 }
 
@@ -132,7 +132,7 @@ export function slotGridWidth(columns: number): number {
 }
 
 /** Narrow cards still fit their machine name in the header strip. */
-export const MIN_RECIPE_W = 210
+const MIN_RECIPE_W = 210
 
 /** The card size for a body of input and output slot grids under a header and over a footer. */
 export function bodySize(inCols: number, inRows: number, outCols: number, outRows: number): { w: number; h: number } {

@@ -1,7 +1,6 @@
 using Craftiger.Solver.Interfaces.Costs;
 using Craftiger.Solver.Interfaces.Factory;
 using Craftiger.Solver.Models.Factory;
-using Craftiger.Solver.Models.Graph;
 
 namespace Craftiger.Solver.Services.Factory;
 
@@ -16,7 +15,7 @@ public sealed class AutoInfiniteService(IGarageLegalityService legality) : IAuto
         var satisfied = new bool[index.SlotStart[index.RecipeCount]];
         var queue = new Queue<int>();
 
-        void Reach(int item)
+        void Mark(int item)
         {
             if (!infinite[item])
             {
@@ -29,7 +28,7 @@ public sealed class AutoInfiniteService(IGarageLegalityService legality) : IAuto
         {
             for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
             {
-                Reach(index.OutputItem[o]);
+                Mark(index.OutputItem[o]);
             }
         }
 
@@ -49,7 +48,7 @@ public sealed class AutoInfiniteService(IGarageLegalityService legality) : IAuto
         }
         foreach (var seed in seedItems)
         {
-            Reach(seed);
+            Mark(seed);
         }
 
         while (queue.TryDequeue(out var item))

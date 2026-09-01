@@ -14,10 +14,10 @@ import {
 import { condense } from './factoryLayout'
 import type { FactoryLine, FactoryLineFlow, FactoryResponse, PlannerNode } from './types'
 
-export const IO_W = 250
-export const IO_H = 96
-export const ENERGY_W = 270
-export const GRID_SNAP = 20
+const IO_W = 250
+const IO_H = 96
+const ENERGY_W = 270
+const GRID_SNAP = 20
 /** The strip of per-step controls (lock, overclock, remove) under a step card's body. */
 export const STEP_CONTROLS = 28
 const GHOST_GAP = 90
@@ -25,12 +25,10 @@ const GHOST_STACK = 14
 
 /** A step's plan lines folded into one card: dominant variant identity, summed machines and flows. */
 export interface MergedLine {
-  machine: string
   machineItemId: string | null
   ocSteps: number
   parallels: number
   busyMachines: number
-  runsPerSecond: number
   durationSeconds: number
   euTPerMachine: number
   durationless: boolean
@@ -95,12 +93,10 @@ function mergeLines(lines: FactoryLine[]): MergedLine | null {
     return [...byItem].map(([itemId, perSecond]) => ({ itemId, perSecond }))
   }
   return {
-    machine: dominant.machine,
     machineItemId: dominant.machineItemId,
     ocSteps: dominant.ocSteps,
     parallels: dominant.parallels,
     busyMachines: lines.reduce((sum, line) => sum + line.busyMachines, 0),
-    runsPerSecond: lines.reduce((sum, line) => sum + line.runsPerSecond, 0),
     durationSeconds: dominant.durationSeconds,
     euTPerMachine: dominant.euTPerMachine,
     durationless: dominant.durationless,

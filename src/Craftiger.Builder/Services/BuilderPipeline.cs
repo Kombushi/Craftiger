@@ -74,12 +74,13 @@ public sealed class BuilderPipeline(
         itemIds.UnionWith(fuelData.Fuels.Select(fuel => fuel.ItemId));
         itemIds.UnionWith(fuelData.BoilerFuels.Select(fuel => fuel.ItemId));
         var produced = CollectProducedIds(solverRecipes);
-        var leafClasses = Stage("tag leaves", () => leafTagging.Run(itemIds, produced, dump, unified));
-        logger.LogInformation("  {Leaves:N0} leaves among {Items:N0} items", leafClasses.Count, itemIds.Count);
+        var taggedLeaves = Stage("tag leaves", () => leafTagging.Run(itemIds, produced, dump, unified));
+        logger.LogInformation("  {Leaves:N0} leaves among {Items:N0} items", taggedLeaves.Count, itemIds.Count);
 
         var worldgen = Stage("resolve worldgen eras", () => worldgenEras.Run(dump, unified));
         recipes.AddRange(Stage("pump fluids", () => undergroundFluid.Run(dump, unified, worldgen)));
-        var steam = Stage("synthesize steam", () => steamSynthesis.Run(dump, unified, fuelData.BoilerFuels));
+        var boilerFuels = fuelData.BoilerFuels;
+        var steam = Stage("synthesize steam", () => steamSynthesis.Run(dump, unified, boilerFuels));
         recipes.AddRange(steam.Recipes);
         solverRecipes.AddRange(steam.Recipes);
         itemIds.UnionWith(CollectItemIds(steam.Recipes));
@@ -94,7 +95,7 @@ public sealed class BuilderPipeline(
         itemIds.UnionWith(CollectItemIds(farms.Recipes));
         itemIds.UnionWith(CollectItemIds(mobs.Recipes));
 
-        var eraSolve = Stage("solve eras", () => eraSolveService.Run(recipes, leafClasses, unified, dump, worldgen));
+        var eraSolve = Stage("solve eras", () => eraSolveService.Run(recipes, taggedLeaves, unified, dump, worldgen));
         logger.LogInformation("  {Materials:N0} materials tiered", eraSolve.Tiers.Count);
 
         var machineProps = Stage(
@@ -106,7 +107,7 @@ public sealed class BuilderPipeline(
         itemIds.UnionWith(machineProps.Rotors.Select(r => r.ItemId));
 
         // Only now are tiers known, so only now can an unpriceable leaf be told apart.
-        leafClasses = leafTagging.Prune(leafClasses, eraSolve.Tiers, unified, dump);
+        var leafClasses = leafTagging.Prune(taggedLeaves, eraSolve.Tiers, unified, dump);
         logger.LogInformation("  {Leaves:N0} leaves kept", leafClasses.Count);
         var itemParents = leafTagging.Parents(leafClasses, eraSolve.Tiers, unified, dump);
 

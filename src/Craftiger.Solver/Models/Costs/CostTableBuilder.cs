@@ -7,7 +7,7 @@ public sealed class CostTableBuilder
 {
     private readonly double[] _cost;
     private readonly int[] _best;
-    private readonly ushort[][] _chosen;
+    private readonly ushort[]?[] _chosen;
     private readonly List<int> _won = [];
     private readonly ushort[] _scratch;
 
@@ -83,11 +83,12 @@ public sealed class CostTableBuilder
     /// <summary>Keeps the item's picks in its own buffer, grown only when a wider recipe wins.</summary>
     private void Record(int item, ReadOnlySpan<ushort> picks)
     {
-        if (_chosen[item] is null || _chosen[item].Length < picks.Length)
+        var buffer = _chosen[item];
+        if (buffer is null || buffer.Length < picks.Length)
         {
-            _chosen[item] = new ushort[picks.Length];
+            _chosen[item] = buffer = new ushort[picks.Length];
         }
-        picks.CopyTo(_chosen[item]);
+        picks.CopyTo(buffer);
     }
 
     /// <summary>Packs the per-item pick buffers into one compressed row array; cost and pointer arrays are handed over as they are.</summary>
@@ -103,7 +104,7 @@ public sealed class CostTableBuilder
         var picks = new ushort[total];
         foreach (var item in _won)
         {
-            Array.Copy(_chosen[item], 0, picks, pickStart[item], Index.SlotCount(_best[item]));
+            Array.Copy(_chosen[item]!, 0, picks, pickStart[item], Index.SlotCount(_best[item]));
         }
         return new CostTable(Index, _cost, _best, pickStart, picks, converged);
     }

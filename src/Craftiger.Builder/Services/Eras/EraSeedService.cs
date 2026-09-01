@@ -15,7 +15,7 @@ public sealed class EraSeedService(
     IOptions<ErasConfiguration> eras,
     ILogger<EraSeedService> logger) : IEraSeedService
 {
-    private static readonly FrozenSet<string> _worldOriginClasses = FrozenSet.ToFrozenSet<string>(["minable_block", "farmable", "log"]);
+    private static readonly FrozenSet<string> WorldOriginClasses = FrozenSet.ToFrozenSet<string>(["minable_block", "farmable", "log"]);
 
     private readonly WorldConfiguration _world = world.Value;
     private readonly ErasConfiguration _eras = eras.Value;
@@ -31,7 +31,7 @@ public sealed class EraSeedService(
             {
                 table.Seed(id, MinableEra(id, unified));
             }
-            else if (_worldOriginClasses.Contains(leafClass))
+            else if (WorldOriginClasses.Contains(leafClass))
             {
                 table.Seed(id, 0);
             }

@@ -40,7 +40,7 @@ public sealed class DumpRecipeReader(ILogger<DumpRecipeReader> logger) : IDumpRe
             """))
         {
             gt[r.Id] = new DumpGtData(
-                r.Id, r.Voltage, r.Amperage, r.Duration, (int?)r.Heat, r.TierLabel,
+                r.Voltage, r.Amperage, r.Duration, (int?)r.Heat, r.TierLabel,
                 r.Cleanroom is not (null or 0), r.LowGravity is not (null or 0),
                 r.SpecialValue, r.AdditionalInfo, r.Category ?? "", r.SpecialItemId);
         }
@@ -70,7 +70,7 @@ public sealed class DumpRecipeReader(ILogger<DumpRecipeReader> logger) : IDumpRe
             FROM RECIPE_ITEM_OUTPUTS WHERE ITEM_OUTPUTS_VALUE_ITEM_ID IS NOT NULL
             """))
         {
-            DumpQueries.Add(itemOutputs, r.RecipeId, new DumpItemOutput(r.RecipeId, r.ItemId, r.Size, r.Chance ?? 1.0, r.Slot ?? 0));
+            DumpQueries.Add(itemOutputs, r.RecipeId, new DumpItemOutput(r.ItemId, r.Size, r.Chance ?? 1.0, r.Slot ?? 0));
         }
 
         var fluidGroupStacks = new Dictionary<string, List<DumpFluidStack>>();
@@ -86,7 +86,7 @@ public sealed class DumpRecipeReader(ILogger<DumpRecipeReader> logger) : IDumpRe
         {
             if (fluidGroupStacks.TryGetValue(groupId, out var members))
             {
-                DumpQueries.Add(fluidInputs, recipeId, new DumpFluidInput(recipeId, members));
+                DumpQueries.Add(fluidInputs, recipeId, new DumpFluidInput(members));
             }
         }
 
@@ -96,7 +96,7 @@ public sealed class DumpRecipeReader(ILogger<DumpRecipeReader> logger) : IDumpRe
             FROM RECIPE_FLUID_OUTPUTS WHERE FLUID_OUTPUTS_VALUE_FLUID_ID IS NOT NULL
             """))
         {
-            DumpQueries.Add(fluidOutputs, r.RecipeId, new DumpFluidOutput(r.RecipeId, r.FluidId, r.Amount, r.Chance ?? 1.0));
+            DumpQueries.Add(fluidOutputs, r.RecipeId, new DumpFluidOutput(r.FluidId, r.Amount, r.Chance ?? 1.0));
         }
 
         var containers = new Dictionary<string, DumpContainer>();

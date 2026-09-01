@@ -12,7 +12,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
     : ILeafTaggingService
 {
     /// <summary>Material leaf classes keyed by the oredict's exact GT prefix; intermediates are distinct prefixes and never match.</summary>
-    private static readonly FrozenDictionary<string, string> _classByPrefix = new Dictionary<string, string>
+    private static readonly FrozenDictionary<string, string> ClassByPrefix = new Dictionary<string, string>
     {
         ["dust"] = "dust",
         ["dustSmall"] = "dust_small",
@@ -137,7 +137,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
         // Material classes need a name GT itself unifies: convention names like dustSpace* must not hand out material leaves.
         if (dump.UnifiedOredictTargets.ContainsKey(oredict)
             && dump.OrePrefixes.Match(oredict) is { } match
-            && _classByPrefix.TryGetValue(match.Prefix.Name, out var materialClass))
+            && ClassByPrefix.TryGetValue(match.Prefix.Name, out var materialClass))
         {
             return materialClass;
         }

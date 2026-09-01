@@ -8,15 +8,10 @@ public sealed class FakeSolveStore : ISolveStore
 {
     public ConcurrentDictionary<string, byte[]> Entries { get; } = new();
 
-    public int Reads { get; private set; }
-
     public int Writes { get; private set; }
 
-    public Task<byte[]?> GetAsync(string solveId)
-    {
-        Reads++;
-        return Task.FromResult(Entries.GetValueOrDefault(solveId));
-    }
+    public Task<byte[]?> GetAsync(string solveId) =>
+        Task.FromResult(Entries.GetValueOrDefault(solveId));
 
     public Task PutAsync(string solveId, byte[] payload)
     {

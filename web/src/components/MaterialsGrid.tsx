@@ -1,7 +1,6 @@
 import { fmtAka, fmtAmount, fmtCost, fmtCount, fmtStacks } from '../format'
 import { useStore } from '../storeContext'
 import type { BomResponse } from '../types'
-
 import { Slot } from './Slot'
 
 export function MaterialsGrid({ bom }: { bom: BomResponse }) {

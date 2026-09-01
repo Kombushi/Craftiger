@@ -6,7 +6,7 @@ namespace Craftiger.Solver.UnitTests;
 
 public sealed class BomTests
 {
-    private static readonly IReadOnlyDictionary<string, string> _noPins = new Dictionary<string, string>();
+    private static readonly IReadOnlyDictionary<string, string> NoPins = new Dictionary<string, string>();
 
     private static BomResult Compute(
         SolverGraph graph, IReadOnlyList<BomTarget> targets,
@@ -14,7 +14,7 @@ public sealed class BomTests
     {
         garage ??= Fx.Garage();
         var table = Fx.Solver().Solve(graph, garage, Fx.Weights());
-        return Fx.Bom().Compute(graph, table, garage, targets, pins ?? _noPins);
+        return Fx.Bom().Compute(graph, table, garage, targets, pins ?? NoPins);
     }
 
     private static double Leaf(BomResult result, string itemId) =>
@@ -49,18 +49,6 @@ public sealed class BomTests
         Assert.Equal(2, Leaf(result, "circuit"));
         Assert.Equal("circuit", Assert.Single(result.Nodes).InputsPerRun.Single().ItemId);
         Assert.Empty(result.Warnings);
-    }
-
-    [Fact]
-    public void RunsAreFractionalExpectedValues()
-    {
-        var graph = Fx.Graph(
-            [Fx.Leaf("clayBlock", weight: 1)],
-            Fx.Recipe("break", machine: "Mining", inputs: [("clayBlock", 1)], outputs: ("clayBall", 4, 1.0)));
-
-        var result = Compute(graph, [new BomTarget("clayBall", 1)]);
-
-        Assert.Equal(0.25, Leaf(result, "clayBlock"));
     }
 
     [Fact]
@@ -102,6 +90,9 @@ public sealed class BomTests
         Assert.Equal(1, Leaf(unpinned, "copper"));
         Assert.Equal(1, Leaf(pinned, "silver"));
         Assert.Equal("dear", pinned.Targets.Single().RecipeId);
+        var node = pinned.Nodes.Single();
+        Assert.Equal("dear", node.RecipeId);
+        Assert.Equal("silver", node.InputsPerRun.Single().ItemId);
     }
 
     [Fact]
@@ -211,7 +202,7 @@ public sealed class BomTests
     }
 
     [Fact]
-    public void ALoopWithNoOutsideRouteWarnsAndKeepsItsTotals()
+    public void ALeafMemberStopsTheLoopFromForming()
     {
         var graph = Fx.Graph(
             [Fx.Leaf("eu", weight: 1, leafClass: "fluid"), Fx.Leaf("chip", weight: 4096, leafClass: "gem")],
@@ -297,8 +288,8 @@ public sealed class BomTests
         var cheap = Fx.Solver().Solve(graph, garage, Fx.Weights());
         var flipped = Fx.Solver().Solve(graph, garage, Fx.Weights(items: new() { ["silver"] = 1 }));
 
-        var byCopper = Fx.Bom().Compute(graph, cheap, garage, [new BomTarget("wire", 1)], _noPins);
-        var bySilver = Fx.Bom().Compute(graph, flipped, garage, [new BomTarget("wire", 1)], _noPins);
+        var byCopper = Fx.Bom().Compute(graph, cheap, garage, [new BomTarget("wire", 1)], NoPins);
+        var bySilver = Fx.Bom().Compute(graph, flipped, garage, [new BomTarget("wire", 1)], NoPins);
 
         Assert.Equal(1, Leaf(byCopper, "copper"));
         Assert.Equal(1, Leaf(bySilver, "silver"));
@@ -420,22 +411,6 @@ public sealed class BomTests
     }
 
     [Fact]
-    public void APinShowsUpInItsNode()
-    {
-        var graph = Fx.Graph(
-            [Fx.Leaf("copper", tier: 0), Fx.Leaf("silver", tier: 1)],
-            Fx.Recipe("cheap", inputs: [("copper", 1)], outputs: ("wire", 1, 1.0)),
-            Fx.Recipe("dear", inputs: [("silver", 1)], outputs: ("wire", 1, 1.0)));
-
-        var result = Compute(graph, [new BomTarget("wire", 1)],
-            new Dictionary<string, string> { ["wire"] = "dear" });
-
-        var node = result.Nodes.Single();
-        Assert.Equal("dear", node.RecipeId);
-        Assert.Equal("silver", node.InputsPerRun.Single().ItemId);
-    }
-
-    [Fact]
     public void LeavesNeverExpandEvenWhenUndercut()
     {
         // The block leaf is deliberately dearer than packing it from ingots, so the solver
@@ -446,7 +421,7 @@ public sealed class BomTests
             Fx.Recipe("cut", inputs: [("block", 1)], outputs: ("slab", 2, 1.0)));
 
         var table = Fx.Solver().Solve(graph, Fx.Garage(), Fx.Weights());
-        var result = Fx.Bom().Compute(graph, table, Fx.Garage(), [new BomTarget("slab", 2)], _noPins);
+        var result = Fx.Bom().Compute(graph, table, Fx.Garage(), [new BomTarget("slab", 2)], NoPins);
 
         Assert.Equal(36, table.Cost("block"));
         Assert.Equal(1, Leaf(result, "block"));

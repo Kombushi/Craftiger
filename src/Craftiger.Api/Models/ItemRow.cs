@@ -4,7 +4,6 @@ namespace Craftiger.Api.Models;
 internal sealed record ItemRow(
     string Id,
     string Name,
-    string? Oredict,
     long IsFluid,
     string? LeafClass,
     long AtlasIdx,
