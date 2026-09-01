@@ -1,4 +1,4 @@
-# GTNH Crafting Planner — Specification v1.49
+# GTNH Crafting Planner — Specification v1.50
 
 Target pack: **GregTech: New Horizons 2.9.0-beta-2**. A web app that, for the
 user's machine garage (per-machine tiers), prices every craftable item by
@@ -1044,9 +1044,14 @@ Screens:
   step makes reads `unreachable_target`. A step's `machineItemId` and
   `ocSteps` narrow the recipe's run variants to the pinned block and
   overclock; a pin no buildable variant satisfies warns
-  `step_variant_unknown` and falls back to the free choice. A pipeline
-  ignores `pins` — the steps are the pins — and its `factoryId` hashes the
-  steps in their place. An inflow's auto-infinite mark means the purchase
+  `step_variant_unknown` and falls back to the free choice. An optional
+  `supplies` list of item ids declares free sources: each buys at zero
+  instead of its standing price, even where a step also makes it — the
+  user's world provides it — though a produce target still never buys;
+  an id naming nothing warns `supply_unknown`. Supplies alone (no steps)
+  already make the solve a pipeline. A pipeline ignores `pins` — the
+  steps are the pins — and its `factoryId` hashes the steps and supplies
+  in their place. An inflow's auto-infinite mark means the purchase
   itself was free, never that the item is merely derivable from
   renewables. Entries run single-flight per id and live in the
   same two cache tiers under `craftiger:{schema}:{pack}:{build_id}:factory:
@@ -1058,6 +1063,12 @@ Screens:
   buildable generator line, unpruned — the id a pipeline step names, its
   map, block, fuel, tier, net EU/t and fuel rate — plus the display
   lookup for the blocks and fuels; feeds the Planner's generator picker.
+- `POST /api/factory/producers` — body `{garage, b, weights, itemId}` →
+  the item detail with every garage-legal producer across all recipe
+  scopes, each factory-only row labeled by its `scope` (`factory`,
+  `factory_mob`, `factory_bred`; null is a crafting recipe); the
+  pipeline picker's source, where farm rows the crafting tab hides
+  become placeable steps.
 - `GET /api/meta` → tier ladder, tier voltages (EU/t per amp per tier,
   indexed like the ladder), machine list (each with its availability
   era), coil list, pack version, atlas dimensions
@@ -1129,8 +1140,9 @@ All "does not / never" rules live here; other sections only reference this one.
 - **Pipelines never expand** — a pipeline solve (§8 `steps`) never reads
   pins, never adds a recipe beyond its steps, and never crafts a missing
   input implicitly: what no step makes is supplied at its standing price,
-  visibly, and a produce target is never supplied at all — a pipeline
-  that cannot make its target is infeasible, not quietly outsourced.
+  visibly, and a produce target is never supplied at all — not even one
+  declared in `supplies` — a pipeline that cannot make its target is
+  infeasible, not quietly outsourced.
 - **Pseudo-recipe sources** — bee breeding, dungeon/chest loot, and GT
   informational tabs (material lists); the builder drops them
   (§3 step 3) because they conjure matter from nothing and poison
@@ -1479,3 +1491,9 @@ All "does not / never" rules live here; other sections only reference this one.
 69. `/api/factory/generators` lists a buildable line with its net EU/t
     and fuel rate; an energy target demanding a tier above every line
     still answers `no_generator`.
+70. A declared supply buys free — it undercuts even the step making it —
+    an unknown supply id warns `supply_unknown`, a supply never covers a
+    produce target, and supplies hash into the `factoryId` and make a
+    stepless request a pipeline.
+71. `/api/factory/producers` lists a farm-scoped producer with its scope
+    label beside the crafting rows the item detail alone would show.

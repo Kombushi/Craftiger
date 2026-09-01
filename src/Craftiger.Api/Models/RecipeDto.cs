@@ -1,6 +1,6 @@
 namespace Craftiger.Api.Models;
 
-/// <summary>A producing recipe in the item detail with its candidate cost, the alternative each slot resolves to, its catalyst slots, and the shaped grid as nine cells indexing Slots then Catalysts (null without a shape).</summary>
+/// <summary>A producing recipe in the item detail with its candidate cost, the alternative each slot resolves to, its catalyst slots, and the shaped grid as nine cells indexing Slots then Catalysts (null without a shape). Scope labels a factory-only row; null is a crafting recipe.</summary>
 public sealed record RecipeDto(
     string RecipeId,
     string Machine,
@@ -14,4 +14,5 @@ public sealed record RecipeDto(
     IReadOnlyList<string> Chosen,
     IReadOnlyList<IReadOnlyList<SlotAlternativeDto>> Catalysts,
     IReadOnlyList<OutputDto> Outputs,
-    IReadOnlyList<int?>? Grid);
+    IReadOnlyList<int?>? Grid,
+    string? Scope = null);

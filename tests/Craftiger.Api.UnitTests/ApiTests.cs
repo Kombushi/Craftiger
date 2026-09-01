@@ -480,6 +480,56 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task SuppliesHashInAndMakeAPipelineOnTheirOwn()
+    {
+        object Body(object[]? steps, string[]? supplies) => new
+        {
+            garage = _hvGarage,
+            b = 4,
+            targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.0 } },
+            steps,
+            supplies,
+        };
+        object[] viaWiremill = [new { id = "r_wire" }];
+
+        var bare = (await FactorySolveAsync(Body(viaWiremill, null))).FactoryId;
+        var supplied = (await FactorySolveAsync(Body(viaWiremill, ["ing"]))).FactoryId;
+        var suppliesOnly = await FactorySolveAsync(Body(null, ["ing"]));
+
+        Assert.NotEqual(bare, supplied);
+        // Supplies alone still mean a pipeline: with no step, nothing makes the target.
+        Assert.Equal(FactoryPlanStatus.Infeasible, suppliesOnly.Status);
+        Assert.Contains(suppliesOnly.Warnings, warning => warning.Kind == FactoryWarningKind.UnreachableTarget);
+    }
+
+    [Fact]
+    public async Task ABlankSupplyIsRefused()
+    {
+        var response = await Client.PostAsJsonAsync("/api/factory/solve", new
+        {
+            garage = _hvGarage,
+            b = 4,
+            targets = new[] { new { kind = "produce", itemId = "wire", rate = 1.0 } },
+            supplies = new[] { "" },
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TheProducerCatalogIncludesFarmRows()
+    {
+        var response = await Client.PostAsJsonAsync(
+            "/api/factory/producers", new { garage = _hvGarage, b = 4, itemId = "wire" });
+        response.EnsureSuccessStatusCode();
+        var detail = (await response.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+
+        Assert.Equal(2, detail.Recipes.Count);
+        Assert.Equal("factory", detail.Recipes.Single(recipe => recipe.RecipeId == "r_farm_wire").Scope);
+        Assert.Null(detail.Recipes.Single(recipe => recipe.RecipeId == "r_wire").Scope);
+    }
+
+    [Fact]
     public async Task AnEnergyTargetAboveEveryGeneratorDiagnoses()
     {
         // The fixture's one generator emits at LV; demanding HV export leaves nothing legal.

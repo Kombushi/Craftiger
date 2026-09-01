@@ -1,6 +1,6 @@
 namespace Craftiger.Api.Models;
 
-/// <summary>A factory solve request: the cost-solve settings plus the targets, layer priority, pins and scope toggles that shape the plan; steps turn it into a pipeline restricted to exactly them.</summary>
+/// <summary>A factory solve request: the cost-solve settings plus the targets, layer priority, pins and scope toggles that shape the plan; steps or supplies turn it into a pipeline restricted to exactly the steps, with each supply an item bought free.</summary>
 public sealed record FactorySolveRequest(
     GarageDto Garage,
     double B,
@@ -10,4 +10,5 @@ public sealed record FactorySolveRequest(
     Dictionary<string, string>? Pins = null,
     bool MobFarms = false,
     bool BredSeeds = false,
-    List<FactoryStepDto>? Steps = null);
+    List<FactoryStepDto>? Steps = null,
+    List<string>? Supplies = null);

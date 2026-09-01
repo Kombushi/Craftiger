@@ -19,6 +19,8 @@ public sealed record FactoryWarning(FactoryWarningKind Kind, string ItemId = "")
 
     public static FactoryWarning StepVariantUnknown(string recipeId) => new(FactoryWarningKind.StepVariantUnknown, recipeId);
 
+    public static FactoryWarning SupplyUnknown(string itemId) => new(FactoryWarningKind.SupplyUnknown, itemId);
+
     public static FactoryWarning RoutesPruned() => new(FactoryWarningKind.RoutesPruned);
 
     public static FactoryWarning NoGenerator() => new(FactoryWarningKind.NoGenerator);

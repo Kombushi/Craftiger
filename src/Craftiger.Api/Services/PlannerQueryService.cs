@@ -78,7 +78,7 @@ public sealed class PlannerQueryService(
             .ToList();
     }
 
-    public ItemDetailResponse? ItemDetail(SolveEntry entry, string itemId)
+    public ItemDetailResponse? ItemDetail(SolveEntry entry, string itemId, bool allScopes = false)
     {
         if (!artifact.Items.TryGetValue(itemId, out var item))
         {
@@ -92,8 +92,8 @@ public sealed class PlannerQueryService(
             for (var p = index.ProducerStart[position]; p < index.ProducerStart[position + 1]; p++)
             {
                 var recipe = index.ProducerRecipe[p];
-                // Factory-scoped rows belong to rate planning alone; the crafting tab never lists them.
-                if (index.ScopeOf(recipe) == RecipeScope.None && legality.IsLegal(index, recipe, entry.Garage))
+                // Factory-scoped rows belong to rate planning alone; only the pipeline picker sees them.
+                if ((allScopes || index.ScopeOf(recipe) == RecipeScope.None) && legality.IsLegal(index, recipe, entry.Garage))
                 {
                     recipes.Add(ToDto(entry, recipe, itemId));
                 }
@@ -237,6 +237,15 @@ public sealed class PlannerQueryService(
             entry.Table.InputsFor(itemId, recipe).Select(input => input.ItemId).ToList(),
             catalysts,
             Outputs(recipe),
-            data.Grid(recipe));
+            data.Grid(recipe),
+            ScopeLabel(index.ScopeOf(recipe)));
     }
+
+    private static string? ScopeLabel(RecipeScope scope) => scope switch
+    {
+        RecipeScope.Factory => "factory",
+        RecipeScope.FactoryMob => "factory_mob",
+        RecipeScope.FactoryBred => "factory_bred",
+        _ => null,
+    };
 }

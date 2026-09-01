@@ -58,6 +58,16 @@ public sealed class FactoryRequestService(
             }
         }
 
+        List<string>? supplies = null;
+        if (request.Supplies is { Count: > 0 })
+        {
+            if (request.Supplies.Any(string.IsNullOrWhiteSpace))
+            {
+                throw new ValidationException("a supply must name an item");
+            }
+            supplies = request.Supplies;
+        }
+
         return new FactoryRequest(
             targets,
             (request.Priority ?? []).Select(ObjectiveOf).ToList(),
@@ -65,10 +75,11 @@ public sealed class FactoryRequestService(
             request.MobFarms,
             request.BredSeeds,
             options.Value.FactoryTimeLimitSeconds,
-            steps);
+            steps,
+            supplies);
     }
 
-    /// <summary>Everything that shapes the plan hashes into the id — pins and the scope toggles included; priority keeps its order because the layers run in it. A pipeline hashes its steps in place of the pins the solve ignores.</summary>
+    /// <summary>Everything that shapes the plan hashes into the id — pins and the scope toggles included; priority keeps its order because the layers run in it. A pipeline hashes its steps and supplies in place of the pins the solve ignores.</summary>
     public string FactoryIdOf(FactorySolveRequest request)
     {
         var canonical = CacheKeys.Settings(new SolveRequest(request.Garage, request.B, request.Weights));
@@ -76,10 +87,11 @@ public sealed class FactoryRequestService(
             $"{target.Kind?.ToLowerInvariant()}:{target.ItemId}:" +
             $"{target.Rate.ToString("R", CultureInfo.InvariantCulture)}:{target.GeneratorTier?.ToString() ?? "any"}"));
         canonical.Append(";priority=").AppendJoin(',', (request.Priority ?? []).Select(name => name.ToLowerInvariant()));
-        if (request.Steps is { Count: > 0 })
+        if (request.Steps is { Count: > 0 } || request.Supplies is { Count: > 0 })
         {
-            CacheKeys.Append(canonical, "steps", request.Steps.Select(step =>
+            CacheKeys.Append(canonical, "steps", (request.Steps ?? []).Select(step =>
                 $"{step.Id}@{step.MachineItemId ?? "auto"}@{step.OcSteps?.ToString() ?? "auto"}"));
+            CacheKeys.Append(canonical, "supplies", (request.Supplies ?? []).Order(StringComparer.Ordinal));
         }
         else
         {

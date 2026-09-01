@@ -11,7 +11,7 @@ public interface IPlannerQueryService
 
     IReadOnlyList<ItemSummaryDto> Search(SolveEntry? entry, string query);
 
-    ItemDetailResponse? ItemDetail(SolveEntry entry, string itemId);
+    ItemDetailResponse? ItemDetail(SolveEntry entry, string itemId, bool allScopes = false);
 
     IReadOnlyList<string> Machines(IEnumerable<string> targetIds, bool deep);
 

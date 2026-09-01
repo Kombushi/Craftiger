@@ -87,6 +87,68 @@ public sealed class FactoryPipelineTests
         Assert.Contains(plan.Warnings, warning => warning.Kind == FactoryWarningKind.StepUnknown && warning.ItemId == "nope");
     }
 
+    [Fact]
+    public void ADeclaredSupplyBuysFree()
+    {
+        // The step's feedstock is declared on hand, so the dear route costs nothing.
+        var plan = Solve(
+            TwoRoutes(),
+            Produce([("out", 2)], steps: [new FactoryStep("viaB")], supplies: ["b"]));
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        var inflow = Assert.Single(plan.Inflows);
+        Assert.Equal("b", inflow.ItemId);
+        Assert.Equal(8, inflow.Rate, 5);
+        Assert.Equal(0, inflow.Weight, 9);
+        Assert.Equal(0, plan.PricedInflowCost, 9);
+    }
+
+    [Fact]
+    public void ASupplyUndercutsTheStepMakingIt()
+    {
+        var graph = SolverGraph.Build(
+            [Leaf("base", 1)],
+            [
+                Recipe("makeMid", inputs: [("base", 3)], outputs: ("mid", 1, 1.0)),
+                Recipe("makeOut", inputs: [("mid", 2)], outputs: ("out", 1, 1.0)),
+            ]);
+
+        // mid is both a step output and a declared supply: the free source idles its producer.
+        var plan = Solve(
+            graph,
+            Produce(
+                [("out", 1)],
+                priority: MachinesFirst,
+                steps: [new FactoryStep("makeMid"), new FactoryStep("makeOut")],
+                supplies: ["mid"]),
+            data: new Dictionary<string, (long, long, long)> { ["makeMid"] = (20, 4, 1), ["makeOut"] = (20, 4, 1) });
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        Assert.Equal("makeOut", Assert.Single(plan.Lines).RecipeId);
+        Assert.Equal("mid", Assert.Single(plan.Inflows).ItemId);
+    }
+
+    [Fact]
+    public void ASupplyNeverCoversAProduceTarget()
+    {
+        var plan = Solve(TwoRoutes(), Produce([("out", 1)], supplies: ["out"]));
+
+        Assert.Equal(FactoryPlanStatus.Infeasible, plan.Status);
+        Assert.Contains(plan.Warnings, warning => warning.Kind == FactoryWarningKind.UnreachableTarget && warning.ItemId == "out");
+    }
+
+    [Fact]
+    public void AnUnknownSupplyWarnsAndTheRestSolves()
+    {
+        var plan = Solve(
+            TwoRoutes(),
+            Produce([("out", 1)], steps: [new FactoryStep("viaA")], supplies: ["a", "nothing"]));
+
+        Assert.Equal(FactoryPlanStatus.Solved, plan.Status);
+        Assert.Equal("viaA", Assert.Single(plan.Lines).RecipeId);
+        Assert.Contains(plan.Warnings, warning => warning.Kind == FactoryWarningKind.SupplyUnknown && warning.ItemId == "nothing");
+    }
+
     private static (SolverGraph Graph, FactoryMachineData Machines, Dictionary<string, (long, long, long)> Data) OverclockFixture()
     {
         var graph = SolverGraph.Build(

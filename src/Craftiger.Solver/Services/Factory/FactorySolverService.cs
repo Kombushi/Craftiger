@@ -116,7 +116,7 @@ public sealed class FactorySolverService(
         var index = context.Index;
         var recipes = new HashSet<int>();
         var lineIds = new HashSet<string>();
-        foreach (var step in request.Steps!)
+        foreach (var step in request.Steps ?? [])
         {
             if (!index.TryGetRecipe(step.Id, out var recipe))
             {

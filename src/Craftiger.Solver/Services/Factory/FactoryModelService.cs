@@ -111,9 +111,22 @@ public sealed class FactoryModelService(
         // Purchase variables close every leaf's balance; consuming internal flow offsets them. A
         // pipeline instead supplies whatever no step makes — at its standing price — so a
         // half-built chain still solves and shows its open inputs, but never conjures a target.
+        // Declared supplies buy free even where a step makes them; a produce target never buys.
         if (request.IsPipeline)
         {
-            var made = new HashSet<int>(targets.ProducedItems);
+            var supplied = new HashSet<int>();
+            foreach (var id in (request.Supplies ?? []).Distinct().Order(StringComparer.Ordinal))
+            {
+                if (index.TryGetItem(id, out var supply))
+                {
+                    supplied.Add(supply);
+                }
+                else
+                {
+                    warnings.Add(FactoryWarning.SupplyUnknown(id));
+                }
+            }
+            var made = new HashSet<int>();
             foreach (var recipe in candidates.Candidates)
             {
                 for (var o = index.OutputStart[recipe]; o < index.OutputStart[recipe + 1]; o++)
@@ -134,12 +147,12 @@ public sealed class FactoryModelService(
             }
             foreach (var (item, row) in assembly.ItemRows)
             {
-                if (!made.Contains(item))
+                if (!targets.Produce.ContainsKey(item) && (supplied.Contains(item) || !made.Contains(item)))
                 {
                     assembly.AddColumn(new LpColumn(0, double.PositiveInfinity, [new LpEntry(row, 1)]), new BuyColumn(item));
                 }
             }
-            weights = StandingPrices(context, weights, assembly);
+            weights = StandingPrices(context, weights, assembly, supplied);
         }
         else
         {
@@ -244,14 +257,21 @@ public sealed class FactoryModelService(
         }
     }
 
-    /// <summary>Every item a pipeline may buy, at the cost table's price — the leaf weight only where no garage-legal chain undercuts it, and the chain's own price where one does.</summary>
+    /// <summary>Every item a pipeline may buy, at the cost table's price — the leaf weight only where no garage-legal chain undercuts it, and the chain's own price where one does. Declared supplies charge nothing: the user's world provides them.</summary>
     private static IReadOnlyDictionary<string, double> StandingPrices(
-        FactoryContext context, IReadOnlyDictionary<string, double> weights, FactoryModelAssembly assembly)
+        FactoryContext context,
+        IReadOnlyDictionary<string, double> weights,
+        FactoryModelAssembly assembly,
+        IReadOnlySet<int> supplied)
     {
         var charges = new Dictionary<string, double>(weights);
         foreach (var (item, _) in assembly.ItemRows)
         {
-            if (context.Costs.TryCost(item, out var cost))
+            if (supplied.Contains(item))
+            {
+                charges[context.Index.ItemIds[item]] = 0;
+            }
+            else if (context.Costs.TryCost(item, out var cost))
             {
                 charges[context.Index.ItemIds[item]] = cost;
             }

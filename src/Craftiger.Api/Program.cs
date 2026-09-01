@@ -128,6 +128,17 @@ app.MapPost("/api/factory/solve", (FactorySolveRequest request, IFactoryCacheSer
 app.MapPost("/api/factory/generators", (GeneratorCatalogRequest request, IFactoryCacheService cache) =>
     cache.GeneratorsAsync(request));
 
+// The pipeline picker's producer list: like /api/item, but farm-scoped rows included.
+app.MapPost("/api/factory/producers", async (
+    FactoryProducersRequest request, ISolveCacheService cache, IPlannerQueryService query) =>
+{
+    var solve = await cache.SolveAsync(new SolveRequest(request.Garage, request.B, request.Weights));
+    return await cache.GetAsync(solve.SolveId) is { } entry
+        && query.ItemDetail(entry, request.ItemId, allScopes: true) is { } detail
+            ? Results.Ok(detail)
+            : Results.NotFound();
+});
+
 app.MapGet("/atlas.webp", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas.webp", "image/webp"));
 app.MapGet("/atlas-offsets.json", (IOptions<ApiOptions> options) => StaticArtifact(options.Value.ArtifactsDir, "atlas-offsets.json", "application/json"));
 

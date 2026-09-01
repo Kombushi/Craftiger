@@ -30,6 +30,9 @@ public enum FactoryWarningKind
     [JsonStringEnumMemberName("step_variant_unknown")]
     StepVariantUnknown,
 
+    [JsonStringEnumMemberName("supply_unknown")]
+    SupplyUnknown,
+
     [JsonStringEnumMemberName("routes_pruned")]
     RoutesPruned,
 
