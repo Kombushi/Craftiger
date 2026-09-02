@@ -38,6 +38,8 @@ public static partial class FixtureDump
         Fluid(db, "f~cropsnh~cropsnh.enrichedfertilizer", "cropsnh.enrichedfertilizer", "Enriched Fertilizer");
         Fluid(db, Ic2Steam, "ic2steam", "Steam");
         Fluid(db, Lava, "lava", "Lava");
+        Fluid(db, Air, "air", "Air");
+        Fluid(db, NetherAir, "netherair", "Nether Air");
         Fluid(db, Hydrogen, "hydrogen", "Hydrogen");
         Item(db, WaterCell, "Water Cell", "gregtech");
         Item(db, EmptyCell, "Empty Cell", "gregtech");
@@ -116,6 +118,8 @@ public static partial class FixtureDump
         Item(db, PhantomOre, "Phantomium Ore", "gregtech");
         Item(db, PhantomIngot, "Phantomium Ingot", "gregtech");
         Item(db, NugIngot, "Nugium Ingot", "gregtech");
+        Item(db, AirIngot, "Airium Ingot", "gregtech");
+        Item(db, NetherAirIngot, "Netherairium Ingot", "gregtech");
         Item(db, NugNugget, "Nugium Nugget", "gregtech");
         Item(db, NugImpure, "Impure Pile of Nugium Dust", "gregtech");
         Item(db, LostIngot, "Lostium Ingot", "gregtech");
@@ -166,10 +170,14 @@ public static partial class FixtureDump
         Oredict(db, "ingotPhantomium", "g_phantom_ingot");
         Group(db, "g_alu_rod", (AluRod, 1));
         Group(db, "g_nug_ingot", (NugIngot, 1));
+        Group(db, "g_air_ingot", (AirIngot, 1));
+        Group(db, "g_netherair_ingot", (NetherAirIngot, 1));
         Group(db, "g_nug_nugget", (NugNugget, 9));
         Group(db, "g_nug_impure", (NugImpure, 1));
         Group(db, "g_lost_ingot", (LostIngot, 1));
         Oredict(db, "ingotNugium", "g_nug_ingot");
+        Oredict(db, "ingotAirium", "g_air_ingot");
+        Oredict(db, "ingotNetherairium", "g_netherair_ingot");
         Oredict(db, "nuggetNugium", "g_nug_nugget");
         Oredict(db, "dustImpureNugium", "g_nug_impure");
         Oredict(db, "ingotLostium", "g_lost_ingot");
@@ -207,6 +215,8 @@ public static partial class FixtureDump
         Group(db, "g_dataghost", (DataGhost, 1));
         Group(db, "g_widget", (FixtureWidget, 1));
         FluidStack(db, "g_water", 1000, Water);
+        FluidStack(db, "g_air", 1000, Air);
+        FluidStack(db, "g_netherair", 1000, NetherAir);
 
         Oredict(db, "ingotBronze", "g_bronze_ingot");
         Oredict(db, "dustBronze", "g_bronze_dust");
@@ -322,6 +332,8 @@ public static partial class FixtureDump
         Unify(db, "oreStonePhantomium", PhantomOre);
         Unify(db, "ingotPhantomium", PhantomIngot);
         Unify(db, "ingotNugium", NugIngot);
+        Unify(db, "ingotAirium", AirIngot);
+        Unify(db, "ingotNetherairium", NetherAirIngot);
         Unify(db, "nuggetNugium", NugNugget);
         Unify(db, "dustImpureNugium", NugImpure);
         Unify(db, "ingotLostium", LostIngot);

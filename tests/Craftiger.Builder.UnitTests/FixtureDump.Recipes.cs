@@ -189,6 +189,12 @@ public static partial class FixtureDump
         Recipe(db, "r_nug_wash", "t_furnace", inputs: [("g_nug_impure", 0)], outputs: [(NugIngot, 1, 1.0)]);
         Recipe(db, "r_nug_grind", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_nug_ingot", 0)],
             outputs: [(NugImpure, 1, 1.0)], voltage: 4, duration: 100);
+        // Air is a world fluid the intake hatch gathers, free at Steam; Nether Air only from IV,
+        // so what solidifies from each inherits that era.
+        Recipe(db, "r_air_use", "rt~gregtech~gt.recipe.fluidsolidifier~MV", inputs: [],
+            outputs: [(AirIngot, 1, 1.0)], voltage: 24, duration: 100, fluidInputs: [("g_air", 0)]);
+        Recipe(db, "r_netherair_use", "rt~gregtech~gt.recipe.fluidsolidifier~MV", inputs: [],
+            outputs: [(NetherAirIngot, 1, 1.0)], voltage: 24, duration: 100, fluidInputs: [("g_netherair", 0)]);
         // Lostium is only ever consumed, so the era solve never reaches it.
         Recipe(db, "r_lost_use", "t_furnace", inputs: [("g_lost_ingot", 0)], outputs: [(IronIngot, 1, 1.0)]);
         // Melting a manufactured item down gives back more than crafting it cost. The widget

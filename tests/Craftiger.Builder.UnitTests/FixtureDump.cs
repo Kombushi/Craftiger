@@ -105,6 +105,10 @@ public static partial class FixtureDump
     public const string Oxygen = "f~oxygen";
     public const string Water = "f~water";
     public const string Lava = "f~lava";
+    public const string Air = "f~air";
+    public const string NetherAir = "f~netherair";
+    public const string AirIngot = "i~gregtech~gt.metaitem.01~11048";
+    public const string NetherAirIngot = "i~gregtech~gt.metaitem.01~11049";
     public const string Hydrogen = "f~hydrogen";
     public const string WaterCell = "i~gregtech~gt.metaitem.01~30001";
     public const string EmptyCell = "i~gregtech~gt.metaitem.01~32000";

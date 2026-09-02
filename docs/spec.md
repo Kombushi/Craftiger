@@ -220,7 +220,7 @@ Builder responsibilities, in order:
    min-of-max fixpoint over the whole recipe graph:
    `era(item) = min over producing recipes of max(intrinsic recipe tier,
    era of every input)`. World-origin items seed the fixpoint: farmables,
-   logs, minable blocks, the world fluids config lists (water, lava), the
+   logs, minable blocks, the world fluids config lists (water, lava, air), the
    drops of mobs a checked-in list dates (the Wither at Steam, since the
    Nether is — the dump names no mob's world, so an unlisted mob's drops
    seed nothing and its Nether Star would otherwise wait for a ZPM-era ore
@@ -546,7 +546,7 @@ ships `ANALYZE`d so a reader's query planner sees real row counts.
 | Log | oredict `logWood` | 1 |
 | Farmable | explicit list: sugar cane, seeds, saplings, crops, … | 1 |
 | Crop drop | what a CropsNH crop drops, where no other class claims it | 1 |
-| World fluid | explicit list: water, lava, oil and its cuts, natural gas | per fluid, from `item_weights`: water 1, lava 2, oil and gas 8 |
+| World fluid | explicit list: water, lava, air, Nether Air, oil and its cuts, natural gas | per fluid, from `item_weights`: water, air and Nether Air 1, lava 2, oil and gas 8 |
 
 Membership goes by the oredict's exact GT prefix (§3 step 1), and every
 fraction divisor is the ratio of GT's material amounts for the two prefixes —
@@ -1216,6 +1216,12 @@ All "does not / never" rules live here; other sections only reference this one.
   as tier-13 leaves. The
   same holds for pumping a fluid out of the ground: the rig gates when the
   fluid becomes available, but the fluid itself prices as a world fluid.
+  Air and Nether Air are world fluids for the same reason: the Air Intake
+  Hatch draws them from whatever dimension it stands in, a mechanic no recipe
+  records, and the compressor's compressed-air cell — the one recipe-shaped
+  entry — nets to a conjuring recipe once its cell balances away (§3 step
+  2). Air seeds at Steam, where the compressor already fills cells; Nether
+  Air at IV, the intake hatch's own tier, since nothing else collects it.
   Harvesting a CropsNH crop is era-only for the same reason: growing a crop is
   renewable, so its drops price as leaves, while the harvest edge still dates
   them by what the crop needs — a seed, and one of the blocks it grows on.
@@ -1558,3 +1564,6 @@ All "does not / never" rules live here; other sections only reference this one.
     settles on a later solve pass (Kanthal made from EBF aluminium tiers
     above Cupronickel), and a coil the solve never reaches still ships,
     at one era past the highest solved coil.
+73. Air and Nether Air ship as world-fluid leaves at weight 1: air seeds the
+    era solve at Steam and Nether Air at IV, so an ingot solidified from
+    air tiers at its machine's era while one from Nether Air tiers at IV.
