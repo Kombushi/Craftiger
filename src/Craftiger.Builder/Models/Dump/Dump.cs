@@ -49,6 +49,13 @@ public sealed record Dump
     public required IReadOnlyList<DumpMachine> Machines { get; init; }
 
     /// <summary>The map a machine of the given class serves; null when no such machine or map exists.</summary>
+    /// <summary>The recipe type ids, one per tier suffix, a map's rows are filed under.</summary>
+    public HashSet<string> TypeIdsOf(DumpRecipeMap map) =>
+        RecipeMapByTypeId
+            .Where(pair => pair.Value.UnlocalizedName == map.UnlocalizedName)
+            .Select(pair => pair.Key)
+            .ToHashSet();
+
     public DumpRecipeMap? MapServedBy(string classSuffix)
     {
         var items = Machines

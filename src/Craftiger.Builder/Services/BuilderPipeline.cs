@@ -17,6 +17,7 @@ public sealed class BuilderPipeline(
     IUnificationService unification,
     IRecipeTransformService recipeTransform,
     ITreeFarmRecipeService treeFarm,
+    IAlgaePondRecipeService algaePond,
     IConservationService conservation,
     IBlockBreakRecipeService blockBreak,
     IUndergroundFluidRecipeService undergroundFluid,
@@ -57,6 +58,7 @@ public sealed class BuilderPipeline(
 
         var transformed = Stage("transform recipes", () => recipeTransform.Run(dump, unified));
         transformed.AddRange(Stage("farm trees", () => treeFarm.Run(dump, unified)));
+        transformed.AddRange(Stage("grow algae", () => algaePond.Run(dump, unified)));
         transformed.AddRange(Stage("break blocks", () => blockBreak.Run(dump, unified)));
         transformed.AddRange(Stage("harvest crops", () => cropHarvest.Run(dump, unified)));
         var recipes = Stage("conserve matter", () => conservation.Run(transformed, dump, unified));

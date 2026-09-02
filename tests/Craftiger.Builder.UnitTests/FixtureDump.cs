@@ -135,6 +135,10 @@ public static partial class FixtureDump
     public const string DataGhost = "i~fixture~dataghost~0";
     public const string FixtureWidget = "i~fixture~widget~0";
     public const string TreeFarm = "i~gregtech~gt.blockmachines~15541";
+    public const string AlgaeFarm = "i~gregtech~gt.blockmachines~15545";
+    public const string Algae = "i~miscutils~item.BasicAgrichemItem~0";
+    public const string GreenAlgae = "i~miscutils~item.BasicAgrichemItem~1";
+    public const string Compost = "i~miscutils~item.BasicAgrichemItem~8";
     public const string OakSapling = "i~minecraft~sapling~0";
     public const string PineLog = "i~minecraft~log~1";
     public const string Chainsaw = "i~gregtech~gt.metatool.01~110";

@@ -31,6 +31,7 @@ public static partial class FixtureDump
         RecipeType(db, "rt~gregtech~gt.recipe.packager~ULV", "gregtech", "Packager (ULV)", handlerIcons: 0);
         RecipeType(db, "rt~gregtech~gt.recipe.mixer~MAX", "gregtech", "Mixer (MAX)", handlerIcons: 0);
         RecipeType(db, "rt~gregtech~gtpp.recipe.treefarm~ULV", "gregtech", "Tree Growth Simulator (ULV)", handlerIcons: 0);
+        RecipeType(db, "rt~gregtech~gtpp.recipe.algae_pond~ULV", "gregtech", "Algae Pond (ULV)", handlerIcons: 0);
 
         RecipeMap(db, "gt.recipe.blastfurnace", "Blast Furnace", [(EbfController, true, null, false, null)]);
         RecipeMap(db, "gt.recipe.macerator", "Macerator", [(MaceratorLv, false, 1, false, 1), (MaceratorHv, false, 3, false, 2)]);
@@ -49,12 +50,20 @@ public static partial class FixtureDump
         // A steam machine relaxes its map's LV recipes; the flag decides, never the name.
         RecipeMap(db, "gt.recipe.fixturegrinder", "Bronze Grinder", [(SteamGrinder, false, 1, true, null)]);
         RecipeMap(db, "gtpp.recipe.treefarm", "Tree Growth Simulator", [(TreeFarm, true, null, false, null)]);
+        RecipeMap(db, "gtpp.recipe.algae_pond", "Algae Pond", [(AlgaeFarm, true, null, false, null)]);
 
         // The tree farm's NEI row: no inputs, the sapling in the controller slot, one output per mode slot.
         Recipe(db, "r_tree_oak", "rt~gregtech~gtpp.recipe.treefarm~ULV", inputs: [], outputs: [(Log, 2, 1.0)],
             byproducts: [(OakSapling, 5, 1.0, 1), (OakLeaves, 2, 1.0, 2)], voltage: 0, duration: 100, label: "ULV");
         SpecialItem(db, "r_tree_oak", OakSapling);
         Recipe(db, "r_tree_farm_craft", "t_shaped", inputs: [("g_log", 0)], outputs: [(TreeFarm, 1, 1.0)]);
+        // The pond's NEI rows: no inputs, the hatch tier in the special value, chanced byproducts.
+        Recipe(db, "r_algae_t0", "rt~gregtech~gtpp.recipe.algae_pond~ULV", inputs: [], outputs: [(Algae, 6, 1.0)],
+            byproducts: [(GreenAlgae, 2, 0.9, 1)], voltage: 0, duration: 2000, label: "ULV", specialValue: 0);
+        Recipe(db, "r_algae_t1", "rt~gregtech~gtpp.recipe.algae_pond~ULV", inputs: [], outputs: [(Algae, 10, 1.0)],
+            byproducts: [(GreenAlgae, 2, 1.0, 1), (GreenAlgae, 6, 0.9, 2)], voltage: 0, duration: 1800, label: "ULV", specialValue: 1);
+        Recipe(db, "r_algae_farm_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(AlgaeFarm, 1, 1.0)]);
+        Recipe(db, "r_compost", "t_shaped", inputs: [("g_log", 0)], outputs: [(Compost, 4, 1.0)]);
         // A log no tree farm grows stays a primitive the world hands over.
         Recipe(db, "r_pine_planks", "t_shaped", inputs: [("g_pine_log", 0)], outputs: [(Plank, 4, 1.0)]);
 

@@ -140,6 +140,10 @@ public static partial class FixtureDump
         Item(db, DataBox, "Fixture Data Box", "fixture");
         Item(db, DataGhost, "Fixture Data Ghost", "fixture");
         Item(db, FixtureWidget, "Fixture Widget", "fixture");
+        Item(db, AlgaeFarm, "Algae Farm", "gregtech");
+        Item(db, Algae, "Algae Biomass", "miscutils");
+        Item(db, GreenAlgae, "Green Algae Biomass", "miscutils");
+        Item(db, Compost, "Compost", "miscutils");
         Tooltip(db, Dryer, "Voltage IN: §e128§7 (§eMV§7)", 2);
         FluidContainer(db, "fc_water", 1000, WaterCell, EmptyCell, Water);
 

@@ -14,4 +14,6 @@ public sealed record FarmsConfiguration
     public required string WaterFluidName { get; init; }
 
     public required string XpJuiceFluidId { get; init; }
+
+    public required string CompostItemId { get; init; }
 }

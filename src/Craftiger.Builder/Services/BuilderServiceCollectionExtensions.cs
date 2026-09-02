@@ -52,6 +52,7 @@ public static class BuilderServiceCollectionExtensions
             .AddSingleton<ICraftingGridService, CraftingGridService>()
             .AddSingleton<IRecipeTransformService, RecipeTransformService>()
             .AddSingleton<ITreeFarmRecipeService, TreeFarmRecipeService>()
+            .AddSingleton<IAlgaePondRecipeService, AlgaePondRecipeService>()
             .AddSingleton<ICropFarmRecipeService, CropFarmRecipeService>()
             .AddSingleton<IMobLineRecipeService, MobLineRecipeService>()
             .AddSingleton<IConservationService, ConservationService>()

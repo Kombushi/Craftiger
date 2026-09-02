@@ -36,6 +36,7 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
             .SelectMany(c => c.Drops)
             .Select(drop => unified.Canonical(drop.ItemId))
             .ToHashSet();
+        var pondDrops = PondDrops(dump, unified);
         var classes = new Dictionary<string, string>();
 
         foreach (var id in canonicalIds)
@@ -60,6 +61,8 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
                 ? null
                 : Classify(oredict, unified.OredictsOf(id), dump);
 
+            // The pond is the one way in for algae, so like a log they stay leaves however else they are produced.
+            leafClass ??= pondDrops.Contains(id) ? "farmable" : null;
             // Farming is a leaf only where it is the one way in; most crop drops carry no oredict, so this comes last.
             leafClass ??= cropDrops.Contains(id) && !produced.Contains(id) ? "crop_drop" : null;
             if (leafClass is not null)
@@ -117,6 +120,22 @@ public sealed class LeafTaggingService(IOptions<WorldConfiguration> options, ILo
         dump.Fluids.Values
             .Where(f => _config.WorldFluids.ContainsKey(f.InternalName))
             .ToDictionary(f => f.Id, f => _config.WorldFluids[f.InternalName].Weight);
+
+    /// <summary>What the Algae Pond grows, off its map's rows.</summary>
+    private static HashSet<string> PondDrops(Dump dump, UnifiedItems unified)
+    {
+        var map = dump.MapServedBy(MachineClasses.AlgaePond);
+        if (map is null)
+        {
+            return [];
+        }
+        var typeIds = dump.TypeIdsOf(map);
+        return dump.Recipes
+            .Where(recipe => typeIds.Contains(recipe.RecipeTypeId))
+            .SelectMany(recipe => dump.ItemOutputsOf(recipe.Id))
+            .Select(output => unified.Canonical(output.ItemId))
+            .ToHashSet();
+    }
 
     private static bool HasPricedParent(
         string id, string leafClass, UnifiedItems unified, Dump dump,

@@ -15,10 +15,10 @@ public sealed class TreeFarmTests(BuilderPipelineFixture fixture) : IClassFixtur
         // LV's practical voltage, 30/32 of 32.
         Assert.Equal(30, fixture.Scalar<long>($"SELECT eu_t FROM recipes WHERE id = '{RecipeId}'"));
         Assert.Equal("TREE_FARM", fixture.Scalar<string>($"SELECT overclock FROM recipes WHERE id = '{RecipeId}'"));
-        // Farm and mob rows name their own ladders; nothing else climbs a special one.
+        // Farm, pond and mob rows name their own ladders; nothing else climbs a special one.
         Assert.Equal(0, fixture.Scalar<int>(
             "SELECT COUNT(*) FROM recipes WHERE overclock IS NOT NULL " +
-            "AND (overclock != 'TREE_FARM' OR id != 'r_tree_oak') AND scope IS NULL"));
+            "AND (overclock != 'TREE_FARM' OR id != 'r_tree_oak') AND scope IS NULL AND machine != 'Algae Pond'"));
     }
 
     [Fact]

@@ -26,6 +26,9 @@ public sealed record PlannerRecipe(
 
     public OverclockMode Overclock { get; init; } = OverclockMode.Standard;
 
+    /// <summary>Whether the voltage is the hatch's own, so no multiblock allowance lowers the tier.</summary>
+    public bool ExactTier { get; init; }
+
     /// <summary>Which engines read the recipe; anything but None is invisible to pricing, eras and the crafting tab.</summary>
     public RecipeScope Scope { get; init; } = RecipeScope.None;
 
@@ -60,7 +63,7 @@ public sealed record PlannerRecipe(
 
     /// <summary>The voltage tier this recipe runs at on one machine; a heat recipe's coil gate never takes the allowance.</summary>
     public int TierOn(RecipeMachine machine) =>
-        machine.Multiblock && Tier > 0 ? Math.Max(1, Tier - 1) : Tier;
+        machine.Multiblock && !ExactTier && Tier > 0 ? Math.Max(1, Tier - 1) : Tier;
 
     /// <summary>Steam machines burn fuel for their map's LV-and-below heat-less recipes, so no voltage gates them.</summary>
     public bool RunsOnSteam(RecipeMachine machine) => machine.Steam && Tier == 1 && Heat is null;

@@ -32,6 +32,7 @@ public sealed partial class RecipeTransformService(
         var ungatedTypeIds = new HashSet<string>(dump.Recipes.Where(r => r.Category == "minecraft").Select(r => r.RecipeTypeId));
         var slotTiersByMap = new Dictionary<string, IReadOnlyList<int>?>();
         var treeFarmMap = dump.MapServedBy(MachineClasses.TreeFarm)?.UnlocalizedName;
+        var algaePondMap = dump.MapServedBy(MachineClasses.AlgaePond)?.UnlocalizedName;
 
         foreach (var recipe in dump.Recipes)
         {
@@ -41,9 +42,9 @@ public sealed partial class RecipeTransformService(
                 continue;
             }
 
-            // Fuel maps burn their inputs for EU; their tabs are recipes only to NEI. Tree farm rows are synthesized with their catalysts.
+            // Fuel maps burn their inputs for EU; their tabs are recipes only to NEI. Tree farm and algae pond rows are synthesized.
             var map = dump.RecipeMapByTypeId.GetValueOrDefault(recipe.RecipeTypeId);
-            if (map is not null && (map.IsFuel || map.UnlocalizedName == treeFarmMap))
+            if (map is not null && (map.IsFuel || map.UnlocalizedName == treeFarmMap || map.UnlocalizedName == algaePondMap))
             {
                 continue;
             }

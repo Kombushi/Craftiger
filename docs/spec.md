@@ -170,7 +170,13 @@ Builder responsibilities, in order:
    order) gets a catalyst slot holding the best-multiplying tools of the
    dump's probed tool table, and the amounts ship at LV with that tool's multiplier
    applied, on a five-second run drawing LV's practical 30 EU/t; the
-   recipe's `overclock` names the tree farm's own ladder (§9).
+   recipe's `overclock` names the tree farm's own ladder (§9). The Algae
+   Pond's rows list no inputs either — its water is structure and its power
+   follows the one energy hatch — so the builder synthesizes them per hatch
+   tier from the dump's rows, keyed by the tier in their special value: each
+   ships at the hatch tier with nine tenths of its voltage, its own duration
+   and a `FIXED` overclock, beside a factory-scoped twin that spends the
+   tier's compost for the next tier's outputs (§9).
 3. **Exclusion** — drop every recipe source listed under "Excluded by design"
    (§9).
 4. **Tier tagging** — per recipe: voltage tier per §2 (GT label). Two tiers
@@ -179,7 +185,8 @@ Builder responsibilities, in order:
    a single-block needs, and `multi_tier` what the multiblock needs, set only
    where owning one actually lowers the bar. A map with nothing but multiblocks
    has no second option, so its `tier` already carries the allowance and its
-   `multi_tier` stays empty. Machine names normalize by stripping the recipe
+   `multi_tier` stays empty. A row whose voltage is its hatch's own takes no
+   allowance at all: the Algae Pond accepts one energy hatch and draws from it. Machine names normalize by stripping the recipe
    map's constant voltage suffix ("Macerator (ULV)" → "Macerator") and then
    applying the builder's rename table: crafting variants merge
    (shaped/shapeless → "Crafting Table") and the EBF map takes its controller's
@@ -544,7 +551,7 @@ ships `ANALYZE`d so a reader's query planner sees real row counts.
 | Gem | GT prefix `gem` | `B × 4^tier`, tiered like an ingot |
 | Gem grade | GT prefix `gemChipped` / `gemFlawed` / `gemFlawless` / `gemExquisite` | parent gem × ¼ / ½ / 2 / 4 |
 | Log | oredict `logWood` | 1 |
-| Farmable | explicit list: sugar cane, seeds, saplings, crops, … | 1 |
+| Farmable | explicit list: sugar cane, seeds, saplings, crops, …, and whatever the Algae Pond grows | 1 |
 | Crop drop | what a CropsNH crop drops, where no other class claims it | 1 |
 | World fluid | explicit list: water, lava, air, Nether Air, oil and its cuts, natural gas | per fluid, from `item_weights`: water, air and Nether Air 1, lava 2, oil and gas 8 |
 
@@ -1164,10 +1171,10 @@ All "does not / never" rules live here; other sections only reference this one.
 - **Recipes that consume nothing** — a recipe whose every input is a
   catalyst conjures its outputs, and a material-only cost has nothing to
   say about it: such a recipe never prices, in the shipped engine and in the
-  builder's own price check alike. The Tree Growth Simulator is the one
-  such recipe family that ships (§3 step 2): it exists for rate planning,
-  where a run costs machine time and EU, while its logs keep pricing at
-  their farm-leaf weight. A pin may still choose it for a BOM, which then
+  builder's own price check alike. The Tree Growth Simulator and the Algae
+  Pond are the two such families that ship (§3 step 2): they exist for rate
+  planning, where a run costs machine time and EU, while their logs and
+  algae keep pricing at their farm-leaf weight. A pin may still choose it for a BOM, which then
   makes the logs for nothing. Its tool multipliers are GT5-Unofficial's
   own: the exporter probes every item through the controller's tool check,
   so the dump lists exactly what the machine accepts per mode (logs by Saw
@@ -1179,7 +1186,13 @@ All "does not / never" rules live here; other sections only reference this one.
   what the controller computes from one energy hatch; that two ordinary
   hatches read as the next tier is the same amperage lift rate planning
   ignores on every multiblock, so a tree farm climbs exactly the garage's
-  tiers.
+  tiers. The Algae Pond never climbs: it accepts exactly one energy hatch,
+  its tier is that hatch's, and its power is nine tenths of the hatch's
+  voltage, so each hatch tier ships its own `FIXED` row — at LV for the ULV
+  hatch the ladder cannot name. Compost lifts a run to the next tier's
+  outputs, one compost up to LV and doubling per tier to a stack, and those
+  composted twins are factory-scoped: pricing algae off compost would be
+  fiction, so the algae stay farmable leaves and the rows plan rates only.
 - **Byproduct credit** — sibling outputs never reduce a recipe's cost;
   crediting them collapses all prices toward zero through recycling loops.
 - **Factory-scoped rows** — recipes marked with a `scope` never price (a
@@ -1574,3 +1587,7 @@ All "does not / never" rules live here; other sections only reference this one.
 74. A recycling-tagged grind of a world-minable block survives: macerating
     a snow block into snow powder ships although the block carries no
     material shape, and the powder tiers at the macerator's LV era.
+75. The Algae Pond ships one `FIXED` row per hatch tier at nine tenths of
+    the hatch's voltage with no multiblock allowance, a factory-scoped
+    compost twin carrying the next tier's outputs, chanced outputs merged
+    per item, and everything it grows tagged a farmable leaf.

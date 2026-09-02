@@ -4,6 +4,7 @@ namespace Craftiger.Builder.Models.Dump;
 public static class MachineClasses
 {
     public const string TreeFarm = ".MTETreeFarm";
+    public const string AlgaePond = ".MTEAlgaePond";
     public const string XlTurbines = ".xlturbines.";
     public const string SteamTurbine = ".MTESteamTurbine";
     public const string CropManager = ".MTECropManager";
