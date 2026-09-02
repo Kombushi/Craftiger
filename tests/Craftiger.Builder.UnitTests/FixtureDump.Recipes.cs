@@ -217,6 +217,10 @@ public static partial class FixtureDump
         // A cell holds its material inside a container item, so recycling it must not price.
         Recipe(db, "r_cell_recycle", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_brew_cell", 0)],
             outputs: [(CopperDust, 1, 1.0)], voltage: 4, duration: 100, category: "maceratorRecycling");
+        // GT files grinding a snow block under recycling, but the world hands the block over, so
+        // the tag must not condemn the one route to its dust.
+        Recipe(db, "r_snow_grind", "rt~gregtech~gt.recipe.macerator~ULV", inputs: [("g_snow_block", 0)],
+            outputs: [(SnowPowder, 4, 1.0)], voltage: 4, duration: 100, category: "maceratorRecycling");
         Recipe(db, "r_brick", "t_furnace", inputs: [("g_clay_ball", 0)], outputs: [(IronIngot, 1, 1.0)]);
         Recipe(db, "r_ebf_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(EbfController, 1, 1.0)]);
         Recipe(db, "r_macerator_craft", "t_shaped", inputs: [("g_copper_ingot", 0)], outputs: [(MaceratorLv, 1, 1.0)]);

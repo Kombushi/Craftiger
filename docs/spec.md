@@ -1244,7 +1244,11 @@ All "does not / never" rules live here; other sections only reference this one.
   a material's molten form. The two are told apart by what is consumed: a tagged
   recipe survives when every ingredient is one shape of a single material, and
   is dropped when anything else goes in — a `doorIron`, a `signWood`, an
-  Electric Piston with no oredict at all. GT's own prefix flags decide what a
+  Electric Piston with no oredict at all. A world-minable block (§4) is the
+  one exception: GregTech files grinding snow or cobblestone under recycling
+  too, but the world hands those blocks over, so taking one apart is primary
+  production, not a round trip, and such a recipe survives whatever else it
+  lacks. GT's own prefix flags decide what a
   shape is: an oredict whose exact prefix is unifiable, material-based, and
   not a container (`ingot*`, `plate*`, `wireGt*`, `toolHeadDrill*`, …, or any
   fluid) qualifies, while a `cell*` holds its material inside a container item
@@ -1567,3 +1571,6 @@ All "does not / never" rules live here; other sections only reference this one.
 73. Air and Nether Air ship as world-fluid leaves at weight 1: air seeds the
     era solve at Steam and Nether Air at IV, so an ingot solidified from
     air tiers at its machine's era while one from Nether Air tiers at IV.
+74. A recycling-tagged grind of a world-minable block survives: macerating
+    a snow block into snow powder ships although the block carries no
+    material shape, and the powder tiers at the macerator's LV era.

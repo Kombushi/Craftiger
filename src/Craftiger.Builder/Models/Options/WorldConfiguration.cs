@@ -11,4 +11,8 @@ public sealed record WorldConfiguration
 
     /// <summary>Oredict prefixes of farmable leaves.</summary>
     public required IReadOnlyList<string> FarmableOredictPrefixes { get; init; }
+
+    /// <summary>Whether the world hands the item over, by its id or any of its oredicts.</summary>
+    public bool IsMinable(string id, IEnumerable<string> oredicts) =>
+        MinableBlockEras.ContainsKey(id) || oredicts.Any(MinableBlockEras.ContainsKey);
 }

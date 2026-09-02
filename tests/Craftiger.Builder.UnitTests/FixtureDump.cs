@@ -93,6 +93,8 @@ public static partial class FixtureDump
     public const string GemDust = "i~gregtech~gt.metaitem.01~2500";
     public const string ClayBlock = "i~minecraft~clay~0";
     public const string ClayBall = "i~minecraft~clay_ball~0";
+    public const string SnowBlock = "i~minecraft~snow~0";
+    public const string SnowPowder = "i~gregtech~gt.metaitem.01~2728";
     public const string DryIngot = "i~gregtech~gt.metaitem.01~11777";
     public const string ByDust = "i~gregtech~gt.metaitem.01~2778";
     public const string ByIngot = "i~gregtech~gt.metaitem.01~11778";

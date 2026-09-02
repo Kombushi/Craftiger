@@ -156,6 +156,15 @@ public sealed class BuilderPipelineTests : IClassFixture<BuilderPipelineFixture>
         Assert.Equal(0, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_cell_recycle'"));
 
     [Fact]
+    public void RecyclingAWorldMinableBlockSurvives()
+    {
+        Assert.Equal(1, _fixture.Scalar<int>("SELECT COUNT(*) FROM recipes WHERE id = 'r_snow_grind'"));
+        // The powder dates from the LV macerator, not from the Steam-era block alone.
+        Assert.Equal(1, _fixture.Scalar<int>(
+            $"SELECT tier FROM item_tiers WHERE item_id = '{FixtureDump.SnowPowder}'"));
+    }
+
+    [Fact]
     public void GemGradesPriceAsFractionsOfTheirGem()
     {
         Assert.Equal("gem_flawed", _fixture.Scalar<string>(

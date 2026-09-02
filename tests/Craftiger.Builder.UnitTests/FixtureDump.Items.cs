@@ -115,6 +115,8 @@ public static partial class FixtureDump
         Item(db, BrewCell, "Brewium Cell", "gregtech");
         Item(db, ClayBlock, "Clay", "minecraft");
         Item(db, ClayBall, "Clay Ball", "minecraft");
+        Item(db, SnowBlock, "Snow", "minecraft");
+        Item(db, SnowPowder, "Snow Powder", "gregtech");
         Item(db, PhantomOre, "Phantomium Ore", "gregtech");
         Item(db, PhantomIngot, "Phantomium Ingot", "gregtech");
         Item(db, NugIngot, "Nugium Ingot", "gregtech");
@@ -204,6 +206,9 @@ public static partial class FixtureDump
         Oredict(db, "cellBrewium", "g_brew_cell");
         Group(db, "g_clay_ball", (ClayBall, 1));
         Group(db, "g_clay_block", (ClayBlock, 1));
+        Group(db, "g_snow_block", (SnowBlock, 1));
+        Group(db, "g_snow_powder", (SnowPowder, 1));
+        Oredict(db, "dustSnow", "g_snow_powder");
         Group(db, "g_bronze_small", (BronzeSmall, 1));
         Oredict(db, "dustSmallBronze", "g_bronze_small");
         Group(db, "g_shard", (FixtureShard, 1));
@@ -375,6 +380,7 @@ public static partial class FixtureDump
         Unify(db, "dustSmallBronze", BronzeSmall);
         Unify(db, "dustShardium", ShardDust);
         Unify(db, "dustClay", ClayDust);
+        Unify(db, "dustSnow", SnowPowder);
 
         // GT's real flags and material amounts for every prefix a fixture oredict uses.
         OrePrefix(db, "ore", -1);

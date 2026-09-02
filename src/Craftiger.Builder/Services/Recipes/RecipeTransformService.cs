@@ -10,12 +10,14 @@ namespace Craftiger.Builder.Services.Recipes;
 
 public sealed partial class RecipeTransformService(
     IOptions<RecipesConfiguration> options,
+    IOptions<WorldConfiguration> worldOptions,
     IRecipeMachineListService machineLists,
     IRecipeSlotResolver slotResolver,
     IRecipeVariantService variants,
     ICraftingGridService grids) : IRecipeTransformService
 {
     private readonly RecipesConfiguration _config = options.Value;
+    private readonly WorldConfiguration _world = worldOptions.Value;
     private readonly FrozenSet<string> _excludedMachines = options.Value.ExcludedMachines.ToFrozenSet();
     private readonly FrozenSet<string> _eraOnlyMachines = options.Value.EraOnlyMachines.ToFrozenSet();
 
@@ -152,8 +154,9 @@ public sealed partial class RecipeTransformService(
             var ingredients = inputs.Keys
                 .Concat(choices.SelectMany(choice => choice.Alternatives.Select(a => a.ItemId)))
                 .ToList();
+            // The world hands a minable block over, so grinding one is primary production however GT files it.
             var recycling = gt is not null && IsRecycling(gt.Category);
-            if (recycling && !ingredients.All(id => IsMaterialShape(id, dump, unified)))
+            if (recycling && !ingredients.All(id => IsMaterialShape(id, dump, unified) || _world.IsMinable(id, unified.OredictsOf(id))))
             {
                 continue;
             }
